@@ -32,6 +32,7 @@
               extensions = [ "rust-src" ];
             })
             bashInteractive
+            cargo-watch
           ];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
           shellHook = ''
