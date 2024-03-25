@@ -54,8 +54,12 @@ pub async fn checkbucks(ctx: Context<'_>) -> Result<(), Error> {
             .or_insert(50)
             .to_owned()
     }
-    let response = format!("{} has {} J-Bucks!", ctx.author(), user_balance);
-    ctx.say(response).await?;
+    let reply = {
+        CreateReply::default()
+            .content(format!("{} has {} J-Bucks!", ctx.author(), user_balance,))
+            .ephemeral(true)
+    };
+    ctx.send(reply).await?;
     Ok(())
 }
 
@@ -141,7 +145,7 @@ pub async fn start_gamble(
     let id = a.message().await?.id;
 
     while let Some(mci) = serenity::ComponentInteractionCollector::new(ctx)
-        .author_id(ctx.author().id)
+        // .author_id(ctx.author().id) this filters to interactions just by the user
         .channel_id(ctx.channel_id())
         .timeout(std::time::Duration::from_secs(
             (now + time_to_play - 1) - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
@@ -149,6 +153,7 @@ pub async fn start_gamble(
         .filter(move |mci| mci.data.custom_id == "Bet" && mci.message.id == id)
         .await
     {
+        dbg!(&mci);
         let player = mci.user.id.to_string();
         if players.contains(&player) {
             mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
