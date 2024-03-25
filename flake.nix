@@ -19,8 +19,12 @@
           cargoLock.lockFile = ./Cargo.lock;
           src = pkgs.lib.cleanSource ./.;
           buildInputs = [ pkgs.openssl ];
-          nativeBuildInputs = [ pkgs.pkg-config ];
+          nativeBuildInputs = [
+            pkgs.pkg-config
+            # pkgs.gcc
+          ];
           doCheck = false;
+          # RUSTFLAGS = "-C target-feature=+crt-static";
         });
       in
       rec
