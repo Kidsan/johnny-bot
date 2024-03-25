@@ -13,16 +13,25 @@
           overlays = [ (import rust-overlay) ];
         };
         manifest = (pkgs.lib.importTOML ./Cargo.toml).package;
-      in
-      {
-        defaultPackage = pkgs.rustPlatform.buildRustPackage {
+        build-bot = (pkgs: pkgs.rustPlatform.buildRustPackage {
           pname = manifest.name;
           version = manifest.version;
           cargoLock.lockFile = ./Cargo.lock;
           src = pkgs.lib.cleanSource ./.;
           buildInputs = [ pkgs.openssl ];
           nativeBuildInputs = [ pkgs.pkg-config ];
+          doCheck = false;
+        });
+      in
+      rec
+      {
+        packages = {
+          bot = build-bot pkgs;
+          bot-cross-aarch64-linux = build-bot pkgs.pkgsCross.aarch64-multiplatform;
         };
+
+        defaultPackage = packages.bot;
+
 
         devShell = with pkgs; mkShell {
           LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath [ pkgs.openssl ];
