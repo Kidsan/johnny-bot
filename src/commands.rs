@@ -1,10 +1,16 @@
 use std::{
+    collections::HashMap,
     time::{SystemTime, UNIX_EPOCH},
     vec,
 };
 
+use rand::seq::SliceRandom;
+
 use crate::{Context, Error};
-use poise::{serenity_prelude as serenity, CreateReply};
+use poise::{
+    serenity_prelude::{self as serenity, CreateInteractionResponseMessage},
+    CreateReply,
+};
 
 #[poise::command(prefix_command, track_edits, slash_command)]
 pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
@@ -40,7 +46,15 @@ pub async fn help(
 /// ```
 #[poise::command(prefix_command, slash_command)]
 pub async fn checkbucks(ctx: Context<'_>) -> Result<(), Error> {
-    let response = format!("{} has {} J-Bucks!", ctx.author(), 50);
+    let user_balance;
+    {
+        let mut balances = ctx.data().balances.lock().unwrap();
+        user_balance = balances
+            .entry(ctx.author().id.to_string())
+            .or_insert(50)
+            .to_owned()
+    }
+    let response = format!("{} has {} J-Bucks!", ctx.author(), user_balance);
     ctx.say(response).await?;
     Ok(())
 }
@@ -63,6 +77,10 @@ fn new_pot_counter_button(amount: i32) -> serenity::CreateButton {
         .style(poise::serenity_prelude::ButtonStyle::Success)
 }
 
+fn user_can_play(user_balance: i32, amount: i32) -> bool {
+    user_balance >= amount
+}
+
 /// Start a gamble
 ///
 /// Enter `~startGamble` to play
@@ -74,9 +92,35 @@ pub async fn start_gamble(
     ctx: Context<'_>,
     #[description = "amount to play"] amount: i32,
 ) -> Result<(), Error> {
+    let game_starter = ctx.author().id.to_string();
+    let mut start_game: bool = true;
+    {
+        let mut balances = ctx.data().balances.lock().unwrap();
+        if !balances.contains_key(&ctx.author().id.to_string()) {
+            balances.insert(game_starter.clone(), 50);
+        }
+
+        if user_can_play(*balances.get(&game_starter).unwrap(), amount) {
+            let user_balance = balances.entry(game_starter.clone()).or_default();
+            *user_balance -= amount;
+        } else {
+            start_game = false;
+        }
+    }
+
+    if !start_game {
+        let reply = {
+            CreateReply::default()
+                .content("You can't afford to do that!")
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("You can't afford to do that".into());
+    }
+
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let time_to_play = 10;
-    let mut players = vec![ctx.author().to_string()];
+    let time_to_play = 30;
+    let mut players = vec![game_starter];
     let mut pot = amount;
     let components = vec![serenity::CreateActionRow::Buttons(vec![
         new_bet_button(amount),
@@ -94,34 +138,70 @@ pub async fn start_gamble(
     };
 
     let a = ctx.send(reply).await?;
+    let id = a.message().await?.id;
+
     while let Some(mci) = serenity::ComponentInteractionCollector::new(ctx)
         .author_id(ctx.author().id)
         .channel_id(ctx.channel_id())
         .timeout(std::time::Duration::from_secs(
             (now + time_to_play - 1) - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
         ))
-        // .filter(move |mci| mci.data.custom_id == game_id.to_string())
+        .filter(move |mci| mci.data.custom_id == "Bet" && mci.message.id == id)
         .await
     {
-        players.push(mci.user.to_string());
-        pot += amount;
-
-        let mut msg = mci.message.clone();
-
-        msg.edit(
-            ctx,
-            serenity::EditMessage::new().components(vec![serenity::CreateActionRow::Buttons(
-                vec![
-                    new_bet_button(amount),
-                    new_player_count_button(players.len() as i32),
-                    new_pot_counter_button(pot),
-                ],
-            )]),
-        )
-        .await?;
-
-        mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
+        let player = mci.user.id.to_string();
+        if players.contains(&player) {
+            mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
+                .await?;
+            continue;
+        }
+        let player_balance;
+        {
+            let mut balances = ctx.data().balances.lock().unwrap();
+            player_balance = *balances.entry(player.clone()).or_insert(50);
+        }
+        if player_balance < amount {
+            mci.create_response(
+                ctx,
+                serenity::CreateInteractionResponse::Message(
+                    CreateInteractionResponseMessage::new()
+                        .content("You can't afford to do that!")
+                        .ephemeral(true),
+                ),
+            )
             .await?;
+        } else {
+            {
+                let mut balances = ctx.data().balances.lock().unwrap();
+                let player_balance = balances.entry(player).or_default();
+                *player_balance -= amount;
+            }
+            players.push(mci.user.to_string());
+            pot += amount;
+
+            let mut msg = mci.message.clone();
+
+            msg.edit(
+                ctx,
+                serenity::EditMessage::new().components(vec![serenity::CreateActionRow::Buttons(
+                    vec![
+                        new_bet_button(amount),
+                        new_player_count_button(players.len() as i32),
+                        new_pot_counter_button(pot),
+                    ],
+                )]),
+            )
+            .await?;
+
+            mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
+                .await?;
+        }
+    }
+    let winner = players.choose(&mut rand::thread_rng()).unwrap();
+    {
+        let mut balances = ctx.data().balances.lock().unwrap();
+        let user_balance = balances.entry(winner.clone()).or_insert(50);
+        *user_balance += pot;
     }
     a.edit(
         ctx,
@@ -166,8 +246,8 @@ pub async fn vote(
     #[description = "What to vote for"] choice: String,
 ) -> Result<(), Error> {
     // Lock the Mutex in a block {} so the Mutex isn't locked across an await point
-    let num_votes = {
-        let mut hash_map = ctx.data().votes.lock().unwrap();
+    let num_votes: i32 = {
+        let mut hash_map = HashMap::new();
         let num_votes = hash_map.entry(choice.clone()).or_default();
         *num_votes += 1;
         *num_votes
@@ -191,7 +271,8 @@ pub async fn getvotes(
     #[description = "Choice to retrieve votes for"] choice: Option<String>,
 ) -> Result<(), Error> {
     if let Some(choice) = choice {
-        let num_votes = *ctx.data().votes.lock().unwrap().get(&choice).unwrap_or(&0);
+        let data: HashMap<String, i32> = HashMap::new();
+        let num_votes = *data.get(&choice).unwrap_or(&0);
         let response = match num_votes {
             0 => format!("Nobody has voted for {} yet", choice),
             _ => format!("{} people have voted for {}", num_votes, choice),
@@ -199,7 +280,8 @@ pub async fn getvotes(
         ctx.say(response).await?;
     } else {
         let mut response = String::new();
-        for (choice, num_votes) in ctx.data().votes.lock().unwrap().iter() {
+        let data: HashMap<String, i32> = HashMap::new();
+        for (choice, num_votes) in data.iter() {
             response += &format!("{}: {} votes", choice, num_votes);
         }
 
