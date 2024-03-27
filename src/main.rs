@@ -14,9 +14,18 @@ use std::{
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
+#[derive(Debug)]
+pub struct Game {
+    pub id: String,
+    pub players: Vec<String>,
+    pub amount: i32,
+    pub pot: i32,
+}
+
 // Custom user data passed to all command functions
 pub struct Data {
     balances: Mutex<HashMap<String, i32>>,
+    games: Mutex<HashMap<String, Game>>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -49,7 +58,7 @@ async fn main() {
             commands::getvotes(),
             commands::checkbucks(),
             commands::register(),
-            commands::start_gamble(),
+            commands::gamble(),
             commands::leaderboard(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
@@ -108,6 +117,7 @@ async fn main() {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
                     balances: Mutex::new(HashMap::new()),
+                    games: Mutex::new(HashMap::new()),
                 })
             })
         })

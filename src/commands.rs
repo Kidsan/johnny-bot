@@ -6,9 +6,12 @@ use std::{
 
 use rand::seq::SliceRandom;
 
-use crate::{Context, Error};
+use crate::{Context, Error, Game};
 use poise::{
-    serenity_prelude::{self as serenity, CreateInteractionResponseMessage},
+    serenity_prelude::{
+        self as serenity, CreateAllowedMentions, CreateInteractionResponseMessage, CreateMessage,
+        MessageFlags,
+    },
     CreateReply,
 };
 
@@ -92,7 +95,7 @@ fn user_can_play(user_balance: i32, amount: i32) -> bool {
 /// /startGamble
 /// ```
 #[poise::command(prefix_command, track_edits, slash_command)]
-pub async fn start_gamble(
+pub async fn gamble(
     ctx: Context<'_>,
     #[description = "amount to play"] amount: i32,
 ) -> Result<(), Error> {
@@ -123,9 +126,9 @@ pub async fn start_gamble(
     }
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let time_to_play = 30;
-    let mut players = vec![game_starter];
-    let mut pot = amount;
+    let time_to_play = 10;
+    let players = vec![game_starter.clone()];
+    let pot = amount;
     let components = vec![serenity::CreateActionRow::Buttons(vec![
         new_bet_button(amount),
         new_player_count_button(players.len() as i32),
@@ -143,23 +146,48 @@ pub async fn start_gamble(
 
     let a = ctx.send(reply).await?;
     let id = a.message().await?.id;
+    {
+        let mut games = ctx.data().games.lock().unwrap();
+        games.insert(
+            id.to_string(),
+            Game {
+                id: id.to_string(),
+                players: players.clone(),
+                amount,
+                pot: amount,
+            },
+        );
+    }
 
     while let Some(mci) = serenity::ComponentInteractionCollector::new(ctx)
         // .author_id(ctx.author().id) this filters to interactions just by the user
         .channel_id(ctx.channel_id())
+        .message_id(id)
         .timeout(std::time::Duration::from_secs(
             (now + time_to_play - 1) - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
         ))
-        .filter(move |mci| mci.data.custom_id == "Bet" && mci.message.id == id)
+        .filter(move |mci| mci.data.custom_id == "Bet")
         .await
     {
         dbg!(&mci);
         let player = mci.user.id.to_string();
-        if players.contains(&player) {
-            mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
-                .await?;
-            continue;
+        {
+            if ctx
+                .data()
+                .games
+                .lock()
+                .unwrap()
+                .get(&id.to_string())
+                .unwrap()
+                .players
+                .contains(&player)
+            {
+                mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
+                    .await?;
+                continue;
+            }
         }
+
         let player_balance;
         {
             let mut balances = ctx.data().balances.lock().unwrap();
@@ -176,53 +204,77 @@ pub async fn start_gamble(
             )
             .await?;
         } else {
+            let button2;
+            let button3;
             {
                 let mut balances = ctx.data().balances.lock().unwrap();
-                let player_balance = balances.entry(player).or_default();
+                let player_balance = balances.entry(player).or_insert(50);
                 *player_balance -= amount;
+
+                let mut games = ctx.data().games.lock().unwrap();
+                let game = games.get_mut(&id.to_string()).unwrap();
+                game.players.push(mci.user.id.to_string());
+                game.pot += amount;
+                button2 = new_player_count_button(game.players.len() as i32);
+                button3 = new_pot_counter_button(game.pot);
             }
-            players.push(mci.user.to_string());
-            pot += amount;
 
             let mut msg = mci.message.clone();
 
             msg.edit(
                 ctx,
                 serenity::EditMessage::new().components(vec![serenity::CreateActionRow::Buttons(
-                    vec![
-                        new_bet_button(amount),
-                        new_player_count_button(players.len() as i32),
-                        new_pot_counter_button(pot),
-                    ],
+                    vec![new_bet_button(amount), button2, button3],
                 )]),
             )
             .await?;
-
-            mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
-                .await?;
+        }
+        mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
+            .await?;
+    }
+    let winner;
+    {
+        let mut games = ctx.data().games.lock().unwrap();
+        let game = games.get_mut(&id.to_string()).unwrap();
+        winner = game
+            .players
+            .choose(&mut rand::thread_rng())
+            .unwrap()
+            .clone();
+        {
+            let mut balances = ctx.data().balances.lock().unwrap();
+            let user_balance = balances.get_mut(&winner).unwrap();
+            *user_balance += game.pot;
         }
     }
-    let winner = players.choose(&mut rand::thread_rng()).unwrap();
+    let button2;
+    let button3;
+    let prize;
     {
-        let mut balances = ctx.data().balances.lock().unwrap();
-        let user_balance = balances.entry(winner.clone()).or_insert(50);
-        *user_balance += pot;
+        let mut games = ctx.data().games.lock().unwrap();
+        let game = games.get_mut(&id.to_string()).unwrap();
+        button2 = new_player_count_button(game.players.len() as i32);
+        button3 = new_pot_counter_button(game.pot);
+        prize = game.pot;
     }
+    let winner_id = winner.parse().unwrap();
     a.edit(
         ctx,
         CreateReply::default()
             .content(format!(
                 "Game is over, winner is: {}, they won: {} J-Bucks!",
-                ctx.author(),
-                pot
+                // winner,
+                serenity::UserId::new(winner_id).to_user(ctx).await?,
+                prize
             ))
             .components(vec![serenity::CreateActionRow::Buttons(vec![
                 new_bet_button(amount).disabled(true),
-                new_player_count_button(players.len() as i32),
-                new_pot_counter_button(pot),
+                button2,
+                button3,
             ])]),
     )
     .await?;
+    // see if we can find a nice way to tell the user their balance after they win
     Ok(())
 }
 
