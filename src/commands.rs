@@ -8,10 +8,7 @@ use rand::seq::SliceRandom;
 
 use crate::{Context, Error, Game};
 use poise::{
-    serenity_prelude::{
-        self as serenity, CreateAllowedMentions, CreateInteractionResponseMessage, CreateMessage,
-        MessageFlags,
-    },
+    serenity_prelude::{self as serenity, CreateInteractionResponseMessage},
     CreateReply,
 };
 
@@ -278,6 +275,20 @@ pub async fn gamble(
     Ok(())
 }
 
+pub async fn get_discord_users(
+    ctx: Context<'_>,
+    user_ids: Vec<String>,
+) -> Result<HashMap<String, poise::serenity_prelude::User>, Error> {
+    let mut users = HashMap::new();
+    for user_id in user_ids {
+        let user = serenity::UserId::new(user_id.parse().unwrap())
+            .to_user(ctx)
+            .await?;
+        users.insert(user_id, user);
+    }
+    Ok(users)
+}
+
 /// View Leaderboard
 ///
 /// Enter `~leaderboard` to view
@@ -286,11 +297,39 @@ pub async fn gamble(
 /// ```
 #[poise::command(prefix_command, slash_command)]
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
-    let mut response = String::new();
-    for i in 0..9 {
-        response += format!("{}. {} with {} J-Bucks!\n", i + 1, ctx.author(), 50).as_str();
+    let mut top_players: Vec<(&String, &i32)> = vec![];
+    let ids;
+    let top;
+    {
+        let balances = ctx.data().balances.lock().unwrap().clone();
+        let mut a: Vec<(&String, &i32)> = balances.iter().collect();
+        a.sort_by(|a, b| b.1.cmp(a.1));
+        for f in a.iter().take(10) {
+            let a = *f;
+            top_players.push((a.0, a.1))
+        }
+        ids = top_players
+            .clone()
+            .into_iter()
+            .map(|(k, _v)| k)
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>();
+        let players_resolved = get_discord_users(ctx, ids).await?;
+
+        top = top_players
+            .iter()
+            .map(|(k, v)| (players_resolved.get(*k).unwrap(), v))
+            .enumerate()
+            .map(|(i, (k, v))| format!("{}: {} with {} J-Bucks!", i + 1, k.name, v))
+            .collect::<Vec<_>>()
+            .join("\n");
     }
-    ctx.say(response).await?;
+    if top.is_empty() {
+        ctx.say("Nobody has any J-Bucks yet!").await?;
+        return Ok(());
+    }
+
+    ctx.say(top).await?;
     Ok(())
 }
 
