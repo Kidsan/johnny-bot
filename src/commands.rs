@@ -275,15 +275,15 @@ pub async fn gamble(
     let prize;
     let winner;
     {
-        let games = ctx.data().games.lock().unwrap();
-        let game = games.get(&id.to_string()).unwrap();
+        let mut games = ctx.data().games.lock().unwrap();
+        let game = games.remove(&id.to_string()).unwrap();
         winner = game.get_winner().clone();
         button2 = new_player_count_button(game.players.len() as i32);
         button3 = new_pot_counter_button(game.pot);
         prize = game.pot;
     }
     let winner_balance = get_user_balance(winner.clone(), db).await?;
-    set_user_balance(winner.clone(), winner_balance + amount, db).await?;
+    set_user_balance(winner.clone(), winner_balance + prize, db).await?;
     let winner_id = winner.parse().unwrap();
     a.edit(
         ctx,
@@ -307,13 +307,20 @@ pub async fn gamble(
 pub async fn get_discord_users(
     ctx: Context<'_>,
     user_ids: Vec<String>,
-) -> Result<HashMap<String, poise::serenity_prelude::User>, Error> {
+) -> Result<HashMap<String, String>, Error> {
     let mut users = HashMap::new();
     for user_id in user_ids {
         let user = serenity::UserId::new(user_id.parse().unwrap())
             .to_user(ctx)
             .await?;
-        users.insert(user_id, user);
+        dbg!(ctx.guild_id().unwrap());
+        let nick = user.nick_in(ctx, ctx.guild_id().unwrap()).await;
+        let nick = match nick {
+            Some(nick) => nick,
+            None => user.name,
+        };
+        dbg!(&nick);
+        users.insert(user_id, nick);
     }
     Ok(users)
 }
@@ -326,33 +333,34 @@ pub async fn get_discord_users(
 /// ```
 #[poise::command(prefix_command, slash_command)]
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
-    let mut top_players: Vec<(&String, &i32)> = vec![];
-    let ids;
-    let top;
-    {
-        let balances = ctx.data().balances.lock().unwrap().clone();
-        let mut a: Vec<(&String, &i32)> = balances.iter().collect();
-        a.sort_by(|a, b| b.1.cmp(a.1));
-        for f in a.iter().take(10) {
-            let a = *f;
-            top_players.push((a.0, a.1))
-        }
-        ids = top_players
-            .clone()
-            .into_iter()
-            .map(|(k, _v)| k)
-            .map(|x| x.to_string())
-            .collect::<Vec<String>>();
-        let players_resolved = get_discord_users(ctx, ids).await?;
+    let stmt = ctx
+        .data()
+        .db
+        .call(|conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT id, balance FROM balances ORDER BY balance DESC LIMIT 10",
+            )?;
+            let people = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<std::result::Result<Vec<(String, i32)>, rusqlite::Error>>();
+            Ok(people)
+        })
+        .await?
+        .unwrap();
+    let ids = stmt
+        .clone()
+        .iter()
+        .map(|(k, _v)| k.to_string())
+        .collect::<Vec<String>>();
+    let players_resolved = get_discord_users(ctx, ids).await?;
 
-        top = top_players
-            .iter()
-            .map(|(k, v)| (players_resolved.get(*k).unwrap(), v))
-            .enumerate()
-            .map(|(i, (k, v))| format!("{}: {} with {} J-Bucks!", i + 1, k.name, v))
-            .collect::<Vec<_>>()
-            .join("\n");
-    }
+    let top = stmt
+        .iter()
+        .map(|(k, v)| (players_resolved.get(k).unwrap(), v))
+        .enumerate()
+        .map(|(i, (k, v))| format!("{}: {} with {} J-Bucks!", i + 1, k, v))
+        .collect::<Vec<_>>()
+        .join("\n");
     if top.is_empty() {
         ctx.say("Nobody has any J-Bucks yet!").await?;
         return Ok(());
