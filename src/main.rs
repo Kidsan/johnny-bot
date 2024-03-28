@@ -18,7 +18,6 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 
 // Custom user data passed to all command functions
 pub struct Data {
-    balances: Mutex<HashMap<String, i32>>,
     games: Mutex<HashMap<String, game::Game>>,
     db: Connection,
 }
@@ -126,7 +125,6 @@ async fn main() {
                 println!("Logged in as {}", _ready.user.name);
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
-                    balances: Mutex::new(HashMap::new()),
                     games: Mutex::new(HashMap::new()),
                     db,
                 })
