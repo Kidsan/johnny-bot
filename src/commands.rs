@@ -320,15 +320,7 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
             .iter()
             .map(|(k, v)| (players_resolved.get(*k).unwrap(), v))
             .enumerate()
-            .map(|(i, (k, v))| {
-                format!(
-                    "{}: {} with {} J-Bucks!",
-                    i + 1,
-                    <std::option::Option<std::string::String> as Clone>::clone(&k.global_name)
-                        .unwrap(),
-                    v
-                )
-            })
+            .map(|(i, (k, v))| format!("{}: {} with {} J-Bucks!", i + 1, k.name, v))
             .collect::<Vec<_>>()
             .join("\n");
     }
