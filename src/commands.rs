@@ -9,6 +9,7 @@ use poise::{
     serenity_prelude::{self as serenity, CreateInteractionResponseMessage},
     CreateReply,
 };
+use rusqlite::params;
 
 #[poise::command(prefix_command, track_edits, slash_command)]
 pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
@@ -36,6 +37,58 @@ pub async fn help(
     Ok(())
 }
 
+pub async fn get_user_balance(
+    user_id: String,
+    conn: &tokio_rusqlite::Connection,
+) -> Result<i32, Error> {
+    let user = user_id.clone();
+    let balance = conn
+        .call(move |conn| {
+            let mut stmt = conn.prepare_cached("SELECT balance FROM balances WHERE id = (?1)")?;
+            Ok(stmt.query_row(params![user], |row| {
+                let balance: i32 = row.get(0)?;
+
+                Ok(balance)
+            }))
+        })
+        .await?;
+    let result = match balance {
+        Ok(user_balance) => user_balance,
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            let user = user_id;
+            let _ = conn
+                .call(move |conn| {
+                    let mut stmt =
+                        conn.prepare_cached("INSERT INTO balances (id, balance) VALUES (?1, ?2)")?;
+                    Ok(stmt.query_row(params![user, 50], |row| {
+                        let balance: i32 = row.get(0)?;
+
+                        Ok(balance)
+                    }))
+                })
+                .await?;
+            50
+        }
+        Err(e) => return Err(e.into()),
+    };
+    Ok(result)
+}
+pub async fn set_user_balance(
+    user_id: String,
+    amount: i32,
+    conn: &tokio_rusqlite::Connection,
+) -> Result<(), Error> {
+    let user = user_id.clone();
+    let _ = conn
+        .call(move |conn| {
+            let mut stmt =
+                conn.prepare_cached("UPDATE balances SET balance = (?1) WHERE id = (?2)")?;
+            Ok(stmt.execute(params![amount, user]))
+        })
+        .await?;
+    Ok(())
+}
+
 /// Check your balance
 ///
 /// Enter `~checkbucks` to check
@@ -44,17 +97,11 @@ pub async fn help(
 /// ```
 #[poise::command(prefix_command, slash_command)]
 pub async fn checkbucks(ctx: Context<'_>) -> Result<(), Error> {
-    let user_balance;
-    {
-        let mut balances = ctx.data().balances.lock().unwrap();
-        user_balance = balances
-            .entry(ctx.author().id.to_string())
-            .or_insert(50)
-            .to_owned()
-    }
+    let user_id = ctx.author().id.to_string();
+    let response = get_user_balance(user_id, &ctx.data().db).await?;
     let reply = {
         CreateReply::default()
-            .content(format!("{} has {} J-Bucks!", ctx.author(), user_balance,))
+            .content(format!("{} has {} J-Bucks!", ctx.author(), response,))
             .ephemeral(true)
     };
     ctx.send(reply).await?;
@@ -95,16 +142,13 @@ pub async fn gamble(
     #[description = "amount to play"] amount: i32,
 ) -> Result<(), Error> {
     let game_starter = ctx.author().id.to_string();
+    let db = &ctx.data().db;
     let mut start_game: bool = true;
     {
-        let mut balances = ctx.data().balances.lock().unwrap();
-        if !balances.contains_key(&ctx.author().id.to_string()) {
-            balances.insert(game_starter.clone(), 50);
-        }
+        let user_balance = get_user_balance(game_starter.clone(), db).await?;
 
-        if user_can_play(*balances.get(&game_starter).unwrap(), amount) {
-            let user_balance = balances.entry(game_starter.clone()).or_default();
-            *user_balance -= amount;
+        if user_can_play(user_balance, amount) {
+            set_user_balance(game_starter.clone(), user_balance - amount, db).await?;
         } else {
             start_game = false;
         }
@@ -124,7 +168,7 @@ pub async fn gamble(
     let time_to_play = 10;
     let players = [game_starter.clone()];
     let pot = amount;
-    let mut components = vec![serenity::CreateActionRow::Buttons(vec![
+    let components = vec![serenity::CreateActionRow::Buttons(vec![
         new_bet_button(amount),
         new_player_count_button(players.len() as i32),
         new_pot_counter_button(pot),
@@ -182,12 +226,11 @@ pub async fn gamble(
             }
         }
 
-        let player_balance;
-        {
-            let mut balances = ctx.data().balances.lock().unwrap();
-            player_balance = *balances.entry(player.clone()).or_insert(50);
-        }
-        if player_balance < amount {
+        let player_balance = get_user_balance(player.clone(), db).await?;
+
+        if user_can_play(player_balance, amount) {
+            set_user_balance(player.clone(), player_balance - amount, db).await?;
+        } else {
             mci.create_response(
                 ctx,
                 serenity::CreateInteractionResponse::Message(
@@ -206,10 +249,6 @@ pub async fn gamble(
         let button2;
         let button3;
         {
-            let mut balances = ctx.data().balances.lock().unwrap();
-            let player_balance = balances.entry(player).or_insert(50);
-            *player_balance -= amount;
-
             let mut games = ctx.data().games.lock().unwrap();
             let game = games.get_mut(&id.to_string()).unwrap();
             game.player_joined(mci.user.id.to_string());
@@ -231,23 +270,20 @@ pub async fn gamble(
             .await?;
     }
 
-    let winner;
     let button2;
     let button3;
     let prize;
+    let winner;
     {
         let games = ctx.data().games.lock().unwrap();
         let game = games.get(&id.to_string()).unwrap();
         winner = game.get_winner().clone();
-        {
-            let mut balances = ctx.data().balances.lock().unwrap();
-            let user_balance = balances.get_mut(&winner).unwrap();
-            *user_balance += game.pot;
-        }
         button2 = new_player_count_button(game.players.len() as i32);
         button3 = new_pot_counter_button(game.pot);
         prize = game.pot;
     }
+    let winner_balance = get_user_balance(winner.clone(), db).await?;
+    set_user_balance(winner.clone(), winner_balance + amount, db).await?;
     let winner_id = winner.parse().unwrap();
     a.edit(
         ctx,

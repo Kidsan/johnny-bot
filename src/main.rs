@@ -10,6 +10,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+use tokio_rusqlite::Connection;
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -19,6 +20,7 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 pub struct Data {
     balances: Mutex<HashMap<String, i32>>,
     games: Mutex<HashMap<String, game::Game>>,
+    db: Connection,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -103,6 +105,21 @@ async fn main() {
         ..Default::default()
     };
 
+    // let db = Connection::open_in_memory().await.unwrap();
+    let db = Connection::open("johnny.db").await.unwrap();
+    db.call(|conn| {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS balances (
+            id TEXT PRIMARY KEY,
+            balance INTEGER NOT NULL
+       )",
+            [],
+        )?;
+        Ok(())
+    })
+    .await
+    .unwrap();
+
     let framework = poise::Framework::builder()
         .setup(move |ctx, _ready, framework| {
             Box::pin(async move {
@@ -111,6 +128,7 @@ async fn main() {
                 Ok(Data {
                     balances: Mutex::new(HashMap::new()),
                     games: Mutex::new(HashMap::new()),
+                    db,
                 })
             })
         })
