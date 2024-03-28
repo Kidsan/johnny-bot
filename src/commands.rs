@@ -1,12 +1,10 @@
 use std::{
     collections::HashMap,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{self, SystemTime, UNIX_EPOCH},
     vec,
 };
 
-use rand::seq::SliceRandom;
-
-use crate::{Context, Error, Game};
+use crate::{game::Game, Context, Error};
 use poise::{
     serenity_prelude::{self as serenity, CreateInteractionResponseMessage},
     CreateReply,
@@ -124,9 +122,9 @@ pub async fn gamble(
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let time_to_play = 10;
-    let players = vec![game_starter.clone()];
+    let players = [game_starter.clone()];
     let pot = amount;
-    let components = vec![serenity::CreateActionRow::Buttons(vec![
+    let mut components = vec![serenity::CreateActionRow::Buttons(vec![
         new_bet_button(amount),
         new_player_count_button(players.len() as i32),
         new_pot_counter_button(pot),
@@ -147,12 +145,12 @@ pub async fn gamble(
         let mut games = ctx.data().games.lock().unwrap();
         games.insert(
             id.to_string(),
-            Game {
-                id: id.to_string(),
-                players: players.clone(),
+            Game::new(
+                id.to_string(),
                 amount,
-                pot: amount,
-            },
+                ctx.author().id.to_string(),
+                time::Instant::now(),
+            ),
         );
     }
 
@@ -166,7 +164,6 @@ pub async fn gamble(
         .filter(move |mci| mci.data.custom_id == "Bet")
         .await
     {
-        dbg!(&mci);
         let player = mci.user.id.to_string();
         {
             if ctx
@@ -200,56 +197,53 @@ pub async fn gamble(
                 ),
             )
             .await?;
-        } else {
-            let button2;
-            let button3;
-            {
-                let mut balances = ctx.data().balances.lock().unwrap();
-                let player_balance = balances.entry(player).or_insert(50);
-                *player_balance -= amount;
 
-                let mut games = ctx.data().games.lock().unwrap();
-                let game = games.get_mut(&id.to_string()).unwrap();
-                game.players.push(mci.user.id.to_string());
-                game.pot += amount;
-                button2 = new_player_count_button(game.players.len() as i32);
-                button3 = new_pot_counter_button(game.pot);
-            }
-
-            let mut msg = mci.message.clone();
-
-            msg.edit(
-                ctx,
-                serenity::EditMessage::new().components(vec![serenity::CreateActionRow::Buttons(
-                    vec![new_bet_button(amount), button2, button3],
-                )]),
-            )
-            .await?;
+            mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
+                .await?;
+            continue;
         }
+
+        let button2;
+        let button3;
+        {
+            let mut balances = ctx.data().balances.lock().unwrap();
+            let player_balance = balances.entry(player).or_insert(50);
+            *player_balance -= amount;
+
+            let mut games = ctx.data().games.lock().unwrap();
+            let game = games.get_mut(&id.to_string()).unwrap();
+            game.player_joined(mci.user.id.to_string());
+            button2 = new_player_count_button(game.players.len() as i32);
+            button3 = new_pot_counter_button(game.pot);
+        }
+
+        let mut msg = mci.message.clone();
+
+        msg.edit(
+            ctx,
+            serenity::EditMessage::new().components(vec![serenity::CreateActionRow::Buttons(
+                vec![new_bet_button(amount), button2, button3],
+            )]),
+        )
+        .await?;
+
         mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
             .await?;
     }
+
     let winner;
+    let button2;
+    let button3;
+    let prize;
     {
-        let mut games = ctx.data().games.lock().unwrap();
-        let game = games.get_mut(&id.to_string()).unwrap();
-        winner = game
-            .players
-            .choose(&mut rand::thread_rng())
-            .unwrap()
-            .clone();
+        let games = ctx.data().games.lock().unwrap();
+        let game = games.get(&id.to_string()).unwrap();
+        winner = game.get_winner().clone();
         {
             let mut balances = ctx.data().balances.lock().unwrap();
             let user_balance = balances.get_mut(&winner).unwrap();
             *user_balance += game.pot;
         }
-    }
-    let button2;
-    let button3;
-    let prize;
-    {
-        let mut games = ctx.data().games.lock().unwrap();
-        let game = games.get_mut(&id.to_string()).unwrap();
         button2 = new_player_count_button(game.players.len() as i32);
         button3 = new_pot_counter_button(game.pot);
         prize = game.pot;
@@ -260,7 +254,6 @@ pub async fn gamble(
         CreateReply::default()
             .content(format!(
                 "Game is over, winner is: {}, they won: {} J-Bucks!",
-                // winner,
                 serenity::UserId::new(winner_id).to_user(ctx).await?,
                 prize
             ))
@@ -271,7 +264,7 @@ pub async fn gamble(
             ])]),
     )
     .await?;
-    // see if we can find a nice way to tell the user their balance after they win
+    // TODO: see if we can find a nice way to tell the user their balance after they win
     Ok(())
 }
 

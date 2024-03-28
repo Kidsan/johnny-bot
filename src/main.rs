@@ -1,6 +1,7 @@
 #![warn(clippy::str_to_string)]
 
 mod commands;
+mod game;
 
 use poise::serenity_prelude as serenity;
 use std::{
@@ -14,18 +15,10 @@ use std::{
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
-#[derive(Debug)]
-pub struct Game {
-    pub id: String,
-    pub players: Vec<String>,
-    pub amount: i32,
-    pub pot: i32,
-}
-
 // Custom user data passed to all command functions
 pub struct Data {
     balances: Mutex<HashMap<String, i32>>,
-    games: Mutex<HashMap<String, Game>>,
+    games: Mutex<HashMap<String, game::Game>>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
