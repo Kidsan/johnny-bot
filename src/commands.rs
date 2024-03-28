@@ -144,8 +144,9 @@ pub async fn gamble(
     let game_starter = ctx.author().id.to_string();
     let db = &ctx.data().db;
     let mut start_game: bool = true;
+    let user_balance;
     {
-        let user_balance = get_user_balance(game_starter.clone(), db).await?;
+        user_balance = get_user_balance(game_starter.clone(), db).await?;
 
         if user_can_play(user_balance, amount) {
             set_user_balance(game_starter.clone(), user_balance - amount, db).await?;
@@ -157,7 +158,10 @@ pub async fn gamble(
     if !start_game {
         let reply = {
             CreateReply::default()
-                .content("You can't afford to do that!")
+                .content(format!(
+                    "You can't afford to do that!\nYour balance is {} J-Bucks.",
+                    user_balance
+                ))
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
@@ -235,7 +239,10 @@ pub async fn gamble(
                 ctx,
                 serenity::CreateInteractionResponse::Message(
                     CreateInteractionResponseMessage::new()
-                        .content("You can't afford to do that!")
+                        .content(format!(
+                            "You can't afford to do that!\nYour balance is {} J-Bucks.",
+                            user_balance
+                        ))
                         .ephemeral(true),
                 ),
             )
