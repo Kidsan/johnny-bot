@@ -4,12 +4,11 @@ use std::{
     vec,
 };
 
-use crate::{game::Game, Context, Error};
+use crate::{database::BalanceDatabase, game::Game, Context, Error};
 use poise::{
     serenity_prelude::{self as serenity, CreateInteractionResponseMessage, User},
     CreateReply,
 };
-use rusqlite::params;
 
 #[poise::command(prefix_command, track_edits, slash_command)]
 pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
@@ -37,58 +36,7 @@ pub async fn help(
     Ok(())
 }
 
-pub async fn get_user_balance(
-    user_id: String,
-    conn: &tokio_rusqlite::Connection,
-) -> Result<i32, Error> {
-    let user = user_id.clone();
-    let balance = conn
-        .call(move |conn| {
-            let mut stmt = conn.prepare_cached("SELECT balance FROM balances WHERE id = (?1)")?;
-            Ok(stmt.query_row(params![user], |row| {
-                let balance: i32 = row.get(0)?;
-
-                Ok(balance)
-            }))
-        })
-        .await?;
-    let result = match balance {
-        Ok(user_balance) => user_balance,
-        Err(rusqlite::Error::QueryReturnedNoRows) => {
-            let user = user_id;
-            let _ = conn
-                .call(move |conn| {
-                    let mut stmt =
-                        conn.prepare_cached("INSERT INTO balances (id, balance) VALUES (?1, ?2)")?;
-                    Ok(stmt.query_row(params![user, 50], |row| {
-                        let balance: i32 = row.get(0)?;
-
-                        Ok(balance)
-                    }))
-                })
-                .await?;
-            50
-        }
-        Err(e) => return Err(e.into()),
-    };
-    Ok(result)
-}
-pub async fn set_user_balance(
-    user_id: String,
-    amount: i32,
-    conn: &tokio_rusqlite::Connection,
-) -> Result<(), Error> {
-    let user = user_id.clone();
-    let _ = conn
-        .call(move |conn| {
-            let mut stmt =
-                conn.prepare_cached("UPDATE balances SET balance = (?1) WHERE id = (?2)")?;
-            Ok(stmt.execute(params![amount, user]))
-        })
-        .await?;
-    Ok(())
-}
-
+///
 /// Check your balance
 ///
 /// Enter `~checkbucks` to check
@@ -98,7 +46,7 @@ pub async fn set_user_balance(
 #[poise::command(prefix_command, slash_command)]
 pub async fn checkbucks(ctx: Context<'_>) -> Result<(), Error> {
     let user_id = ctx.author().id.to_string();
-    let response = get_user_balance(user_id, &ctx.data().db).await?;
+    let response = ctx.data().db.get_balance(user_id).await?;
     let reply = {
         CreateReply::default()
             .content(format!("{} has {} J-Bucks!", ctx.author(), response,))
@@ -145,7 +93,7 @@ pub async fn gamble(
 ) -> Result<(), Error> {
     let game_starter = ctx.author().id.to_string();
     let db = &ctx.data().db;
-    let user_balance = get_user_balance(game_starter.clone(), db).await?;
+    let user_balance = db.get_balance(game_starter.clone()).await?;
     if !user_can_play(user_balance, amount) {
         let reply = {
             CreateReply::default()
@@ -158,7 +106,8 @@ pub async fn gamble(
         ctx.send(reply).await?;
         return Err("You can't afford to do that".into());
     }
-    set_user_balance(game_starter.clone(), user_balance - amount, db).await?;
+    db.set_balance(game_starter.clone(), user_balance - amount)
+        .await?;
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let time_to_play = 10;
@@ -221,7 +170,7 @@ pub async fn gamble(
             }
         }
 
-        let player_balance = get_user_balance(player.clone(), db).await?;
+        let player_balance = db.get_balance(player.clone()).await?;
 
         if !user_can_play(player_balance, amount) {
             mci.create_response(
@@ -241,7 +190,9 @@ pub async fn gamble(
                 .await?;
             continue;
         }
-        set_user_balance(player.clone(), player_balance - amount, db).await?;
+        // set_user_balance(player.clone(), player_balance - amount, db).await?;
+        db.set_balance(player.clone(), player_balance - amount)
+            .await?;
 
         let button2;
         let button3;
@@ -276,8 +227,9 @@ pub async fn gamble(
     let button3 = new_pot_counter_button(game.pot);
     let prize = game.pot;
 
-    let winner_balance = get_user_balance(winner.clone(), db).await?;
-    set_user_balance(winner.clone(), winner_balance + prize, db).await?;
+    let winner_balance = db.get_balance(winner.clone()).await?;
+    db.set_balance(winner.clone(), winner_balance + prize)
+        .await?;
     let winner_id = winner.parse().unwrap();
     a.edit(
         ctx,
@@ -317,22 +269,6 @@ pub async fn get_discord_users(
     Ok(users)
 }
 
-async fn get_leaderboard(conn: &tokio_rusqlite::Connection) -> Result<Vec<(String, i32)>, Error> {
-    let leaderboard = conn
-        .call(|conn| {
-            let mut stmt = conn.prepare_cached(
-                "SELECT id, balance FROM balances ORDER BY balance DESC LIMIT 10",
-            )?;
-            let people = stmt
-                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
-                .collect::<std::result::Result<Vec<(String, i32)>, rusqlite::Error>>();
-            Ok(people)
-        })
-        .await
-        .unwrap()?;
-    Ok(leaderboard)
-}
-
 /// View Leaderboard
 ///
 /// Enter `~leaderboard` to view
@@ -341,15 +277,15 @@ async fn get_leaderboard(conn: &tokio_rusqlite::Connection) -> Result<Vec<(Strin
 /// ```
 #[poise::command(prefix_command, slash_command)]
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
-    let stmt = get_leaderboard(&ctx.data().db).await?;
-    let ids = stmt
+    let balances = ctx.data().db.get_leaderboard().await?;
+    let ids = balances
         .clone()
         .iter()
         .map(|(k, _v)| k.to_string())
         .collect::<Vec<String>>();
     let players_resolved = get_discord_users(ctx, ids).await?;
 
-    let top = stmt
+    let top = balances
         .iter()
         .map(|(k, v)| (players_resolved.get(k).unwrap(), v))
         .enumerate()
@@ -377,18 +313,11 @@ pub async fn transfer(
     amount: i32,
 ) -> Result<(), Error> {
     let sender = ctx.author().id.to_string();
-    let sender_balance = get_user_balance(sender.clone(), &ctx.data().db).await?;
+    let db = &ctx.data().db;
+    let sender_balance = ctx.data().db.get_balance(sender.clone()).await?;
     let recipient_id = recipient.id.to_string();
-    let recipient_balance = get_user_balance(recipient_id.clone(), &ctx.data().db).await?;
-    if user_can_play(sender_balance, amount) {
-        set_user_balance(sender.clone(), sender_balance - amount, &ctx.data().db).await?;
-        set_user_balance(
-            recipient_id.clone(),
-            recipient_balance + amount,
-            &ctx.data().db,
-        )
-        .await?;
-    } else {
+    let recipient_balance = ctx.data().db.get_balance(recipient_id.clone()).await?;
+    if !user_can_play(sender_balance, amount) {
         let reply = {
             CreateReply::default()
                 .content(format!(
@@ -400,6 +329,10 @@ pub async fn transfer(
         ctx.send(reply).await?;
         return Err("You can't afford to do that".into());
     }
+    db.set_balance(sender.clone(), sender_balance - amount)
+        .await?;
+    db.set_balance(recipient_id.clone(), recipient_balance + amount)
+        .await?;
     let reply = {
         CreateReply::default().content(format!(
             "{} sent {} J-Bucks to {}!",
@@ -412,60 +345,48 @@ pub async fn transfer(
     Ok(())
 }
 
-/// Vote for something
+/// Fine a player
 ///
-/// Enter `~vote pumpkin` to vote for pumpkins
+/// Enter `~fine @John 50` fine 50 from John
 #[poise::command(prefix_command, slash_command)]
-pub async fn vote(
+pub async fn fine(
     ctx: Context<'_>,
-    #[description = "What to vote for"] choice: String,
+    #[description = "Who to send to"] user: User,
+    #[min = 1]
+    #[description = "How much to send"]
+    amount: i32,
 ) -> Result<(), Error> {
-    // Lock the Mutex in a block {} so the Mutex isn't locked across an await point
-    let num_votes: i32 = {
-        let mut hash_map = HashMap::new();
-        let num_votes = hash_map.entry(choice.clone()).or_default();
-        *num_votes += 1;
-        *num_votes
-    };
-
-    let response = format!("Successfully voted for {choice}. {choice} now has {num_votes} votes!");
-    ctx.say(response).await?;
-    Ok(())
-}
-
-/// Retrieve number of votes
-///
-/// Retrieve the number of votes either in general, or for a specific choice:
-/// ```
-/// ~getvotes
-/// ~getvotes pumpkin
-/// ```
-#[poise::command(prefix_command, track_edits, aliases("votes"), slash_command)]
-pub async fn getvotes(
-    ctx: Context<'_>,
-    #[description = "Choice to retrieve votes for"] choice: Option<String>,
-) -> Result<(), Error> {
-    if let Some(choice) = choice {
-        let data: HashMap<String, i32> = HashMap::new();
-        let num_votes = *data.get(&choice).unwrap_or(&0);
-        let response = match num_votes {
-            0 => format!("Nobody has voted for {} yet", choice),
-            _ => format!("{} people have voted for {}", num_votes, choice),
+    let user_id = user.id.to_string();
+    let user_balance = ctx.data().db.get_balance(user_id.clone()).await?;
+    if !user_can_play(user_balance, amount) {
+        let reply = {
+            CreateReply::default()
+                .content(format!(
+                    "They can't afford to do that!\n{}'s balance is {} J-Bucks.",
+                    user, user_balance
+                ))
+                .ephemeral(true)
         };
-        ctx.say(response).await?;
-    } else {
-        let mut response = String::new();
-        let data: HashMap<String, i32> = HashMap::new();
-        for (choice, num_votes) in data.iter() {
-            response += &format!("{}: {} votes", choice, num_votes);
-        }
-
-        if response.is_empty() {
-            response += "Nobody has voted for anything yet :(";
-        }
-
-        ctx.say(response).await?;
+        ctx.send(reply).await?;
+        return Err("You can't afford to do that".into());
+    }
+    ctx.data()
+        .db
+        .set_balance(user_id.clone(), user_balance - amount)
+        .await?;
+    dbg!(&ctx.guild().unwrap().emojis);
+    let reply = {
+        CreateReply::default().content(format!(
+            "{} was fined {} J-Bucks. {}",
+            user,
+            amount,
+            ctx.guild()
+                .unwrap()
+                .emojis
+                .get(&serenity::EmojiId::new(548288157095952394))
+                .unwrap()
+        ))
     };
-
+    ctx.send(reply).await?;
     Ok(())
 }

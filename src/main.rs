@@ -1,6 +1,7 @@
 #![warn(clippy::str_to_string)]
 
 mod commands;
+mod database;
 mod game;
 
 use poise::serenity_prelude as serenity;
@@ -10,7 +11,6 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use tokio_rusqlite::Connection;
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -19,7 +19,7 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 // Custom user data passed to all command functions
 pub struct Data {
     games: Mutex<HashMap<String, game::Game>>,
-    db: Connection,
+    db: database::Database,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -48,13 +48,12 @@ async fn main() {
     let options = poise::FrameworkOptions {
         commands: vec![
             commands::help(),
-            commands::vote(),
-            commands::getvotes(),
             commands::checkbucks(),
             commands::register(),
             commands::gamble(),
             commands::leaderboard(),
             commands::transfer(),
+            commands::fine(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("~".into()),
@@ -105,21 +104,6 @@ async fn main() {
         ..Default::default()
     };
 
-    // let db = Connection::open_in_memory().await.unwrap();
-    let db = Connection::open("johnny.db").await.unwrap();
-    db.call(|conn| {
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS balances (
-            id TEXT PRIMARY KEY,
-            balance INTEGER NOT NULL
-       )",
-            [],
-        )?;
-        Ok(())
-    })
-    .await
-    .unwrap();
-
     let framework = poise::Framework::builder()
         .setup(move |ctx, _ready, framework| {
             Box::pin(async move {
@@ -127,7 +111,7 @@ async fn main() {
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
                     games: Mutex::new(HashMap::new()),
-                    db,
+                    db: database::Database::new().await?,
                 })
             })
         })
