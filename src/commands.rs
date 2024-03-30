@@ -1,12 +1,13 @@
 use std::{
     collections::HashMap,
+    ops::Deref,
     time::{self, SystemTime, UNIX_EPOCH},
     vec,
 };
 
 use crate::{game::Game, Context, Error};
 use poise::{
-    serenity_prelude::{self as serenity, CreateInteractionResponseMessage, User, UserId},
+    serenity_prelude::{self as serenity, CreateInteractionResponseMessage, User},
     CreateReply,
 };
 use rusqlite::params;
@@ -139,23 +140,16 @@ fn user_can_play(user_balance: i32, amount: i32) -> bool {
 #[poise::command(prefix_command, track_edits, slash_command)]
 pub async fn gamble(
     ctx: Context<'_>,
-    #[description = "amount to play"] amount: i32,
+    #[description = "amount to play"]
+    #[min = 1]
+    amount: i32,
 ) -> Result<(), Error> {
     let game_starter = ctx.author().id.to_string();
     let db = &ctx.data().db;
-    let mut start_game: bool = true;
-    let user_balance;
-    {
-        user_balance = get_user_balance(game_starter.clone(), db).await?;
-
-        if user_can_play(user_balance, amount) {
-            set_user_balance(game_starter.clone(), user_balance - amount, db).await?;
-        } else {
-            start_game = false;
-        }
-    }
-
-    if !start_game {
+    let user_balance = get_user_balance(game_starter.clone(), db).await?;
+    if user_can_play(user_balance, amount) {
+        set_user_balance(game_starter.clone(), user_balance - amount, db).await?;
+    } else {
         let reply = {
             CreateReply::default()
                 .content(format!(
@@ -203,7 +197,6 @@ pub async fn gamble(
     }
 
     while let Some(mci) = serenity::ComponentInteractionCollector::new(ctx)
-        // .author_id(ctx.author().id) this filters to interactions just by the user
         .channel_id(ctx.channel_id())
         .message_id(id)
         .timeout(std::time::Duration::from_secs(
@@ -277,18 +270,15 @@ pub async fn gamble(
             .await?;
     }
 
-    let button2;
-    let button3;
-    let prize;
-    let winner;
-    {
+    let game = {
         let mut games = ctx.data().games.lock().unwrap();
-        let game = games.remove(&id.to_string()).unwrap();
-        winner = game.get_winner().clone();
-        button2 = new_player_count_button(game.players.len() as i32);
-        button3 = new_pot_counter_button(game.pot);
-        prize = game.pot;
-    }
+        games.remove(&id.to_string()).unwrap()
+    };
+    let winner = game.get_winner().clone();
+    let button2 = new_player_count_button(game.players.len() as i32);
+    let button3 = new_pot_counter_button(game.pot);
+    let prize = game.pot;
+
     let winner_balance = get_user_balance(winner.clone(), db).await?;
     set_user_balance(winner.clone(), winner_balance + prize, db).await?;
     let winner_id = winner.parse().unwrap();
@@ -384,7 +374,9 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
 pub async fn transfer(
     ctx: Context<'_>,
     #[description = "Who to send to"] recipient: User,
-    #[description = "How much to send"] amount: i32,
+    #[min = 1]
+    #[description = "How much to send"]
+    amount: i32,
 ) -> Result<(), Error> {
     let sender = ctx.author().id.to_string();
     let sender_balance = get_user_balance(sender.clone(), &ctx.data().db).await?;
