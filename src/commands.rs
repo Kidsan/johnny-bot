@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    ops::Deref,
     time::{self, SystemTime, UNIX_EPOCH},
     vec,
 };
@@ -147,9 +146,7 @@ pub async fn gamble(
     let game_starter = ctx.author().id.to_string();
     let db = &ctx.data().db;
     let user_balance = get_user_balance(game_starter.clone(), db).await?;
-    if user_can_play(user_balance, amount) {
-        set_user_balance(game_starter.clone(), user_balance - amount, db).await?;
-    } else {
+    if !user_can_play(user_balance, amount) {
         let reply = {
             CreateReply::default()
                 .content(format!(
@@ -161,6 +158,7 @@ pub async fn gamble(
         ctx.send(reply).await?;
         return Err("You can't afford to do that".into());
     }
+    set_user_balance(game_starter.clone(), user_balance - amount, db).await?;
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let time_to_play = 10;
@@ -225,9 +223,7 @@ pub async fn gamble(
 
         let player_balance = get_user_balance(player.clone(), db).await?;
 
-        if user_can_play(player_balance, amount) {
-            set_user_balance(player.clone(), player_balance - amount, db).await?;
-        } else {
+        if !user_can_play(player_balance, amount) {
             mci.create_response(
                 ctx,
                 serenity::CreateInteractionResponse::Message(
@@ -245,6 +241,7 @@ pub async fn gamble(
                 .await?;
             continue;
         }
+        set_user_balance(player.clone(), player_balance - amount, db).await?;
 
         let button2;
         let button3;
@@ -310,16 +307,30 @@ pub async fn get_discord_users(
         let user = serenity::UserId::new(user_id.parse().unwrap())
             .to_user(ctx)
             .await?;
-        dbg!(ctx.guild_id().unwrap());
         let nick = user.nick_in(ctx, ctx.guild_id().unwrap()).await;
         let nick = match nick {
             Some(nick) => nick,
             None => user.name,
         };
-        dbg!(&nick);
         users.insert(user_id, nick);
     }
     Ok(users)
+}
+
+async fn get_leaderboard(conn: &tokio_rusqlite::Connection) -> Result<Vec<(String, i32)>, Error> {
+    let leaderboard = conn
+        .call(|conn| {
+            let mut stmt = conn.prepare_cached(
+                "SELECT id, balance FROM balances ORDER BY balance DESC LIMIT 10",
+            )?;
+            let people = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<std::result::Result<Vec<(String, i32)>, rusqlite::Error>>();
+            Ok(people)
+        })
+        .await
+        .unwrap()?;
+    Ok(leaderboard)
 }
 
 /// View Leaderboard
@@ -330,20 +341,7 @@ pub async fn get_discord_users(
 /// ```
 #[poise::command(prefix_command, slash_command)]
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
-    let stmt = ctx
-        .data()
-        .db
-        .call(|conn| {
-            let mut stmt = conn.prepare_cached(
-                "SELECT id, balance FROM balances ORDER BY balance DESC LIMIT 10",
-            )?;
-            let people = stmt
-                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
-                .collect::<std::result::Result<Vec<(String, i32)>, rusqlite::Error>>();
-            Ok(people)
-        })
-        .await?
-        .unwrap();
+    let stmt = get_leaderboard(&ctx.data().db).await?;
     let ids = stmt
         .clone()
         .iter()
