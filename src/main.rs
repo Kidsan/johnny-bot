@@ -54,6 +54,7 @@ async fn main() {
             commands::register(),
             commands::gamble(),
             commands::leaderboard(),
+            commands::transfer(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("~".into()),

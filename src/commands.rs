@@ -6,7 +6,7 @@ use std::{
 
 use crate::{game::Game, Context, Error};
 use poise::{
-    serenity_prelude::{self as serenity, CreateInteractionResponseMessage},
+    serenity_prelude::{self as serenity, CreateInteractionResponseMessage, User, UserId},
     CreateReply,
 };
 use rusqlite::params;
@@ -132,9 +132,9 @@ fn user_can_play(user_balance: i32, amount: i32) -> bool {
 
 /// Start a gamble
 ///
-/// Enter `~startGamble` to play
+/// Enter `~gamble` to play
 /// ````
-/// /startGamble
+/// /gamble
 /// ```
 #[poise::command(prefix_command, track_edits, slash_command)]
 pub async fn gamble(
@@ -374,6 +374,51 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     }
 
     ctx.say(top).await?;
+    Ok(())
+}
+
+/// Transfer bucks t another player
+///
+/// Enter `~transfer @John 50` to transfer 50 bucks to John
+#[poise::command(prefix_command, slash_command)]
+pub async fn transfer(
+    ctx: Context<'_>,
+    #[description = "Who to send to"] recipient: User,
+    #[description = "How much to send"] amount: i32,
+) -> Result<(), Error> {
+    let sender = ctx.author().id.to_string();
+    let sender_balance = get_user_balance(sender.clone(), &ctx.data().db).await?;
+    let recipient_id = recipient.id.to_string();
+    let recipient_balance = get_user_balance(recipient_id.clone(), &ctx.data().db).await?;
+    if user_can_play(sender_balance, amount) {
+        set_user_balance(sender.clone(), sender_balance - amount, &ctx.data().db).await?;
+        set_user_balance(
+            recipient_id.clone(),
+            recipient_balance + amount,
+            &ctx.data().db,
+        )
+        .await?;
+    } else {
+        let reply = {
+            CreateReply::default()
+                .content(format!(
+                    "You can't afford to do that!\nYour balance is {} J-Bucks.",
+                    sender_balance
+                ))
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("You can't afford to do that".into());
+    }
+    let reply = {
+        CreateReply::default().content(format!(
+            "{} sent {} J-Bucks to {}!",
+            ctx.author(),
+            amount,
+            recipient
+        ))
+    };
+    ctx.send(reply).await?;
     Ok(())
 }
 
