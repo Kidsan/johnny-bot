@@ -81,7 +81,7 @@ fn user_can_play(user_balance: i32, amount: i32) -> bool {
 /// Start a gamble
 ///
 /// Enter `~gamble` to play
-/// ````
+/// ```
 /// /gamble
 /// ```
 #[poise::command(prefix_command, track_edits, slash_command)]
@@ -98,7 +98,7 @@ pub async fn gamble(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "You can't afford to do that!\nYour balance is {} J-Bucks.",
+                    "You can't afford to do that!\nYour balance is only {} J-Bucks.",
                     user_balance
                 ))
                 .ephemeral(true)
@@ -178,7 +178,7 @@ pub async fn gamble(
                 serenity::CreateInteractionResponse::Message(
                     CreateInteractionResponseMessage::new()
                         .content(format!(
-                            "You can't afford to do that!\nYour balance is {} J-Bucks.",
+                            "You can't afford to do that!\nYour balance is only {} J-Bucks.",
                             user_balance
                         ))
                         .ephemeral(true),
@@ -301,11 +301,11 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// Transfer bucks t another player
+/// give some bucks to another player
 ///
-/// Enter `~transfer @John 50` to transfer 50 bucks to John
+/// Enter `~give @John 50` to transfer 50 bucks to John
 #[poise::command(prefix_command, slash_command)]
-pub async fn transfer(
+pub async fn give(
     ctx: Context<'_>,
     #[description = "Who to send to"] recipient: User,
     #[min = 1]
@@ -321,7 +321,7 @@ pub async fn transfer(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "You can't afford to do that!\nYour balance is {} J-Bucks.",
+                    "You can't afford to do that!\nYour balance is only {} J-Bucks.",
                     sender_balance
                 ))
                 .ephemeral(true)
@@ -362,7 +362,7 @@ pub async fn fine(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "They can't afford to do that!\n{}'s balance is {} J-Bucks.",
+                    "They can't afford to do that!\n{}'s balance is only {} J-Bucks.",
                     user, user_balance
                 ))
                 .ephemeral(true)
@@ -374,7 +374,7 @@ pub async fn fine(
         .db
         .set_balance(user_id.clone(), user_balance - amount)
         .await?;
-    dbg!(&ctx.guild().unwrap().emojis);
+
     let reply = {
         CreateReply::default().content(format!(
             "{} was fined {} J-Bucks. {}",

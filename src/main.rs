@@ -52,7 +52,7 @@ async fn main() {
             commands::register(),
             commands::gamble(),
             commands::leaderboard(),
-            commands::transfer(),
+            commands::give(),
             commands::fine(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
