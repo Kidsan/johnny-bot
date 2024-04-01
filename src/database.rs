@@ -7,12 +7,6 @@ pub trait BalanceDatabase {
     async fn get_balance(&self, user_id: String) -> Result<i32, Error>;
     async fn set_balance(&self, user_id: String, balance: i32) -> Result<(), Error>;
     async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error>;
-    async fn transfer_balance(
-        &self,
-        from_user_id: &str,
-        to_user_id: &str,
-        amount: i32,
-    ) -> Result<(), Error>;
 }
 
 pub struct Database {
@@ -103,14 +97,5 @@ impl BalanceDatabase for Database {
             })
             .await?;
         Ok(())
-    }
-
-    async fn transfer_balance(
-        &self,
-        from_user_id: &str,
-        to_user_id: &str,
-        amount: i32,
-    ) -> Result<(), Error> {
-        todo!()
     }
 }

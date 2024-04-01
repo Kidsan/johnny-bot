@@ -49,11 +49,15 @@ async fn main() {
         commands: vec![
             commands::help(),
             commands::checkbucks(),
+            commands::balance(),
             commands::register(),
             commands::gamble(),
             commands::leaderboard(),
             commands::give(),
             commands::fine(),
+            commands::add_bucks(),
+            commands::remove_bucks(),
+            commands::transfer(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("~".into()),

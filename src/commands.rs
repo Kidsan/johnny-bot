@@ -10,14 +10,20 @@ use poise::{
     CreateReply,
 };
 
-#[poise::command(prefix_command, track_edits, slash_command)]
+#[poise::command(
+    prefix_command,
+    track_edits,
+    slash_command,
+    hide_in_help,
+    category = "Admin"
+)]
 pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
     poise::builtins::register_application_commands_buttons(ctx).await?;
     Ok(())
 }
 
 /// Show this help menu
-#[poise::command(prefix_command, track_edits, slash_command)]
+#[poise::command(track_edits, slash_command)]
 pub async fn help(
     ctx: Context<'_>,
     #[description = "Specific command to show help about"]
@@ -28,7 +34,7 @@ pub async fn help(
         ctx,
         command.as_deref(),
         poise::builtins::HelpConfiguration {
-            extra_text_at_bottom: "This is an example bot made to showcase features of my custom Discord bot framework",
+            extra_text_at_bottom: "Awooo",
             ..Default::default()
         },
     )
@@ -37,14 +43,38 @@ pub async fn help(
 }
 
 ///
+/// Check someone's balance
+///
+/// Enter `/checkbucks @Name` to check
+/// ```
+/// /checkbucks @John
+/// ```
+///
+#[poise::command(slash_command, category = "Admin")]
+pub async fn checkbucks(
+    ctx: Context<'_>,
+    #[description = "Who to check"] user: serenity::User,
+) -> Result<(), Error> {
+    let user_id = user.id.to_string();
+    let response = ctx.data().db.get_balance(user_id).await?;
+    let reply = {
+        CreateReply::default()
+            .content(format!("{} has {} J-Bucks!", ctx.author(), response,))
+            .ephemeral(true)
+    };
+    ctx.send(reply).await?;
+    Ok(())
+}
+
+///
 /// Check your balance
 ///
-/// Enter `~checkbucks` to check
-/// ````
+/// Enter `/checkbucks` to check
+/// ```
 /// /checkbucks
 /// ```
-#[poise::command(prefix_command, slash_command)]
-pub async fn checkbucks(ctx: Context<'_>) -> Result<(), Error> {
+#[poise::command(slash_command)]
+pub async fn balance(ctx: Context<'_>) -> Result<(), Error> {
     let user_id = ctx.author().id.to_string();
     let response = ctx.data().db.get_balance(user_id).await?;
     let reply = {
@@ -78,13 +108,14 @@ fn user_can_play(user_balance: i32, amount: i32) -> bool {
     user_balance >= amount
 }
 
+///
 /// Start a gamble
 ///
-/// Enter `~gamble` to play
+/// Enter `/gamble <amount>` to play
 /// ```
-/// /gamble
+/// /gamble 20
 /// ```
-#[poise::command(prefix_command, track_edits, slash_command)]
+#[poise::command(track_edits, slash_command)]
 pub async fn gamble(
     ctx: Context<'_>,
     #[description = "amount to play"]
@@ -98,7 +129,7 @@ pub async fn gamble(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "You can't afford to do that!\nYour balance is only {} J-Bucks.",
+                    "You can't afford to do that!\nYour balance is only {} J-Bucks",
                     user_balance
                 ))
                 .ephemeral(true)
@@ -178,7 +209,7 @@ pub async fn gamble(
                 serenity::CreateInteractionResponse::Message(
                     CreateInteractionResponseMessage::new()
                         .content(format!(
-                            "You can't afford to do that!\nYour balance is only {} J-Bucks.",
+                            "You can't afford to do that!\nYour balance is only {} J-Bucks",
                             user_balance
                         ))
                         .ephemeral(true),
@@ -190,7 +221,6 @@ pub async fn gamble(
                 .await?;
             continue;
         }
-        // set_user_balance(player.clone(), player_balance - amount, db).await?;
         db.set_balance(player.clone(), player_balance - amount)
             .await?;
 
@@ -269,13 +299,14 @@ pub async fn get_discord_users(
     Ok(users)
 }
 
+///
 /// View Leaderboard
 ///
-/// Enter `~leaderboard` to view
-/// ````
+/// Enter `/leaderboard` to view
+/// ```
 /// /leaderboard
 /// ```
-#[poise::command(prefix_command, slash_command)]
+#[poise::command(slash_command)]
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let balances = ctx.data().db.get_leaderboard().await?;
     let ids = balances
@@ -301,10 +332,14 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// give some bucks to another player
 ///
-/// Enter `~give @John 50` to transfer 50 bucks to John
-#[poise::command(prefix_command, slash_command)]
+/// Give some bucks to another player
+///
+/// Enter `/give <recipient> <amount>`
+/// ```
+/// /give @John 50
+/// ```
+#[poise::command(slash_command)]
 pub async fn give(
     ctx: Context<'_>,
     #[description = "Who to send to"] recipient: User,
@@ -321,7 +356,7 @@ pub async fn give(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "You can't afford to do that!\nYour balance is only {} J-Bucks.",
+                    "You can't afford to do that!\nYour balance is only {} J-Bucks",
                     sender_balance
                 ))
                 .ephemeral(true)
@@ -345,15 +380,18 @@ pub async fn give(
     Ok(())
 }
 
-/// Fine a player
 ///
-/// Enter `~fine @John 50` fine 50 from John
-#[poise::command(prefix_command, slash_command)]
-pub async fn fine(
+/// Remove bucks from a player
+///
+/// ```
+/// /remove_bucks @John 50
+/// ```
+#[poise::command(slash_command, category = "Admin")]
+pub async fn remove_bucks(
     ctx: Context<'_>,
-    #[description = "Who to send to"] user: User,
+    #[description = "Who to remove from"] user: User,
     #[min = 1]
-    #[description = "How much to send"]
+    #[description = "How much to remove"]
     amount: i32,
 ) -> Result<(), Error> {
     let user_id = user.id.to_string();
@@ -362,13 +400,54 @@ pub async fn fine(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "They can't afford to do that!\n{}'s balance is only {} J-Bucks.",
+                    "They can't afford to do that!\n{}'s balance is only {} J-Bucks",
                     user, user_balance
                 ))
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
-        return Err("You can't afford to do that".into());
+        return Err("can't afford to do that".into());
+    }
+    ctx.data()
+        .db
+        .set_balance(user_id.clone(), user_balance - amount)
+        .await?;
+
+    let reply =
+        { CreateReply::default().content(format!("Removed {} J-Bucks from {}", amount, user,)) };
+    ctx.send(reply).await?;
+    Ok(())
+}
+
+///
+/// Fine a player
+///
+/// Enter `/fine <player> <amount>`
+/// ```
+/// /fine @John 50
+/// ```
+///
+#[poise::command(slash_command, category = "Admin")]
+pub async fn fine(
+    ctx: Context<'_>,
+    #[description = "Who to fine"] user: User,
+    #[min = 1]
+    #[description = "How much to fine them"]
+    amount: i32,
+) -> Result<(), Error> {
+    let user_id = user.id.to_string();
+    let user_balance = ctx.data().db.get_balance(user_id.clone()).await?;
+    if !user_can_play(user_balance, amount) {
+        let reply = {
+            CreateReply::default()
+                .content(format!(
+                    "They can't afford to do that!\n{}'s balance is only {} J-Bucks",
+                    user, user_balance
+                ))
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("Can't afford to do that".into());
     }
     ctx.data()
         .db
@@ -377,7 +456,7 @@ pub async fn fine(
 
     let reply = {
         CreateReply::default().content(format!(
-            "{} was fined {} J-Bucks. {}",
+            "{} was fined {} J-Bucks {}",
             user,
             amount,
             ctx.guild()
@@ -385,6 +464,111 @@ pub async fn fine(
                 .emojis
                 .get(&serenity::EmojiId::new(548288157095952394))
                 .unwrap()
+        ))
+    };
+    ctx.send(reply).await?;
+    Ok(())
+}
+
+///
+/// award bucks to a player
+///
+/// Enter `/award <player> <amount>`
+/// ```
+/// /award @John 50
+/// ```
+#[poise::command(slash_command, category = "Admin")]
+pub async fn award(
+    ctx: Context<'_>,
+    #[description = "Who to award"] user: User,
+    #[min = 1]
+    #[description = "How much to award"]
+    amount: i32,
+) -> Result<(), Error> {
+    let user_id = user.id.to_string();
+    let user_balance = ctx.data().db.get_balance(user_id.clone()).await?;
+    ctx.data()
+        .db
+        .set_balance(user_id.clone(), user_balance + amount)
+        .await?;
+    let reply =
+        { CreateReply::default().content(format!("{} was awarded {} J-Bucks", user, amount,)) };
+    ctx.send(reply).await?;
+    Ok(())
+}
+
+///
+/// add bucks to a player
+///
+/// Enter `/add_bucks <player> <amount>`
+/// ```
+/// /add_bucks @John 50
+/// ```
+#[poise::command(slash_command, category = "Admin")]
+pub async fn add_bucks(
+    ctx: Context<'_>,
+    #[description = "Who to give bucks to"] user: User,
+    #[min = 1]
+    #[description = "How much to add"]
+    amount: i32,
+) -> Result<(), Error> {
+    let user_id = user.id.to_string();
+    let user_balance = ctx.data().db.get_balance(user_id.clone()).await?;
+    ctx.data()
+        .db
+        .set_balance(user_id.clone(), user_balance + amount)
+        .await?;
+    let reply =
+        { CreateReply::default().content(format!("{} was given {} J-Bucks", user, amount,)) };
+    ctx.send(reply).await?;
+    Ok(())
+}
+
+///
+/// Transfer some bucks between players
+///
+/// Enter `/transfer <source> <recipient> <amount>`
+/// ```
+/// /transfer @John @Adam 50
+/// ```
+#[poise::command(slash_command, category = "Admin")]
+pub async fn transfer(
+    ctx: Context<'_>,
+    #[description = "Who to remove from"] source: User,
+    #[description = "Who to give to"] recipient: User,
+    #[min = 1]
+    #[description = "How much to transfer"]
+    amount: i32,
+) -> Result<(), Error> {
+    let user_id = source.id.to_string();
+    let user_balance = ctx.data().db.get_balance(user_id.clone()).await?;
+    if !user_can_play(user_balance, amount) {
+        let reply = {
+            CreateReply::default()
+                .content(format!(
+                    "They can't afford to do that!\n{}'s balance is only {} J-Bucks",
+                    source, user_balance
+                ))
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("can't afford to do that".into());
+    }
+    let recipient_id = recipient.id.to_string();
+    let recipient_balance = ctx.data().db.get_balance(recipient_id.clone()).await?;
+    ctx.data()
+        .db
+        .set_balance(user_id.clone(), user_balance - amount)
+        .await?;
+    ctx.data()
+        .db
+        .set_balance(recipient_id.clone(), recipient_balance + amount)
+        .await?;
+
+    let reply = {
+        CreateReply::default().content(format!(
+            "Removed {} J-Bucks from {} and gave it to {}",
+            amount, source, recipient
         ))
     };
     ctx.send(reply).await?;
