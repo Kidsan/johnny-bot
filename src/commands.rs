@@ -15,7 +15,8 @@ use poise::{
     track_edits,
     slash_command,
     hide_in_help,
-    category = "Admin"
+    category = "Admin",
+    owners_only
 )]
 pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
     poise::builtins::register_application_commands_buttons(ctx).await?;
@@ -50,7 +51,11 @@ pub async fn help(
 /// /checkbucks @John
 /// ```
 ///
-#[poise::command(slash_command, category = "Admin")]
+#[poise::command(
+    slash_command,
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR"
+)]
 pub async fn checkbucks(
     ctx: Context<'_>,
     #[description = "Who to check"] user: serenity::User,
@@ -59,7 +64,7 @@ pub async fn checkbucks(
     let response = ctx.data().db.get_balance(user_id).await?;
     let reply = {
         CreateReply::default()
-            .content(format!("{} has {} J-Bucks!", ctx.author(), response,))
+            .content(format!("{} has {} J-Bucks!", user, response,))
             .ephemeral(true)
     };
     ctx.send(reply).await?;
@@ -386,7 +391,11 @@ pub async fn give(
 /// ```
 /// /remove_bucks @John 50
 /// ```
-#[poise::command(slash_command, category = "Admin")]
+#[poise::command(
+    slash_command,
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR"
+)]
 pub async fn remove_bucks(
     ctx: Context<'_>,
     #[description = "Who to remove from"] user: User,
@@ -427,7 +436,11 @@ pub async fn remove_bucks(
 /// /fine @John 50
 /// ```
 ///
-#[poise::command(slash_command, category = "Admin")]
+#[poise::command(
+    slash_command,
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR"
+)]
 pub async fn fine(
     ctx: Context<'_>,
     #[description = "Who to fine"] user: User,
@@ -477,7 +490,11 @@ pub async fn fine(
 /// ```
 /// /award @John 50
 /// ```
-#[poise::command(slash_command, category = "Admin")]
+#[poise::command(
+    slash_command,
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR"
+)]
 pub async fn award(
     ctx: Context<'_>,
     #[description = "Who to award"] user: User,
@@ -504,7 +521,11 @@ pub async fn award(
 /// ```
 /// /add_bucks @John 50
 /// ```
-#[poise::command(slash_command, category = "Admin")]
+#[poise::command(
+    slash_command,
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR"
+)]
 pub async fn add_bucks(
     ctx: Context<'_>,
     #[description = "Who to give bucks to"] user: User,
@@ -531,7 +552,11 @@ pub async fn add_bucks(
 /// ```
 /// /transfer @John @Adam 50
 /// ```
-#[poise::command(slash_command, category = "Admin")]
+#[poise::command(
+    slash_command,
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR"
+)]
 pub async fn transfer(
     ctx: Context<'_>,
     #[description = "Who to remove from"] source: User,
