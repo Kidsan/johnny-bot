@@ -20,6 +20,7 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 pub struct Data {
     games: Mutex<HashMap<String, game::Game>>,
     db: database::Database,
+    engine: game::GameEngine,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -108,6 +109,9 @@ async fn main() {
         ..Default::default()
     };
 
+    let d = database::Database::new().await.unwrap();
+    let ge = game::GameEngine::new(d);
+
     let framework = poise::Framework::builder()
         .setup(move |ctx, _ready, framework| {
             Box::pin(async move {
@@ -116,6 +120,7 @@ async fn main() {
                 Ok(Data {
                     games: Mutex::new(HashMap::new()),
                     db: database::Database::new().await?,
+                    engine: ge,
                 })
             })
         })

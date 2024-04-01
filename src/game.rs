@@ -1,5 +1,24 @@
 use rand::seq::SliceRandom;
-use std::time;
+use std::{sync::Arc, time};
+
+use crate::database;
+
+pub struct GameEngine {
+    pub games: Vec<Game>,
+    pub db: Arc<database::Database>,
+}
+
+impl GameEngine {
+    pub fn new<T>(db: T) -> Self
+    where
+        T: database::BalanceDatabase,
+    {
+        Self {
+            games: vec![],
+            db: db,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Game {
