@@ -12,3 +12,8 @@ rand = "0.8.5"
 rusqlite = { version = "0.31.0", features = [ "bundled" ]}
 tokio = { version = "1.36.0", features = [ "rt-multi-thread" ]}
 tokio-rusqlite = "0.5.1"
+
+[dependencies.serenity]
+default-features = false
+features = ["builder", "client", "gateway", "model", "utils", "collector", "framework", "cache", "temp_cache"]
+version = "0.12.0"

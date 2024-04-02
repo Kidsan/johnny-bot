@@ -40,6 +40,7 @@
         devShell = with pkgs; mkShell {
           LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath [ pkgs.openssl ];
           buildInputs = [
+            doctl
             pkg-config
             (rust-bin.stable.latest.default.override {
               extensions = [ "rust-src" ];

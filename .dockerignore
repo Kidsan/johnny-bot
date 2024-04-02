@@ -1,0 +1,6 @@
+*.db
+result/
+target/
+.direnv/
+flake.*
+.git/

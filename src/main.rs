@@ -58,6 +58,7 @@ async fn main() {
             commands::add_bucks(),
             commands::remove_bucks(),
             commands::transfer(),
+            commands::award(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("~".into()),

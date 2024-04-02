@@ -6,7 +6,7 @@ use std::{
 
 use crate::{database::BalanceDatabase, game::Game, Context, Error};
 use poise::{
-    serenity_prelude::{self as serenity, CreateInteractionResponseMessage, User},
+    serenity_prelude::{self as serenity, CreateAllowedMentions, CreateInteractionResponseMessage, User},
     CreateReply,
 };
 
@@ -65,7 +65,7 @@ pub async fn checkbucks(
     let response = ctx.data().db.get_balance(user_id).await?;
     let reply = {
         CreateReply::default()
-            .content(format!("{} has {} J-Bucks!", user, response,))
+            .content(format!("{} has {} J-Buck(s)!", user, response,))
             .ephemeral(true)
     };
     ctx.send(reply).await?;
@@ -85,7 +85,7 @@ pub async fn balance(ctx: Context<'_>) -> Result<(), Error> {
     let response = ctx.data().db.get_balance(user_id).await?;
     let reply = {
         CreateReply::default()
-            .content(format!("{} has {} J-Bucks!", ctx.author(), response,))
+            .content(format!("{} has {} J-Buck(s)!", ctx.author(), response,))
             .ephemeral(true)
     };
     ctx.send(reply).await?;
@@ -94,7 +94,7 @@ pub async fn balance(ctx: Context<'_>) -> Result<(), Error> {
 
 fn new_bet_button(amount: i32) -> serenity::CreateButton {
     serenity::CreateButton::new("Bet")
-        .label(format!("Bet {} J-Bucks", amount))
+        .label(format!("Bet {} J-Buck(s)", amount))
         .style(poise::serenity_prelude::ButtonStyle::Primary)
 }
 fn new_player_count_button(amount: i32) -> serenity::CreateButton {
@@ -139,7 +139,7 @@ pub async fn gamble(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "You can't afford to do that!\nYour balance is only {} J-Bucks",
+                    "You can't afford to do that!\nYour balance is only {} J-Buck(s)",
                     user_balance
                 ))
                 .ephemeral(true)
@@ -219,7 +219,7 @@ pub async fn gamble(
                 serenity::CreateInteractionResponse::Message(
                     CreateInteractionResponseMessage::new()
                         .content(format!(
-                            "You can't afford to do that!\nYour balance is only {} J-Bucks",
+                            "You can't afford to do that!\nYour balance is only {} J-Buck(s)",
                             user_balance
                         ))
                         .ephemeral(true),
@@ -275,7 +275,7 @@ pub async fn gamble(
         ctx,
         CreateReply::default()
             .content(format!(
-                "Game is over, winner is: {}, they won: {} J-Bucks!",
+                "Game is over, winner is: {}, they won: {} J-Buck(s)!",
                 serenity::UserId::new(winner_id).to_user(ctx).await?,
                 prize
             ))
@@ -293,18 +293,13 @@ pub async fn gamble(
 pub async fn get_discord_users(
     ctx: Context<'_>,
     user_ids: Vec<String>,
-) -> Result<HashMap<String, String>, Error> {
+) -> Result<HashMap<String, serenity::User>, Error> {
     let mut users = HashMap::new();
     for user_id in user_ids {
         let user = serenity::UserId::new(user_id.parse().unwrap())
             .to_user(ctx)
             .await?;
-        let nick = user.nick_in(ctx, ctx.guild_id().unwrap()).await;
-        let nick = match nick {
-            Some(nick) => nick,
-            None => user.name,
-        };
-        users.insert(user_id, nick);
+        users.insert(user_id, user);
     }
     Ok(users)
 }
@@ -330,7 +325,7 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
         .iter()
         .map(|(k, v)| (players_resolved.get(k).unwrap(), v))
         .enumerate()
-        .map(|(i, (k, v))| format!("{}: {} with {} J-Bucks!", i + 1, k, v))
+        .map(|(i, (k, v))| format!("{}: {} with {} J-Buck(s)!", i + 1, k, v))
         .collect::<Vec<_>>()
         .join("\n");
     if top.is_empty() {
@@ -338,7 +333,11 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     }
 
-    ctx.say(top).await?;
+    let reply = {
+        CreateReply::default().content(format!("Leaderboard:\n{}", top)).allowed_mentions(CreateAllowedMentions::new())
+    };
+
+    ctx.send(reply).await?;
     Ok(())
 }
 
@@ -357,6 +356,28 @@ pub async fn give(
     #[description = "How much to send"]
     amount: i32,
 ) -> Result<(), Error> {
+    if recipient.id.to_string() == ctx.author().id.to_string() {
+        let reply = {
+            CreateReply::default()
+                .content(
+                    "Don't send money to yourself..",
+                )
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("You can't afford to do that".into());
+    }
+    if recipient.bot {
+        let reply = {
+            CreateReply::default()
+                .content(
+                    "You can't send money to bots..",
+                )
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("You can't afford to do that".into());
+    }
     let sender = ctx.author().id.to_string();
     let db = &ctx.data().db;
     let sender_balance = ctx.data().db.get_balance(sender.clone()).await?;
@@ -366,7 +387,7 @@ pub async fn give(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "You can't afford to do that!\nYour balance is only {} J-Bucks",
+                    "You can't afford to do that!\nYour balance is only {} J-Buck(s)",
                     sender_balance
                 ))
                 .ephemeral(true)
@@ -380,7 +401,7 @@ pub async fn give(
         .await?;
     let reply = {
         CreateReply::default().content(format!(
-            "{} sent {} J-Bucks to {}!",
+            "{} sent {} J-Buck(s) to {}!",
             ctx.author(),
             amount,
             recipient
@@ -415,7 +436,7 @@ pub async fn remove_bucks(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "They can't afford to do that!\n{}'s balance is only {} J-Bucks",
+                    "They can't afford to do that!\n{}'s balance is only {} J-Buck(s)",
                     user, user_balance
                 ))
                 .ephemeral(true)
@@ -474,18 +495,8 @@ pub async fn fine(
         .set_balance(user_id.clone(), user_balance - amount)
         .await?;
 
-    let reply = {
-        CreateReply::default().content(format!(
-            "{} was fined {} J-Bucks {}",
-            user,
-            amount,
-            ctx.guild()
-                .unwrap()
-                .emojis
-                .get(&serenity::EmojiId::new(548288157095952394))
-                .unwrap()
-        ))
-    };
+    let reply =
+        { CreateReply::default().content(format!("{} was fined {} J-Bucks", user, amount)) };
     ctx.send(reply).await?;
     Ok(())
 }
@@ -549,7 +560,7 @@ pub async fn add_bucks(
         .set_balance(user_id.clone(), user_balance + amount)
         .await?;
     let reply =
-        { CreateReply::default().content(format!("{} was given {} J-Bucks", user, amount,)) };
+        { CreateReply::default().content(format!("{} was given {} J-Buck(s)", user, amount,)) };
     ctx.send(reply).await?;
     Ok(())
 }
@@ -581,7 +592,7 @@ pub async fn transfer(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "They can't afford to do that!\n{}'s balance is only {} J-Bucks",
+                    "They can't afford to do that!\n{}'s balance is only {} J-Buck(s)",
                     source, user_balance
                 ))
                 .ephemeral(true)
@@ -602,7 +613,7 @@ pub async fn transfer(
 
     let reply = {
         CreateReply::default().content(format!(
-            "Removed {} J-Bucks from {} and gave it to {}",
+            "Removed {} J-Buck(s) from {} and gave it to {}",
             amount, source, recipient
         ))
     };

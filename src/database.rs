@@ -1,4 +1,5 @@
 use rusqlite::params;
+use tokio::fs;
 use tokio_rusqlite::Connection;
 
 use crate::Error;
@@ -15,13 +16,18 @@ pub struct Database {
 
 impl Database {
     pub async fn new() -> Result<Self, Error> {
-        let db = Connection::open("johnny.db").await.unwrap();
+        fs::create_dir_all("./data").await?;
+        let db = Connection::open("./data/johnny.db").await.unwrap();
         db.call(|conn| {
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS balances (
             id TEXT PRIMARY KEY,
             balance INTEGER NOT NULL
        )",
+                [],
+            )?;
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_balances_balance ON balances (balance)",
                 [],
             )?;
             Ok(())
