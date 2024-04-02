@@ -430,6 +430,17 @@ pub async fn remove_bucks(
     #[description = "How much to remove"]
     amount: i32,
 ) -> Result<(), Error> {
+    if user.bot {
+        let reply = {
+            CreateReply::default()
+                .content(
+                    "You can't remove money from bots..",
+                )
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("You can't afford to do that".into());
+    }
     let user_id = user.id.to_string();
     let user_balance = ctx.data().db.get_balance(user_id.clone()).await?;
     if !user_can_play(user_balance, amount) {
@@ -521,6 +532,17 @@ pub async fn award(
     #[description = "How much to award"]
     amount: i32,
 ) -> Result<(), Error> {
+    if user.bot {
+        let reply = {
+            CreateReply::default()
+                .content(
+                    "You can't award bots..",
+                )
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("You can't afford to do that".into());
+    }
     let user_id = user.id.to_string();
     let user_balance = ctx.data().db.get_balance(user_id.clone()).await?;
     ctx.data()
@@ -553,6 +575,17 @@ pub async fn add_bucks(
     #[description = "How much to add"]
     amount: i32,
 ) -> Result<(), Error> {
+    if user.bot {
+        let reply = {
+            CreateReply::default()
+                .content(
+                    "You can't add money to bots..",
+                )
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("You can't afford to do that".into());
+    }
     let user_id = user.id.to_string();
     let user_balance = ctx.data().db.get_balance(user_id.clone()).await?;
     ctx.data()
@@ -586,6 +619,28 @@ pub async fn transfer(
     #[description = "How much to transfer"]
     amount: i32,
 ) -> Result<(), Error> {
+    if source.id == recipient.id {
+        let reply = {
+            CreateReply::default()
+                .content(
+                    "No action required",
+                )
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("No action required".into());
+    }
+    if source.bot || recipient.bot {
+        let reply = {
+            CreateReply::default()
+                .content(
+                    "You can't transfer money to or from bots..",
+                )
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("You can't afford to do that".into());
+    }
     let user_id = source.id.to_string();
     let user_balance = ctx.data().db.get_balance(user_id.clone()).await?;
     if !user_can_play(user_balance, amount) {
