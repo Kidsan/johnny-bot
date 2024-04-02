@@ -54,7 +54,8 @@ pub async fn help(
 #[poise::command(
     slash_command,
     category = "Admin",
-    default_member_permissions = "ADMINISTRATOR"
+    default_member_permissions = "ADMINISTRATOR",
+    hide_in_help
 )]
 pub async fn checkbucks(
     ctx: Context<'_>,
@@ -120,7 +121,11 @@ fn user_can_play(user_balance: i32, amount: i32) -> bool {
 /// ```
 /// /gamble 20
 /// ```
-#[poise::command(track_edits, slash_command)]
+#[poise::command(
+    track_edits, 
+    slash_command,
+    // user_cooldown = 120
+    )]
 pub async fn gamble(
     ctx: Context<'_>,
     #[description = "amount to play"]
@@ -146,7 +151,7 @@ pub async fn gamble(
         .await?;
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let time_to_play = 10;
+    let time_to_play = 120;
     let players = [game_starter.clone()];
     let pot = amount;
     let components = vec![serenity::CreateActionRow::Buttons(vec![
@@ -394,6 +399,7 @@ pub async fn give(
 #[poise::command(
     slash_command,
     category = "Admin",
+    hide_in_help,
     default_member_permissions = "ADMINISTRATOR"
 )]
 pub async fn remove_bucks(
@@ -439,6 +445,7 @@ pub async fn remove_bucks(
 #[poise::command(
     slash_command,
     category = "Admin",
+    hide_in_help,
     default_member_permissions = "ADMINISTRATOR"
 )]
 pub async fn fine(
@@ -493,6 +500,7 @@ pub async fn fine(
 #[poise::command(
     slash_command,
     category = "Admin",
+    hide_in_help,
     default_member_permissions = "ADMINISTRATOR"
 )]
 pub async fn award(
@@ -524,6 +532,7 @@ pub async fn award(
 #[poise::command(
     slash_command,
     category = "Admin",
+    hide_in_help,
     default_member_permissions = "ADMINISTRATOR"
 )]
 pub async fn add_bucks(
@@ -555,6 +564,7 @@ pub async fn add_bucks(
 #[poise::command(
     slash_command,
     category = "Admin",
+    hide_in_help,
     default_member_permissions = "ADMINISTRATOR"
 )]
 pub async fn transfer(

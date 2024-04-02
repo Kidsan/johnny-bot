@@ -109,10 +109,10 @@ async fn main() {
     };
 
     let framework = poise::Framework::builder()
-        .setup(move |ctx, _ready, framework| {
+        .setup(move |_ctx, _ready, _framework| {
             Box::pin(async move {
                 println!("Logged in as {}", _ready.user.name);
-                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
+                // poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
                     games: Mutex::new(HashMap::new()),
                     db: database::Database::new().await?,
