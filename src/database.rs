@@ -7,6 +7,8 @@ use crate::Error;
 pub trait BalanceDatabase {
     async fn get_balance(&self, user_id: String) -> Result<i32, Error>;
     async fn set_balance(&self, user_id: String, balance: i32) -> Result<(), Error>;
+    async fn award_balances(&self, user_ids: Vec<String>, award: i32) -> Result<(), Error>;
+    async fn subtract_balances(&self, user_ids: Vec<String>, amount: i32) -> Result<(), Error>;
     async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error>;
 }
 
@@ -100,6 +102,32 @@ impl BalanceDatabase for Database {
                 let mut stmt =
                     conn.prepare_cached("UPDATE balances SET balance = (?1) WHERE id = (?2)")?;
                 Ok(stmt.execute(params![balance, user_id]))
+            })
+            .await?;
+        Ok(())
+    }
+
+    async fn award_balances(&self, user_ids: Vec<String>, award: i32) -> Result<(), Error> {
+        let _ = self
+            .connection
+            .call(move |conn| {
+                let mut stmt = conn.prepare_cached(
+                    "UPDATE balances SET balance = balance + (?1) WHERE id IN (?2)",
+                )?;
+                Ok(stmt.execute(params![award, user_ids.join(",")]))
+            })
+            .await?;
+        Ok(())
+    }
+
+    async fn subtract_balances(&self, user_ids: Vec<String>, amount: i32) -> Result<(), Error> {
+        let _ = self
+            .connection
+            .call(move |conn| {
+                let mut stmt = conn.prepare_cached(
+                    "UPDATE balances SET balance = balance - (?1) WHERE id IN (?2)",
+                )?;
+                Ok(stmt.execute(params![amount, user_ids.join(",")]))
             })
             .await?;
         Ok(())

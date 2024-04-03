@@ -4,9 +4,11 @@ use std::{
     vec,
 };
 
-use crate::{database::BalanceDatabase, game::Game, Context, Error};
+use crate::{database::BalanceDatabase, game::CoinGame, game::Game, Context, Error};
 use poise::{
-    serenity_prelude::{self as serenity, CreateAllowedMentions, CreateInteractionResponseMessage, User},
+    serenity_prelude::{
+        self as serenity, CreateAllowedMentions, CreateInteractionResponseMessage, User,
+    },
     CreateReply,
 };
 
@@ -110,6 +112,17 @@ fn new_pot_counter_button(amount: i32) -> serenity::CreateButton {
         .style(poise::serenity_prelude::ButtonStyle::Success)
 }
 
+fn new_heads_button() -> serenity::CreateButton {
+    serenity::CreateButton::new("Heads")
+        .label("Heads")
+        .style(poise::serenity_prelude::ButtonStyle::Primary)
+}
+fn new_tails_button() -> serenity::CreateButton {
+    serenity::CreateButton::new("Tails")
+        .label("Tails")
+        .style(poise::serenity_prelude::ButtonStyle::Primary)
+}
+
 fn user_can_play(user_balance: i32, amount: i32) -> bool {
     user_balance >= amount
 }
@@ -122,7 +135,7 @@ fn user_can_play(user_balance: i32, amount: i32) -> bool {
 /// /gamble 20
 /// ```
 #[poise::command(
-    track_edits, 
+    track_edits,
     slash_command,
     // user_cooldown = 120
     )]
@@ -293,7 +306,7 @@ pub async fn gamble(
 pub async fn get_discord_users(
     ctx: Context<'_>,
     user_ids: Vec<String>,
-) -> Result<HashMap<String, serenity::User>, Error> {
+) -> Result<HashMap<String, poise::serenity_prelude::User>, Error> {
     let mut users = HashMap::new();
     for user_id in user_ids {
         let user = serenity::UserId::new(user_id.parse().unwrap())
@@ -334,7 +347,9 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     }
 
     let reply = {
-        CreateReply::default().content(format!("Leaderboard:\n{}", top)).allowed_mentions(CreateAllowedMentions::new())
+        CreateReply::default()
+            .content(format!("Leaderboard:\n{}", top))
+            .allowed_mentions(CreateAllowedMentions::new())
     };
 
     ctx.send(reply).await?;
@@ -359,9 +374,7 @@ pub async fn give(
     if recipient.id.to_string() == ctx.author().id.to_string() {
         let reply = {
             CreateReply::default()
-                .content(
-                    "Don't send money to yourself..",
-                )
+                .content("Don't send money to yourself..")
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
@@ -370,9 +383,7 @@ pub async fn give(
     if recipient.bot {
         let reply = {
             CreateReply::default()
-                .content(
-                    "You can't send money to bots..",
-                )
+                .content("You can't send money to bots..")
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
@@ -433,9 +444,7 @@ pub async fn remove_bucks(
     if user.bot {
         let reply = {
             CreateReply::default()
-                .content(
-                    "You can't remove money from bots..",
-                )
+                .content("You can't remove money from bots..")
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
@@ -535,9 +544,7 @@ pub async fn award(
     if user.bot {
         let reply = {
             CreateReply::default()
-                .content(
-                    "You can't award bots..",
-                )
+                .content("You can't award bots..")
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
@@ -578,9 +585,7 @@ pub async fn add_bucks(
     if user.bot {
         let reply = {
             CreateReply::default()
-                .content(
-                    "You can't add money to bots..",
-                )
+                .content("You can't add money to bots..")
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
@@ -622,9 +627,7 @@ pub async fn transfer(
     if source.id == recipient.id {
         let reply = {
             CreateReply::default()
-                .content(
-                    "No action required",
-                )
+                .content("No action required")
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
@@ -633,9 +636,7 @@ pub async fn transfer(
     if source.bot || recipient.bot {
         let reply = {
             CreateReply::default()
-                .content(
-                    "You can't transfer money to or from bots..",
-                )
+                .content("You can't transfer money to or from bots..")
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
@@ -673,5 +674,260 @@ pub async fn transfer(
         ))
     };
     ctx.send(reply).await?;
+    Ok(())
+}
+
+#[derive(poise::ChoiceParameter)]
+pub enum HeadsOrTail {
+    #[name = "Choose Heads"]
+    Heads,
+    #[name = "Choose Tails"]
+    Tails,
+}
+
+///
+/// Start a coin gamble
+///
+/// Enter `/gamble <amount>`
+/// ```
+/// /coingamble 10
+/// ```
+#[poise::command(slash_command)]
+pub async fn coingamble(
+    ctx: Context<'_>,
+    #[min = 1]
+    #[description = "How much to play"]
+    amount: i32,
+    choice: HeadsOrTail,
+) -> Result<(), Error> {
+    let db = &ctx.data().db;
+    let game_starter = ctx.author().id.to_string();
+    let user_balance = ctx.data().db.get_balance(game_starter.clone()).await?;
+    if !user_can_play(user_balance, amount) {
+        let reply = {
+            CreateReply::default()
+                .content(format!(
+                    "You can't afford to do that!\nYour balance is only {} J-Buck(s)",
+                    user_balance
+                ))
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("can't afford to do that".into());
+    }
+    db.set_balance(game_starter.clone(), user_balance - amount)
+        .await?;
+
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+    let time_to_play = 10;
+    let pot = amount;
+    let components = vec![serenity::CreateActionRow::Buttons(vec![
+        new_heads_button(),
+        new_tails_button(),
+        new_player_count_button(1),
+        new_pot_counter_button(pot),
+    ])];
+    let reply = {
+        CreateReply::default()
+            .content(format!(
+                "> ### :coin: HEADS OR TAILS?\n> **Bet {} :dollar: **on the correct answer!\n> **Game Ends: **<t:{}:R>",
+                amount,
+                now + time_to_play
+            ))
+            .components(components.clone())
+    };
+
+    let a = ctx.send(reply).await?;
+    let id = a.message().await?.id;
+
+    let coingame = CoinGame::new(
+        id.to_string(),
+        game_starter.clone(),
+        choice,
+        amount,
+        time::Instant::now(),
+    );
+
+    ctx.data()
+        .coingames
+        .lock()
+        .unwrap()
+        .insert(id.to_string(), coingame);
+
+    while let Some(mci) = serenity::ComponentInteractionCollector::new(ctx)
+        .channel_id(ctx.channel_id())
+        .custom_ids(vec!["Heads".to_string(), "Tails".to_string()])
+        .message_id(id)
+        .timeout(std::time::Duration::from_secs(
+            (now + time_to_play - 1) - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
+        ))
+        // .filter(move |mci| mci.data.custom_id == "Bet")
+        .await
+    {
+        let player = mci.user.id.to_string();
+        {
+            if ctx
+                .data()
+                .coingames
+                .lock()
+                .unwrap()
+                .get(&id.to_string())
+                .unwrap()
+                .players
+                .contains(&player)
+            {
+                mci.create_response(
+                    ctx,
+                    serenity::CreateInteractionResponse::Message(
+                        CreateInteractionResponseMessage::new()
+                            .content("You are already in this game")
+                            .ephemeral(true),
+                    ),
+                )
+                .await?;
+                continue;
+            }
+        }
+        let player_balance = db.get_balance(player.clone()).await?;
+
+        if !user_can_play(player_balance, amount) {
+            mci.create_response(
+                ctx,
+                serenity::CreateInteractionResponse::Message(
+                    CreateInteractionResponseMessage::new()
+                        .content(format!(
+                            "You can't afford to do that!\nYour balance is only {} J-Buck(s)",
+                            user_balance
+                        ))
+                        .ephemeral(true),
+                ),
+            )
+            .await?;
+
+            mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
+                .await?;
+            continue;
+        }
+        db.set_balance(player.clone(), player_balance - amount)
+            .await?;
+
+        let button2;
+        let button3;
+        {
+            let mut games = ctx.data().coingames.lock().unwrap();
+            let game = games.get_mut(&id.to_string()).unwrap();
+            game.player_joined(mci.user.id.to_string(), &mci.data.custom_id);
+            button2 = new_player_count_button(game.players.len() as i32);
+            button3 = new_pot_counter_button(game.pot);
+        }
+
+        let mut msg = mci.message.clone();
+
+        msg.edit(
+            ctx,
+            serenity::EditMessage::new().components(vec![serenity::CreateActionRow::Buttons(
+                vec![new_heads_button(), new_tails_button(), button2, button3],
+            )]),
+        )
+        .await?;
+
+        mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
+            .await?;
+    }
+
+    let game = {
+        let mut games = ctx.data().coingames.lock().unwrap();
+        games.remove(&id.to_string()).unwrap()
+    };
+    let coin_flip_result = game.get_winner().clone();
+    let winners = match coin_flip_result.as_str() {
+        "heads" => game.heads.clone(),
+        "tails" => game.tails.clone(),
+        "side" => vec![],
+        _ => vec![],
+    };
+
+    if coin_flip_result == "side" {
+        let reply = {
+            // TODO: :doge-troll-1: or :doge-1: in this message
+            CreateReply::default()
+                .content("Wow... the coin landed on its side, I guess I'll keep the money!")
+        };
+        ctx.send(reply).await?;
+        return Ok(());
+    }
+    if winners.is_empty() {
+        let reply = { CreateReply::default().content("Nobody won, the money is mine now!") };
+        ctx.send(reply).await?;
+        return Ok(());
+    }
+
+    let prize = game.pot / winners.len() as i32;
+    // let remainder = game.pot % winners.len() as i32;
+
+    db.award_balances(winners.clone(), prize).await?;
+
+    let message = {
+        let ids = get_discord_users(ctx, game.players.clone()).await?;
+        let mut picked_heads_users = game
+            .heads
+            .iter()
+            .map(|winner| ids.get(winner).unwrap())
+            .map(|u| format!("{}", u))
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        let mut picked_tails_users = game
+            .tails
+            .iter()
+            .map(|loser| ids.get(loser).unwrap())
+            .map(|u| format!("{}", u))
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        if picked_heads_users.is_empty() {
+            picked_heads_users = "Nobody!".to_string();
+        }
+        if picked_tails_users.is_empty() {
+            picked_tails_users = "Nobody!".to_string();
+        }
+        if coin_flip_result == "heads" {
+            picked_heads_users = format!(
+                "> {}\n> :dogePray1: Congrats on {} :dollar:!",
+                picked_heads_users, prize
+            );
+            picked_tails_users = format!("> {}\n> :dogeCrying~1: So sad.", picked_tails_users);
+        } else {
+            picked_heads_users = format!("> {}\n> :dogeCrying~1: So sad.", picked_heads_users);
+            picked_tails_users = format!(
+                "> {}\n> :dogePray1: Congrats on {} :dollar:!",
+                picked_tails_users, prize
+            );
+        }
+
+        let mut a = format!(
+            "> ### :coin: IT WAS {}\n> \n",
+            coin_flip_result.to_uppercase()
+        );
+        a.push_str(&format!("> **Picked Heads**\n{}\n> ", picked_heads_users));
+
+        a.push_str(&format!("\n> **Picked Tails**\n{}\n", picked_tails_users));
+        CreateReply::default()
+            .content(a)
+            .allowed_mentions(CreateAllowedMentions::new().empty_users())
+    };
+    ctx.send(message).await?;
+
+    // if remainder > 0 {
+    //     let winner = &winners.choose(&mut rand::thread_rng()).unwrap();
+    //     db.award_balances(vec![winner.to_string().clone()], remainder)
+    //         .await?;
+    //     msg = format!(
+    //         "{}\n{} J-Buck(s) were left over, so they were given to a random winner... {}!",
+    //         msg,
+    //         remainder,
+    //         serenity::UserId::new(winner.parse()?).to_user(ctx).await?
+    //     );
+    // }
     Ok(())
 }

@@ -19,6 +19,7 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 // Custom user data passed to all command functions
 pub struct Data {
     games: Mutex<HashMap<String, game::Game>>,
+    coingames: Mutex<HashMap<String, game::CoinGame>>,
     db: database::Database,
 }
 
@@ -59,6 +60,7 @@ async fn main() {
             commands::remove_bucks(),
             commands::transfer(),
             commands::award(),
+            commands::coingamble(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("~".into()),
@@ -116,6 +118,7 @@ async fn main() {
                 // poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
                     games: Mutex::new(HashMap::new()),
+                    coingames: Mutex::new(HashMap::new()),
                     db: database::Database::new().await?,
                 })
             })
