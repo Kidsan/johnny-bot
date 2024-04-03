@@ -1,4 +1,6 @@
-use rusqlite::params;
+use std::rc::Rc;
+
+use rusqlite::{params, types::Value};
 use tokio::fs;
 use tokio_rusqlite::Connection;
 
@@ -32,6 +34,7 @@ impl Database {
                 "CREATE INDEX IF NOT EXISTS idx_balances_balance ON balances (balance)",
                 [],
             )?;
+            rusqlite::vtab::array::load_module(conn)?;
             Ok(())
         })
         .await
@@ -112,9 +115,19 @@ impl BalanceDatabase for Database {
             .connection
             .call(move |conn| {
                 let mut stmt = conn.prepare_cached(
-                    "UPDATE balances SET balance = balance + (?1) WHERE id IN (?2)",
+                    "UPDATE balances SET balance = balance + ?1 WHERE id IN rarray(?2)",
                 )?;
-                Ok(stmt.execute(params![award, user_ids.join(",")]))
+
+                let values = Rc::new(
+                    user_ids
+                        .iter()
+                        .map(|a| a.to_string())
+                        .map(Value::from)
+                        .collect::<Vec<Value>>(),
+                );
+                stmt.raw_bind_parameter(1, award)?;
+                stmt.raw_bind_parameter(2, values)?;
+                Ok(stmt.raw_execute().unwrap())
             })
             .await?;
         Ok(())
@@ -125,9 +138,19 @@ impl BalanceDatabase for Database {
             .connection
             .call(move |conn| {
                 let mut stmt = conn.prepare_cached(
-                    "UPDATE balances SET balance = balance - (?1) WHERE id IN (?2)",
+                    "UPDATE balances SET balance = balance - ?1 WHERE id IN rarray(?2)",
                 )?;
-                Ok(stmt.execute(params![amount, user_ids.join(",")]))
+
+                let values = Rc::new(
+                    user_ids
+                        .iter()
+                        .map(|a| a.to_string())
+                        .map(Value::from)
+                        .collect::<Vec<Value>>(),
+                );
+                stmt.raw_bind_parameter(1, amount)?;
+                stmt.raw_bind_parameter(2, values)?;
+                Ok(stmt.raw_execute().unwrap())
             })
             .await?;
         Ok(())

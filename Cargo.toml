@@ -9,9 +9,9 @@ edition = "2021"
 env_logger = "0.11.3"
 poise = "0.6.1"
 rand = "0.8.5"
-rusqlite = { version = "0.31.0", features = [ "bundled" ]}
+rusqlite = { version = "0.31.0", features = [ "array","bundled", "trace" ]}
 tokio = { version = "1.36.0", features = [ "rt-multi-thread" ]}
-tokio-rusqlite = "0.5.1"
+tokio-rusqlite = {version ="0.5.1"}
 
 [dependencies.serenity]
 default-features = false

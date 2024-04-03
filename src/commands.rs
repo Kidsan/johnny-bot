@@ -164,7 +164,7 @@ pub async fn gamble(
         .await?;
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let time_to_play = 120;
+    let time_to_play = 60;
     let players = [game_starter.clone()];
     let pot = amount;
     let components = vec![serenity::CreateActionRow::Buttons(vec![
@@ -327,16 +327,9 @@ pub async fn get_discord_users(
 #[poise::command(slash_command)]
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let balances = ctx.data().db.get_leaderboard().await?;
-    let ids = balances
-        .clone()
-        .iter()
-        .map(|(k, _v)| k.to_string())
-        .collect::<Vec<String>>();
-    let players_resolved = get_discord_users(ctx, ids).await?;
-
     let top = balances
         .iter()
-        .map(|(k, v)| (players_resolved.get(k).unwrap(), v))
+        .map(|(k, v)| (format!("<@{}>", k), v))
         .enumerate()
         .map(|(i, (k, v))| format!("{}: {} with {} J-Buck(s)!", i + 1, k, v))
         .collect::<Vec<_>>()
@@ -719,7 +712,7 @@ pub async fn coingamble(
         .await?;
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let time_to_play = 10;
+    let time_to_play = 60;
     let pot = amount;
     let components = vec![serenity::CreateActionRow::Buttons(vec![
         new_heads_button(),
@@ -797,15 +790,12 @@ pub async fn coingamble(
                     CreateInteractionResponseMessage::new()
                         .content(format!(
                             "You can't afford to do that!\nYour balance is only {} J-Buck(s)",
-                            user_balance
+                            player_balance
                         ))
                         .ephemeral(true),
                 ),
             )
             .await?;
-
-            mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
-                .await?;
             continue;
         }
         db.set_balance(player.clone(), player_balance - amount)
@@ -868,20 +858,17 @@ pub async fn coingamble(
     db.award_balances(winners.clone(), prize).await?;
 
     let message = {
-        let ids = get_discord_users(ctx, game.players.clone()).await?;
         let mut picked_heads_users = game
             .heads
             .iter()
-            .map(|winner| ids.get(winner).unwrap())
-            .map(|u| format!("{}", u))
+            .map(|u| format!("<@{}>", u))
             .collect::<Vec<_>>()
             .join(" ");
 
         let mut picked_tails_users = game
             .tails
             .iter()
-            .map(|loser| ids.get(loser).unwrap())
-            .map(|u| format!("{}", u))
+            .map(|u| format!("<@{}>", u))
             .collect::<Vec<_>>()
             .join(" ");
 
@@ -893,14 +880,20 @@ pub async fn coingamble(
         }
         if coin_flip_result == "heads" {
             picked_heads_users = format!(
-                "> {}\n> :dogePray1: Congrats on {} :dollar:!",
+                "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} :dollar:!",
                 picked_heads_users, prize
             );
-            picked_tails_users = format!("> {}\n> :dogeCrying~1: So sad.", picked_tails_users);
-        } else {
-            picked_heads_users = format!("> {}\n> :dogeCrying~1: So sad.", picked_heads_users);
             picked_tails_users = format!(
-                "> {}\n> :dogePray1: Congrats on {} :dollar:!",
+                "> {}\n> <:dogeCrying:1160530365413330974> So sad.",
+                picked_tails_users
+            );
+        } else {
+            picked_heads_users = format!(
+                "> {}\n> <:dogeCrying:1160530365413330974> So sad.",
+                picked_heads_users
+            );
+            picked_tails_users = format!(
+                "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} :dollar:!",
                 picked_tails_users, prize
             );
         }
