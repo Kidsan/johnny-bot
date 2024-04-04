@@ -1,5 +1,3 @@
-#![warn(clippy::str_to_string)]
-
 mod commands;
 mod database;
 mod game;
@@ -58,7 +56,7 @@ async fn main() {
             commands::checkbucks(),
             commands::balance(),
             commands::register(),
-            commands::gamble(),
+            // commands::gamble(),
             commands::leaderboard(),
             commands::give(),
             commands::fine(),

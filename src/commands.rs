@@ -240,9 +240,6 @@ pub async fn gamble(
                 ),
             )
             .await?;
-
-            mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
-                .await?;
             continue;
         }
         db.set_balance(player.clone(), player_balance - amount)
