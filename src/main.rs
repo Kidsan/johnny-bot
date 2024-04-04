@@ -20,6 +20,7 @@ pub struct Data {
     coingames: Mutex<HashMap<String, game::CoinGame>>,
     db: database::Database,
     game_length: u64,
+    rng: Mutex<rand::rngs::StdRng>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -56,7 +57,7 @@ async fn main() {
             commands::checkbucks(),
             commands::balance(),
             commands::register(),
-            // commands::gamble(),
+            commands::gamble(),
             commands::leaderboard(),
             commands::give(),
             commands::fine(),
@@ -125,6 +126,7 @@ async fn main() {
                     coingames: Mutex::new(HashMap::new()),
                     db: database::Database::new().await?,
                     game_length,
+                    rng: Mutex::new(rand::SeedableRng::from_entropy()),
                 })
             })
         })

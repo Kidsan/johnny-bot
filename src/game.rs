@@ -28,11 +28,8 @@ impl Game {
         self.pot += self.amount;
     }
 
-    pub fn get_winner(&self) -> String {
-        self.players
-            .choose(&mut rand::thread_rng())
-            .unwrap()
-            .to_string()
+    pub fn get_winner(&self, rng: &mut rand::rngs::StdRng) -> String {
+        self.players.choose(rng).unwrap().to_string()
     }
 }
 
@@ -75,7 +72,6 @@ impl CoinGame {
     }
 
     pub fn player_joined(&mut self, player: String, choice: &String) {
-        dbg!(&choice);
         self.players.push(player.clone());
         if choice == "Heads" {
             self.heads.push(player);
@@ -85,14 +81,11 @@ impl CoinGame {
         self.pot += self.amount;
     }
 
-    pub fn get_winner(&self) -> String {
-        let num = rand::thread_rng().gen_range(0..100);
-        if num < 2 {
+    pub fn get_winner(&self, rng: &mut rand::rngs::StdRng) -> String {
+        let num = rng.gen_range(0..100);
+        if num < 1 {
             return "side".to_owned();
         }
-        ["heads", "tails"]
-            .choose(&mut rand::thread_rng())
-            .unwrap()
-            .to_string()
+        ["heads", "tails"].choose(rng).unwrap().to_string()
     }
 }

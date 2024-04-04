@@ -1,4 +1,4 @@
-use rand::seq::SliceRandom;
+use rand::{seq::SliceRandom, Rng};
 use std::{
     time::{self, SystemTime, UNIX_EPOCH},
     vec,
@@ -273,7 +273,7 @@ pub async fn gamble(
         let mut games = ctx.data().games.lock().unwrap();
         games.remove(&id.to_string()).unwrap()
     };
-    let winner = game.get_winner().clone();
+    let winner = game.get_winner(&mut ctx.data().rng.lock().unwrap()).clone();
     let button2 = new_player_count_button(game.players.len() as i32);
     let button3 = new_pot_counter_button(game.pot);
     let prize = game.pot;
@@ -814,7 +814,7 @@ pub async fn coingamble(
         let mut games = ctx.data().coingames.lock().unwrap();
         games.remove(&id.to_string()).unwrap()
     };
-    let coin_flip_result = game.get_winner().clone();
+    let coin_flip_result = game.get_winner(&mut ctx.data().rng.lock().unwrap()).clone();
     let winners = match coin_flip_result.as_str() {
         "heads" => game.heads.clone(),
         "tails" => game.tails.clone(),
@@ -823,14 +823,7 @@ pub async fn coingamble(
     };
 
     if coin_flip_result == "side" {
-        let emoji = [
-            "<:dogeTroll:1160530414490886264>",
-            "<:doge:1160530341681954896>",
-            "",
-        ]
-        .choose(&mut rand::thread_rng())
-        .unwrap()
-        .to_string();
+        let emoji = get_troll_emoji(&mut ctx.data().rng.lock().unwrap());
         let reply = {
             CreateReply::default().content(format!(
                 "Wow... the coin landed on its side, I guess I'll keep the money! {}",
@@ -857,19 +850,12 @@ pub async fn coingamble(
         return Ok(());
     }
     if winners.is_empty() {
-        let emoji = [
-            "<:dogeTroll:1160530414490886264>",
-            "<:doge:1160530341681954896>",
-            "",
-        ]
-        .choose(&mut rand::thread_rng())
-        .unwrap()
-        .to_string();
+        db.award_balances(game.players.clone(), amount).await?;
         let reply = {
             CreateReply::default().content(format!(
-                ":coin: **IT WAS {}!**\nNobody won, the money is mine now! {}",
+                ":coin: **IT WAS {}!**\nNobody won, sending you your money back! {}",
                 coin_flip_result.to_uppercase(),
-                emoji
+                "<:dogeHug:1186282464344285241>"
             ))
         };
         ctx.send(reply).await?;
@@ -892,10 +878,18 @@ pub async fn coingamble(
         return Ok(());
     }
 
+    let johnnys_multiplier = if ctx.data().rng.lock().unwrap().gen_range(0..100) < 1 {
+        1.5
+    } else {
+        1.0
+    };
+
     let prize = game.pot / winners.len() as i32;
+    let prize_with_multiplier = (prize as f32 * johnnys_multiplier) as i32;
     // let remainder = game.pot % winners.len() as i32;
 
-    db.award_balances(winners.clone(), prize).await?;
+    db.award_balances(winners.clone(), prize_with_multiplier)
+        .await?;
 
     let message = {
         let mut picked_heads_users = game
@@ -923,6 +917,14 @@ pub async fn coingamble(
                 "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} :dollar:!",
                 picked_heads_users, prize
             );
+
+            if johnnys_multiplier > 1.0 && prize_with_multiplier - prize > 0 {
+                picked_heads_users = format!(
+                    "{} +{} Bonus!",
+                    picked_heads_users,
+                    prize_with_multiplier - prize
+                );
+            }
             picked_tails_users = format!(
                 "> {}\n> <:dogeCrying:1160530365413330974> So sad.",
                 picked_tails_users
@@ -936,6 +938,13 @@ pub async fn coingamble(
                 "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} :dollar:!",
                 picked_tails_users, prize
             );
+            if johnnys_multiplier > 1.0 && prize_with_multiplier - prize > 0 {
+                picked_tails_users = format!(
+                    "{} +{} Bonus!",
+                    picked_tails_users,
+                    prize_with_multiplier - prize
+                );
+            }
         }
 
         let mut a = format!(
@@ -967,4 +976,16 @@ pub async fn coingamble(
 
     a.edit(ctx, reply).await?;
     Ok(())
+}
+
+fn get_troll_emoji(a: &mut rand::rngs::StdRng) -> String {
+    let emoji = [
+        "<:dogeTroll:1160530414490886264>",
+        "<:doge:1160530341681954896>",
+        "",
+    ]
+    .choose(a)
+    .unwrap()
+    .to_string();
+    emoji
 }
