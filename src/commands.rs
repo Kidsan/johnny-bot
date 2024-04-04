@@ -1,5 +1,5 @@
+use rand::seq::SliceRandom;
 use std::{
-    collections::HashMap,
     time::{self, SystemTime, UNIX_EPOCH},
     vec,
 };
@@ -145,6 +145,7 @@ pub async fn gamble(
     #[min = 1]
     amount: i32,
 ) -> Result<(), Error> {
+    let game_length = ctx.data().game_length;
     let game_starter = ctx.author().id.to_string();
     let db = &ctx.data().db;
     let user_balance = db.get_balance(game_starter.clone()).await?;
@@ -164,7 +165,7 @@ pub async fn gamble(
         .await?;
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let time_to_play = 60;
+    let time_to_play = game_length;
     let players = [game_starter.clone()];
     let pot = amount;
     let components = vec![serenity::CreateActionRow::Buttons(vec![
@@ -303,20 +304,6 @@ pub async fn gamble(
     Ok(())
 }
 
-pub async fn get_discord_users(
-    ctx: Context<'_>,
-    user_ids: Vec<String>,
-) -> Result<HashMap<String, poise::serenity_prelude::User>, Error> {
-    let mut users = HashMap::new();
-    for user_id in user_ids {
-        let user = serenity::UserId::new(user_id.parse().unwrap())
-            .to_user(ctx)
-            .await?;
-        users.insert(user_id, user);
-    }
-    Ok(users)
-}
-
 ///
 /// View Leaderboard
 ///
@@ -342,7 +329,7 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let reply = {
         CreateReply::default()
             .content(format!("Leaderboard:\n{}", top))
-            .allowed_mentions(CreateAllowedMentions::new())
+            .allowed_mentions(CreateAllowedMentions::new().empty_users())
     };
 
     ctx.send(reply).await?;
@@ -672,9 +659,9 @@ pub async fn transfer(
 
 #[derive(poise::ChoiceParameter)]
 pub enum HeadsOrTail {
-    #[name = "Choose Heads"]
+    #[name = "Heads"]
     Heads,
-    #[name = "Choose Tails"]
+    #[name = "Tails"]
     Tails,
 }
 
@@ -693,6 +680,7 @@ pub async fn coingamble(
     amount: i32,
     choice: HeadsOrTail,
 ) -> Result<(), Error> {
+    let game_length = ctx.data().game_length;
     let db = &ctx.data().db;
     let game_starter = ctx.author().id.to_string();
     let user_balance = ctx.data().db.get_balance(game_starter.clone()).await?;
@@ -712,7 +700,7 @@ pub async fn coingamble(
         .await?;
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let time_to_play = 60;
+    let time_to_play = game_length;
     let pot = amount;
     let components = vec![serenity::CreateActionRow::Buttons(vec![
         new_heads_button(),
@@ -838,17 +826,72 @@ pub async fn coingamble(
     };
 
     if coin_flip_result == "side" {
+        let emoji = [
+            "<:dogeTroll:1160530414490886264>",
+            "<:doge:1160530341681954896>",
+            "",
+        ]
+        .choose(&mut rand::thread_rng())
+        .unwrap()
+        .to_string();
         let reply = {
-            // TODO: :doge-troll-1: or :doge-1: in this message
-            CreateReply::default()
-                .content("Wow... the coin landed on its side, I guess I'll keep the money!")
+            CreateReply::default().content(format!(
+                "Wow... the coin landed on its side, I guess I'll keep the money! {}",
+                emoji
+            ))
         };
         ctx.send(reply).await?;
+        let edit = {
+            let components = vec![serenity::CreateActionRow::Buttons(vec![
+                new_heads_button().disabled(true),
+                new_tails_button().disabled(true),
+                new_player_count_button(game.players.len() as i32),
+                new_pot_counter_button(game.pot),
+            ])];
+            CreateReply::default()
+            .content(format!(
+                "> ### :coin: HEADS OR TAILS?\n> **Bet {} :dollar: **on the correct answer!\n> **Game is over!**",
+                amount
+            ))
+            .components(components)
+        };
+
+        a.edit(ctx, edit).await?;
         return Ok(());
     }
     if winners.is_empty() {
-        let reply = { CreateReply::default().content("Nobody won, the money is mine now!") };
+        let emoji = [
+            "<:dogeTroll:1160530414490886264>",
+            "<:doge:1160530341681954896>",
+            "",
+        ]
+        .choose(&mut rand::thread_rng())
+        .unwrap()
+        .to_string();
+        let reply = {
+            CreateReply::default().content(format!(
+                ":coin: **IT WAS {}!**\nNobody won, the money is mine now! {}",
+                coin_flip_result.to_uppercase(),
+                emoji
+            ))
+        };
         ctx.send(reply).await?;
+        let edit = {
+            let components = vec![serenity::CreateActionRow::Buttons(vec![
+                new_heads_button().disabled(true),
+                new_tails_button().disabled(true),
+                new_player_count_button(game.players.len() as i32),
+                new_pot_counter_button(game.pot),
+            ])];
+            CreateReply::default()
+            .content(format!(
+                "> ### :coin: HEADS OR TAILS?\n> **Bet {} :dollar: **on the correct answer!\n> **Game is over!**",
+                amount
+            ))
+            .components(components)
+        };
+
+        a.edit(ctx, edit).await?;
         return Ok(());
     }
 
@@ -899,7 +942,7 @@ pub async fn coingamble(
         }
 
         let mut a = format!(
-            "> ### :coin: IT WAS {}\n> \n",
+            "> ### :coin: IT WAS {}!\n> \n",
             coin_flip_result.to_uppercase()
         );
         a.push_str(&format!("> **Picked Heads**\n{}\n> ", picked_heads_users));
@@ -910,17 +953,21 @@ pub async fn coingamble(
             .allowed_mentions(CreateAllowedMentions::new().empty_users())
     };
     ctx.send(message).await?;
+    let reply = {
+        let components = vec![serenity::CreateActionRow::Buttons(vec![
+            new_heads_button().disabled(true),
+            new_tails_button().disabled(true),
+            new_player_count_button(game.players.len() as i32),
+            new_pot_counter_button(game.pot),
+        ])];
+        CreateReply::default()
+            .content(format!(
+                "> ### :coin: HEADS OR TAILS?\n> **Bet {} :dollar: **on the correct answer!\n> **Game is over!**",
+                amount
+            ))
+            .components(components)
+    };
 
-    // if remainder > 0 {
-    //     let winner = &winners.choose(&mut rand::thread_rng()).unwrap();
-    //     db.award_balances(vec![winner.to_string().clone()], remainder)
-    //         .await?;
-    //     msg = format!(
-    //         "{}\n{} J-Buck(s) were left over, so they were given to a random winner... {}!",
-    //         msg,
-    //         remainder,
-    //         serenity::UserId::new(winner.parse()?).to_user(ctx).await?
-    //     );
-    // }
+    a.edit(ctx, reply).await?;
     Ok(())
 }

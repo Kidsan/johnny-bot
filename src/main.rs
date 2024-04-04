@@ -21,6 +21,7 @@ pub struct Data {
     games: Mutex<HashMap<String, game::Game>>,
     coingames: Mutex<HashMap<String, game::CoinGame>>,
     db: database::Database,
+    game_length: u64,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -43,6 +44,11 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 #[tokio::main]
 async fn main() {
     env_logger::init();
+
+    let game_length = match var("GAME_LENGTH") {
+        Ok(length) => length.parse::<u64>().unwrap(),
+        Err(_) => 60,
+    };
 
     // FrameworkOptions contains all of poise's configuration option in one struct
     // Every option can be omitted to use its default value
@@ -120,6 +126,7 @@ async fn main() {
                     games: Mutex::new(HashMap::new()),
                     coingames: Mutex::new(HashMap::new()),
                     db: database::Database::new().await?,
+                    game_length,
                 })
             })
         })
