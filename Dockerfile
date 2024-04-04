@@ -17,8 +17,9 @@ COPY . .
 RUN cargo build --release --target x86_64-unknown-linux-musl
 
 FROM alpine AS runtime
+RUN apk add --no-cache tini
 RUN addgroup -S myuser && adduser -S myuser -G myuser
 WORKDIR /home/myuser
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/bot /home/myuser/
 USER myuser
-CMD ["/home/myuser/bot"]
+ENTRYPOINT ["tini", "--", "./bot"]
