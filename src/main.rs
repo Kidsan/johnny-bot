@@ -1,6 +1,7 @@
 mod commands;
 mod database;
 mod game;
+mod texts;
 
 use poise::serenity_prelude as serenity;
 use std::{

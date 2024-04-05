@@ -4,13 +4,15 @@ use std::{
     vec,
 };
 
-use crate::{database::BalanceDatabase, game::CoinGame, game::Game, Context, Error};
+use crate::{database::BalanceDatabase, game::CoinGame, game::Game, texts::*, Context, Error};
 use poise::{
     serenity_prelude::{
         self as serenity, CreateAllowedMentions, CreateInteractionResponseMessage, User,
     },
     CreateReply,
 };
+
+use self::{landedside::LANDEDSIDE, nowinners::NOWINNERS};
 
 #[poise::command(
     prefix_command,
@@ -844,12 +846,8 @@ pub async fn coingamble(
 
     if coin_flip_result == "side" {
         let emoji = get_troll_emoji(&mut ctx.data().rng.lock().unwrap());
-        let reply = {
-            CreateReply::default().content(format!(
-                "Wow... the coin landed on its side, I guess I'll keep the money! {}",
-                emoji
-            ))
-        };
+        let text = get_landed_on_side_text(&mut ctx.data().rng.lock().unwrap());
+        let reply = { CreateReply::default().content(format!("{} {}", text, emoji)) };
         ctx.send(reply).await?;
         let edit = {
             let components = vec![serenity::CreateActionRow::Buttons(vec![
@@ -871,11 +869,17 @@ pub async fn coingamble(
     }
     if winners.is_empty() {
         db.award_balances(game.players.clone(), amount).await?;
+        let m = get_nobody_won(&mut ctx.data().rng.lock().unwrap());
+        let msg = format!(
+            "{} {}",
+            m,
+            get_troll_emoji(&mut ctx.data().rng.lock().unwrap())
+        );
         let reply = {
             CreateReply::default().content(format!(
-                ":coin: **IT WAS {}!**\nNobody won, sending you your money back! {}",
+                ":coin: **IT WAS {}!**\n{}",
                 coin_flip_result.to_uppercase(),
-                "<:dogeHug:1186282464344285241>"
+                msg
             ))
         };
         ctx.send(reply).await?;
@@ -906,7 +910,6 @@ pub async fn coingamble(
 
     let prize = game.pot / winners.len() as i32;
     let prize_with_multiplier = (prize as f32 * johnnys_multiplier) as i32;
-    // let remainder = game.pot % winners.len() as i32;
 
     db.award_balances(winners.clone(), prize_with_multiplier)
         .await?;
@@ -1002,10 +1005,16 @@ fn get_troll_emoji(a: &mut rand::rngs::StdRng) -> String {
     let emoji = [
         "<:dogeTroll:1160530414490886264>",
         "<:doge:1160530341681954896>",
-        "",
     ]
     .choose(a)
     .unwrap()
     .to_string();
     emoji
+}
+
+fn get_landed_on_side_text(a: &mut rand::rngs::StdRng) -> String {
+    LANDEDSIDE.choose(a).unwrap().to_string()
+}
+fn get_nobody_won(a: &mut rand::rngs::StdRng) -> String {
+    NOWINNERS.choose(a).unwrap().to_string()
 }
