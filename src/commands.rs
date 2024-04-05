@@ -25,12 +25,32 @@ pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+pub async fn complete_help<'a>(
+    ctx: Context<'a>,
+    partial: &'a str,
+) -> impl Iterator<Item = serenity::AutocompleteChoice> + 'a {
+    let admin_commands = [
+        "checkbucks",
+        "balance",
+        "remove_bucks",
+        "fine",
+        "award",
+        "add_bucks",
+        "transfer",
+        "register",
+    ];
+    poise::builtins::autocomplete_command(ctx, partial)
+        .await
+        .filter(move |cmd| !admin_commands.contains(&cmd.as_str()))
+        .map(|cmd| serenity::AutocompleteChoice::new(cmd.to_string(), cmd))
+}
+
 /// Show this help menu
 #[poise::command(track_edits, slash_command)]
 pub async fn help(
     ctx: Context<'_>,
     #[description = "Specific command to show help about"]
-    #[autocomplete = "poise::builtins::autocomplete_command"]
+    #[autocomplete = "complete_help"]
     command: Option<String>,
 ) -> Result<(), Error> {
     poise::builtins::help(
