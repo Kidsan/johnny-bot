@@ -83,7 +83,7 @@ impl CoinGame {
 
     pub fn get_winner(&self, rng: &mut rand::rngs::StdRng) -> String {
         let num = rng.gen_range(0..100);
-        if num < 1 {
+        if num < 2 {
             "side".to_owned()
         } else if num < 50 {
             "heads".to_owned()
