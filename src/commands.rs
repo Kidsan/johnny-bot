@@ -31,7 +31,7 @@ pub async fn complete_help<'a>(
 ) -> impl Iterator<Item = serenity::AutocompleteChoice> + 'a {
     let admin_commands = [
         "checkbucks",
-        "balance",
+        "gamble",
         "remove_bucks",
         "fine",
         "award",
