@@ -899,7 +899,7 @@ pub async fn coingamble(
     }
 
     let johnnys_multiplier = if ctx.data().rng.lock().unwrap().gen_range(0..100) < 2 {
-        2
+        2.0
     } else {
         1.0
     };
