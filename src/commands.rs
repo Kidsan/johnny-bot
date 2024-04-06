@@ -870,16 +870,11 @@ pub async fn coingamble(
     if winners.is_empty() {
         db.award_balances(game.players.clone(), amount).await?;
         let m = get_nobody_won(&mut ctx.data().rng.lock().unwrap());
-        let msg = format!(
-            "{} {}",
-            m,
-            get_troll_emoji(&mut ctx.data().rng.lock().unwrap())
-        );
         let reply = {
             CreateReply::default().content(format!(
                 ":coin: **IT WAS {}!**\n{}",
                 coin_flip_result.to_uppercase(),
-                msg
+                m
             ))
         };
         ctx.send(reply).await?;
