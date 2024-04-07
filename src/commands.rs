@@ -494,6 +494,8 @@ pub async fn fine(
     #[min = 1]
     #[description = "How much to fine them"]
     amount: i32,
+    #[description = "Show that you invoked the command?"] show_caller: Option<bool>,
+    #[description = "Reason for fine"] reason: Option<String>,
 ) -> Result<(), Error> {
     let user_id = user.id.to_string();
     let user_balance = ctx.data().db.get_balance(user_id.clone()).await?;
@@ -514,9 +516,24 @@ pub async fn fine(
         .set_balance(user_id.clone(), user_balance - amount)
         .await?;
 
-    let reply =
-        { CreateReply::default().content(format!("{} was fined {} J-Bucks", user, amount)) };
-    ctx.send(reply).await?;
+    let msg = match reason {
+        Some(r) => format!("{} was fined {} J-Bucks for {}", user, amount, r),
+        None => format!("{} was fined {} J-Bucks!", user, amount),
+    };
+
+    // if show_caller is true, send as a reply
+    match show_caller {
+        Some(true) => {
+            let reply = { CreateReply::default().content(msg) };
+            ctx.send(reply).await?;
+        }
+        _ => {
+            // acknowledge the invocation
+            ctx.send(CreateReply::default().content("success").ephemeral(true))
+                .await?;
+            ctx.channel_id().say(ctx, msg).await?;
+        }
+    }
     Ok(())
 }
 
@@ -539,6 +556,8 @@ pub async fn award(
     #[min = 1]
     #[description = "How much to award"]
     amount: i32,
+    #[description = "Show that you invoked the command?"] show_caller: Option<bool>,
+    #[description = "Reason for award"] reason: Option<String>,
 ) -> Result<(), Error> {
     if user.bot {
         let reply = {
@@ -555,9 +574,26 @@ pub async fn award(
         .db
         .set_balance(user_id.clone(), user_balance + amount)
         .await?;
-    let reply =
-        { CreateReply::default().content(format!("{} was awarded {} J-Bucks", user, amount,)) };
-    ctx.send(reply).await?;
+
+    let reason = match reason {
+        Some(r) => format!(" for {}!", r),
+        None => "!".to_string(),
+    };
+
+    // if show_caller is true, send as a reply
+    let msg = format!("{} was awarded {} J-Bucks{}", user, amount, reason);
+    match show_caller {
+        Some(true) => {
+            let reply = { CreateReply::default().content(msg) };
+            ctx.send(reply).await?;
+        }
+        _ => {
+            // acknowledge the invocation
+            ctx.send(CreateReply::default().content("success").ephemeral(true))
+                .await?;
+            ctx.channel_id().say(ctx, msg).await?;
+        }
+    }
     Ok(())
 }
 
