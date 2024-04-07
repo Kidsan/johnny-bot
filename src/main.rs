@@ -61,6 +61,7 @@ async fn main() {
     let options = poise::FrameworkOptions {
         commands: vec![
             commands::help(),
+            commands::say(),
             commands::checkbucks(),
             commands::balance(),
             commands::register(),
