@@ -21,6 +21,7 @@ pub struct Data {
     coingames: Mutex<HashMap<String, game::CoinGame>>,
     db: database::Database,
     game_length: u64,
+    side_chance: i32,
     rng: Mutex<rand::rngs::StdRng>,
 }
 
@@ -48,6 +49,11 @@ async fn main() {
     let game_length = match var("GAME_LENGTH") {
         Ok(length) => length.parse::<u64>().unwrap(),
         Err(_) => 60,
+    };
+
+    let side_chance = match var("SIDE_CHANCE") {
+        Ok(chance) => chance.parse::<i32>().unwrap(),
+        Err(_) => 2,
     };
 
     // FrameworkOptions contains all of poise's configuration option in one struct
@@ -126,6 +132,7 @@ async fn main() {
                     games: Mutex::new(HashMap::new()),
                     coingames: Mutex::new(HashMap::new()),
                     db: database::Database::new().await?,
+                    side_chance,
                     game_length,
                     rng: Mutex::new(rand::SeedableRng::from_entropy()),
                 })
