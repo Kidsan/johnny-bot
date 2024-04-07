@@ -1,6 +1,7 @@
 mod commands;
 mod database;
 mod game;
+mod robbingevent;
 mod texts;
 
 use poise::serenity_prelude as serenity;
@@ -74,6 +75,7 @@ async fn main() {
             commands::transfer(),
             commands::award(),
             commands::coingamble(),
+            robbingevent::robbingevent(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("~".into()),
