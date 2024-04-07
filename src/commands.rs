@@ -31,19 +31,10 @@ pub async fn complete_help<'a>(
     ctx: Context<'a>,
     partial: &'a str,
 ) -> impl Iterator<Item = serenity::AutocompleteChoice> + 'a {
-    let admin_commands = [
-        "checkbucks",
-        "gamble",
-        "remove_bucks",
-        "fine",
-        "award",
-        "add_bucks",
-        "transfer",
-        "register",
-    ];
+    let white_listed = ["help", "balance", "leaderboard", "give", "coingamble"];
     poise::builtins::autocomplete_command(ctx, partial)
         .await
-        .filter(move |cmd| !admin_commands.contains(&cmd.as_str()))
+        .filter(move |cmd| white_listed.contains(&cmd.as_str()))
         .map(|cmd| serenity::AutocompleteChoice::new(cmd.to_string(), cmd))
 }
 
@@ -782,6 +773,7 @@ pub async fn coingamble(
         choice,
         amount,
         time::Instant::now(),
+        ctx.data().side_chance,
     );
 
     ctx.data()
@@ -933,11 +925,14 @@ pub async fn coingamble(
         return Ok(());
     }
 
-    let johnnys_multiplier = if ctx.data().rng.lock().unwrap().gen_range(0..100) < 2 {
-        2.0
-    } else {
-        1.0
-    };
+    let chance_of_bonus = (game.players.len() as f32 * 0.5) - 0.5;
+
+    let johnnys_multiplier =
+        if ctx.data().rng.lock().unwrap().gen_range(0..100) < chance_of_bonus as i32 {
+            2.0
+        } else {
+            1.0
+        };
 
     let prize = game.pot / winners.len() as i32;
     let prize_with_multiplier = (prize as f32 * johnnys_multiplier) as i32;
