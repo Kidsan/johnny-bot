@@ -122,7 +122,6 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
             .await?;
             continue;
         }
-        dbg!(voter_id.to_string(), &choice);
 
         if voter_id.to_string() == choice {
             mci.create_response(
@@ -142,11 +141,21 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
             x.push(voter_id.to_string());
         } else {
             let v = vec![voter_id.to_string()];
-            votes.insert(choice, v);
+            votes.insert(choice.clone(), v);
         }
 
-        mci.create_response(ctx, CreateInteractionResponse::Acknowledge)
-            .await?;
+        let _ = ctx.data().db.get_balance(voter_id.to_string()).await?;
+
+        mci.create_response(
+            ctx,
+            CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new()
+                    .content(format!("You have voted for <@{}>", &choice))
+                    .allowed_mentions(CreateAllowedMentions::new().empty_users())
+                    .ephemeral(true),
+            ),
+        )
+        .await?;
     }
 
     let components = vec![CreateActionRow::Buttons(vec![
@@ -183,17 +192,6 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
     // get the highest voted player
     let (player, _) = votes.iter().max_by_key(|x| x.1.len()).unwrap();
     let robbers = votes.get(player).unwrap();
-    let robber_list = robbers
-        .iter()
-        .map(|x| format!("<@{}>", x))
-        .collect::<Vec<String>>()
-        .join(", ");
-
-    let percentage_to_steal = ctx.data().rng.lock().unwrap().gen_range(5..=25);
-
-    let balance = ctx.data().db.get_balance(player.to_string()).await?;
-    let stolen = balance * percentage_to_steal / 100;
-
     if robbers.is_empty() {
         let message = {
             CreateMessage::default()
@@ -207,8 +205,32 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
         ctx.channel_id().send_message(ctx, message).await?;
         return Ok(());
     }
+    let robber_list = robbers
+        .iter()
+        .map(|x| format!("<@{}>", x))
+        .collect::<Vec<String>>()
+        .join(", ");
+
+    let percentage_to_steal = ctx.data().rng.lock().unwrap().gen_range(5..=25);
+
+    let balance = ctx.data().db.get_balance(player.to_string()).await?;
+    let stolen = balance * percentage_to_steal / 100;
 
     let each = stolen / robbers.len() as i32;
+
+    if each == 0 {
+        let message = {
+            CreateMessage::default()
+                .content(format!("> ### :coin: Awoo, we just tried to rob <@{}> but they are too poor!\n> I hope you are proud {}.", player, robber_list).to_string())
+                .allowed_mentions(CreateAllowedMentions::new().empty_users())
+                .reference_message(&id)
+        };
+        for user in chosen_players.iter() {
+            ctx.data().locked_balances.lock().unwrap().remove(&user.0);
+        }
+        ctx.channel_id().send_message(ctx, message).await?;
+        return Ok(());
+    }
 
     ctx.data().db.award_balances(robbers.to_vec(), each).await?;
     ctx.data()
@@ -217,14 +239,14 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
         .await?;
 
     let text = match robbers.len() == 1 {
-        false => format!("Awoo, we just robbed {}:dollar: from <@{}>! I hope you are proud {}. You each get {}:dollar:!", stolen,
+        false => format!("> ### :coin: Awoo, we just robbed {} :dollar: from <@{}>!\n> I hope you are proud {}.\n> **You each get {} :dollar:!**", stolen,
                     player,
                     robber_list,
                     each
                 )
                 .to_string(),
         true => format!(
-                    "Awoo, we just robbed {}:dollar: from <@{}>! I hope you are proud {}. You get {}:dollar:!",
+                    "> ### :coin: Awoo, we just robbed {} :dollar: from <@{}>!\n> I hope you are proud {}.\n> **You get {} :dollar:!**",
                     stolen,
                     player,
                     robber_list,

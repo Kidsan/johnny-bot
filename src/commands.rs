@@ -1,5 +1,6 @@
 use rand::{seq::SliceRandom, Rng};
 use std::{
+    fmt::Display,
     time::{self, SystemTime, UNIX_EPOCH},
     vec,
 };
@@ -731,12 +732,21 @@ pub async fn transfer(
     Ok(())
 }
 
-#[derive(poise::ChoiceParameter)]
+#[derive(poise::ChoiceParameter, Clone)]
 pub enum HeadsOrTail {
     #[name = "Heads"]
     Heads,
     #[name = "Tails"]
     Tails,
+}
+
+impl Display for HeadsOrTail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HeadsOrTail::Heads => write!(f, "Heads"),
+            HeadsOrTail::Tails => write!(f, "Tails"),
+        }
+    }
 }
 
 ///
@@ -798,7 +808,7 @@ pub async fn coingamble(
     let coingame = CoinGame::new(
         id.to_string(),
         game_starter.clone(),
-        choice,
+        choice.clone(),
         amount,
         time::Instant::now(),
         ctx.data().side_chance,
@@ -850,7 +860,7 @@ pub async fn coingamble(
                 serenity::CreateInteractionResponse::Message(
                     CreateInteractionResponseMessage::new()
                         .content(
-                                "Nice try, but you can't do that while the robbing event is happening. You can play again after",
+                                "Nice try, but you can't do that while the robbing event is happening. You can play again after.",
                         )
                         .ephemeral(true),
                 ),
@@ -898,8 +908,16 @@ pub async fn coingamble(
         )
         .await?;
 
-        mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
-            .await?;
+        mci.create_response(
+            ctx,
+            serenity::CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new()
+                    .content(format!("You have voted for {}", &choice))
+                    .allowed_mentions(CreateAllowedMentions::new().empty_users())
+                    .ephemeral(true),
+            ),
+        )
+        .await?;
     }
 
     let game = {

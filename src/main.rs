@@ -121,7 +121,7 @@ async fn main() {
                     let reply = {
                         CreateReply::default()
                             .content(
-                                "Nice try, but you can't do that while the robbing event is happening. You can play again after",
+                                "Nice try, but you can't do that while the robbing event is happening. You can play again after.",
                             )
                             .ephemeral(true)
                     };
