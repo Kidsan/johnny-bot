@@ -906,6 +906,24 @@ pub async fn coingamble(
         let mut games = ctx.data().coingames.lock().unwrap();
         games.remove(&id.to_string()).unwrap()
     };
+
+    let reply = {
+        let components = vec![serenity::CreateActionRow::Buttons(vec![
+            new_heads_button().disabled(true),
+            new_tails_button().disabled(true),
+            new_player_count_button(game.players.len() as i32),
+            new_pot_counter_button(game.pot),
+        ])];
+        CreateReply::default()
+            .content(format!(
+                "> ### :coin: HEADS OR TAILS?\n> **Bet {} :dollar: **on the correct answer!\n> **Game is over!**",
+                amount
+            ))
+            .components(components)
+    };
+
+    a.edit(ctx, reply).await?;
+
     let coin_flip_result = game.get_winner(&mut ctx.data().rng.lock().unwrap()).clone();
     let winners = match coin_flip_result.as_str() {
         "heads" => game.heads.clone(),
@@ -1050,22 +1068,6 @@ pub async fn coingamble(
             .allowed_mentions(CreateAllowedMentions::new().empty_users())
     };
     ctx.send(message).await?;
-    let reply = {
-        let components = vec![serenity::CreateActionRow::Buttons(vec![
-            new_heads_button().disabled(true),
-            new_tails_button().disabled(true),
-            new_player_count_button(game.players.len() as i32),
-            new_pot_counter_button(game.pot),
-        ])];
-        CreateReply::default()
-            .content(format!(
-                "> ### :coin: HEADS OR TAILS?\n> **Bet {} :dollar: **on the correct answer!\n> **Game is over!**",
-                amount
-            ))
-            .components(components)
-    };
-
-    a.edit(ctx, reply).await?;
     Ok(())
 }
 

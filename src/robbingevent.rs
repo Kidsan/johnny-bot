@@ -94,7 +94,7 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
 
     let mut id = ctx.channel_id().send_message(ctx, reply).await?;
     let mut votes: HashMap<String, Vec<String>> = HashMap::new();
-    let mut already_voted = HashSet::new();
+    let mut already_voted: HashSet<String> = HashSet::new();
 
     for player in chosen_players.iter() {
         votes.insert(player.0.clone(), vec![]);
@@ -110,10 +110,16 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
     {
         let voter_id = mci.user.id;
         let choice = mci.data.custom_id.clone();
-        dbg!(voter_id.to_string(), &choice);
-        if already_voted.contains(&voter_id) {
-            mci.create_response(ctx, CreateInteractionResponse::Acknowledge)
-                .await?;
+        if already_voted.contains(&voter_id.to_string()) {
+            mci.create_response(
+                ctx,
+                CreateInteractionResponse::Message(
+                    CreateInteractionResponseMessage::new()
+                        .content("You have already voted".to_string())
+                        .ephemeral(true),
+                ),
+            )
+            .await?;
             continue;
         }
         dbg!(voter_id.to_string(), &choice);
@@ -131,7 +137,7 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
             continue;
         }
 
-        already_voted.insert(voter_id);
+        already_voted.insert(voter_id.to_string());
         if let Some(x) = votes.get_mut(&choice) {
             x.push(voter_id.to_string());
         } else {
