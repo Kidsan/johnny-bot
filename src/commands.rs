@@ -532,8 +532,11 @@ pub async fn fine(
         .await?;
 
     let msg = match reason {
-        Some(r) => format!("{} was fined {} J-Bucks for {}", user, amount, r),
-        None => format!("{} was fined {} J-Bucks!", user, amount),
+        Some(r) => format!(
+            "{} was fined {}:dollar:!\nReason: \"*{}*\"",
+            user, amount, r
+        ),
+        None => format!("{} was fined {}:dollar:!", user, amount),
     };
 
     // if show_caller is true, send as a reply
@@ -590,13 +593,14 @@ pub async fn award(
         .set_balance(user_id.clone(), user_balance + amount)
         .await?;
 
-    let reason = match reason {
-        Some(r) => format!(" for {}!", r),
-        None => "!".to_string(),
-    };
-
     // if show_caller is true, send as a reply
-    let msg = format!("{} was awarded {} J-Bucks{}", user, amount, reason);
+    let msg = match reason {
+        Some(m) => format!(
+            "{} was awarded {}:dollar:!\nReason: \"*{}*\"",
+            user, amount, m
+        ),
+        None => format!("{} was awarded {}:dollar:!", user, amount),
+    };
     match show_caller {
         Some(true) => {
             let reply = { CreateReply::default().content(msg) };
@@ -839,6 +843,20 @@ pub async fn coingamble(
                 .await?;
                 continue;
             }
+        }
+        if ctx.data().locked_balances.lock().unwrap().contains(&player) {
+            mci.create_response(
+                ctx,
+                serenity::CreateInteractionResponse::Message(
+                    CreateInteractionResponseMessage::new()
+                        .content(
+                                "Nice try, but you can't do that while the robbing event is happening. You can play again after",
+                        )
+                        .ephemeral(true),
+                ),
+            )
+            .await?;
+            continue;
         }
         let player_balance = db.get_balance(player.clone()).await?;
 

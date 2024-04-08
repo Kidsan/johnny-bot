@@ -4,9 +4,9 @@ mod game;
 mod robbingevent;
 mod texts;
 
-use poise::serenity_prelude as serenity;
+use poise::{serenity_prelude as serenity, CreateReply};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     env::var,
     sync::{Arc, Mutex},
     time::Duration,
@@ -24,6 +24,7 @@ pub struct Data {
     game_length: u64,
     side_chance: i32,
     rng: Mutex<rand::rngs::StdRng>,
+    locked_balances: Mutex<HashSet<String>>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -108,6 +109,27 @@ async fn main() {
                 if ctx.author().id == 123456789 {
                     return Ok(false);
                 }
+
+                if ["give", "coingamble"].contains(&ctx.command().name.as_str())
+                    && ctx
+                        .data()
+                        .locked_balances
+                        .lock()
+                        .unwrap()
+                        .contains(&ctx.author().id.to_string())
+                {
+                    let reply = {
+                        CreateReply::default()
+                            .content(
+                                "Nice try, but you can't do that while the robbing event is happening. You can play again after",
+                            )
+                            .ephemeral(true)
+                    };
+                    ctx.send(reply).await?;
+                    dbg!("done");
+                    return Ok(false);
+                }
+
                 Ok(true)
             })
         }),
@@ -138,6 +160,7 @@ async fn main() {
                     side_chance,
                     game_length,
                     rng: Mutex::new(rand::SeedableRng::from_entropy()),
+                    locked_balances: Mutex::new(HashSet::new()),
                 })
             })
         })
