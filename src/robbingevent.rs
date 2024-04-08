@@ -17,7 +17,12 @@ use std::{
 /// ```
 /// /coingamble 10
 /// ```
-#[poise::command(slash_command)]
+#[poise::command(
+    slash_command,
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR",
+    hide_in_help
+)]
 pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
     let reply = {
         poise::CreateReply::default()

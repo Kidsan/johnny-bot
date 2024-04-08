@@ -912,7 +912,7 @@ pub async fn coingamble(
             ctx,
             serenity::CreateInteractionResponse::Message(
                 CreateInteractionResponseMessage::new()
-                    .content(format!("You have voted for {}", &choice))
+                    .content(format!("You have voted for {}", mci.data.custom_id))
                     .allowed_mentions(CreateAllowedMentions::new().empty_users())
                     .ephemeral(true),
             ),
