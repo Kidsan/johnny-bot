@@ -175,5 +175,41 @@ async fn main() {
         .framework(framework)
         .await;
 
-    client.unwrap().start().await.unwrap()
+    let shard_manager = client.as_ref().unwrap().shard_manager.clone();
+
+    tokio::spawn(async move {
+        client.unwrap().start().await.unwrap();
+    });
+    wait_until_shutdown().await;
+    shard_manager.shutdown_all().await;
+}
+
+#[cfg(unix)]
+async fn wait_until_shutdown() {
+    use tokio::signal::unix::{signal, SignalKind};
+
+    let mut sigint = signal(SignalKind::interrupt()).unwrap();
+    let mut sighup = signal(SignalKind::hangup()).unwrap();
+    let mut sigterm = signal(SignalKind::terminate()).unwrap();
+    tokio::select! {
+        v = sigint.recv() => {
+            println!("Received A SIGINT, shutting down...");
+            v.unwrap()
+        },
+        v = sigterm.recv() => {
+            println!("Received SIGTERM, shutting down...");
+            v.unwrap()
+        }
+        v = sighup.recv() => {
+            println!("Received SIGHUP, shutting down...");
+            v.unwrap()
+        }
+    }
+}
+
+#[cfg(windows)]
+async fn wait_until_shutdown() {
+    use tokio::signal::windows::{signal, SignalKind};
+    tokio::signal::ctrl_c().await.unwrap();
+    println!("Received CTRL-C, shutting down...");
 }
