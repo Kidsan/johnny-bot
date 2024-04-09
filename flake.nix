@@ -32,6 +32,12 @@
         packages = {
           bot = build-bot pkgs;
           bot-cross-aarch64-linux = build-bot pkgs.pkgsCross.aarch64-multiplatform;
+          docker = pkgs.dockerTools.buildLayeredImage {
+            name = "registry.digitalocean.com/johnnybot/bot";
+            tag = if (self ? rev) then self.shortRev else "dirty";
+            config.Cmd = [ "${packages.bot}/bin/bot" ];
+            contents = [ packages.bot ];
+          };
         };
 
         defaultPackage = packages.bot;
