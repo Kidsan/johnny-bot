@@ -47,6 +47,17 @@ pub async fn help(
     #[autocomplete = "complete_help"]
     command: Option<String>,
 ) -> Result<(), Error> {
+    if let Some(command) = &command {
+        if !["help", "balance", "leaderboard", "give", "coingamble"].contains(&command.as_str()) {
+            let reply = {
+                CreateReply::default()
+                    .content("Unknown command!")
+                    .ephemeral(true)
+            };
+            ctx.send(reply).await?;
+            return Ok(());
+        }
+    }
     poise::builtins::help(
         ctx,
         command.as_deref(),
@@ -115,9 +126,9 @@ pub async fn say(
 ///
 /// Check your balance
 ///
-/// Enter `/checkbucks` to check
+/// Enter `/balance` to check
 /// ```
-/// /checkbucks
+/// /balance
 /// ```
 #[poise::command(slash_command)]
 pub async fn balance(ctx: Context<'_>) -> Result<(), Error> {
@@ -176,6 +187,9 @@ fn user_can_play(user_balance: i32, amount: i32) -> bool {
     track_edits,
     slash_command,
     // user_cooldown = 120
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR",
+    hide_in_help
     )]
 pub async fn gamble(
     ctx: Context<'_>,

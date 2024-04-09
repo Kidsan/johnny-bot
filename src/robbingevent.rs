@@ -1,8 +1,9 @@
 use crate::{database::BalanceDatabase, Context, Error};
 use rand::{seq::SliceRandom, Rng};
 use serenity::all::{
-    ComponentInteractionCollector, CreateActionRow, CreateAllowedMentions, CreateButton,
-    CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, EditMessage,
+    ActivityData, ComponentInteractionCollector, CreateActionRow, CreateAllowedMentions,
+    CreateButton, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage,
+    EditMessage,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -90,10 +91,13 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let time_to_play = ctx.data().game_length;
 
+    ctx.serenity_context()
+        .shard
+        .set_activity(Some(ActivityData::custom("redistributing wealth")));
     let reply = {
         CreateMessage::default()
             .content(format!(
-                    "> ### :coin: Time for some wealth distrubution!\n> Which one of these players could spare a couple of bucks?\n > **Voting Ends: **<t:{}:R>", now+time_to_play))
+                    "> ### :coin: Time for some wealth redistribution!\n> Which one of these players could spare a couple of bucks?\n > **Voting Ends: **<t:{}:R>", now+time_to_play))
             .components(components.clone())
     };
 
@@ -188,7 +192,7 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
 
     let reply = {
         EditMessage::default()
-            .content("> ### :coin: Time for some wealth distrubution!\n> Which one of these players could spare a couple of bucks?\n > **Voting Has Ended!**".to_string())
+            .content("> ### :coin: Time for some wealth redistribution!\n> Which one of these players could spare a couple of bucks?\n > **Voting Has Ended!**".to_string())
             .components(components.clone())
     };
 
@@ -208,6 +212,7 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
             ctx.data().locked_balances.lock().unwrap().remove(&user.0);
         }
         ctx.channel_id().send_message(ctx, message).await?;
+        ctx.serenity_context().shard.set_activity(None);
         return Ok(());
     }
     let robber_list = robbers
@@ -234,6 +239,7 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
             ctx.data().locked_balances.lock().unwrap().remove(&user.0);
         }
         ctx.channel_id().send_message(ctx, message).await?;
+        ctx.serenity_context().shard.set_activity(None);
         return Ok(());
     }
 
@@ -270,6 +276,8 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
         ctx.data().locked_balances.lock().unwrap().remove(&user.0);
     }
     ctx.channel_id().send_message(ctx, message).await?;
+    ctx.serenity_context().shard.set_activity(None);
+
     Ok(())
 }
 
