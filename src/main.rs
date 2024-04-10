@@ -1,6 +1,7 @@
 mod commands;
 mod database;
 mod game;
+mod newcommands;
 mod robbingevent;
 mod texts;
 
@@ -76,8 +77,10 @@ async fn main() {
             commands::transfer(),
             commands::award(),
             commands::coingamble(),
+            newcommands::daily::daily(),
             robbingevent::robbingevent(),
         ],
+        manual_cooldowns: true,
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("~".into()),
             edit_tracker: Some(Arc::new(poise::EditTracker::for_timespan(

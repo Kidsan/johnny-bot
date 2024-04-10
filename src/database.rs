@@ -1,7 +1,11 @@
-use std::rc::Rc;
+use std::{
+    rc::Rc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
+use chrono::{DateTime, NaiveDateTime, Utc};
 use rusqlite::{params, types::Value};
-use tokio::fs;
+use tokio::{fs, time};
 use tokio_rusqlite::Connection;
 
 use crate::Error;
@@ -12,6 +16,8 @@ pub trait BalanceDatabase {
     async fn award_balances(&self, user_ids: Vec<String>, award: i32) -> Result<(), Error>;
     async fn subtract_balances(&self, user_ids: Vec<String>, amount: i32) -> Result<(), Error>;
     async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error>;
+    async fn get_last_daily(&self, user_id: String) -> Result<DateTime<Utc>, Error>;
+    async fn did_daily(&self, user_id: String) -> Result<(), Error>;
 }
 
 pub struct Database {
@@ -32,6 +38,16 @@ impl Database {
             )?;
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_balances_balance ON balances (balance)",
+                [],
+            )?;
+
+            conn.execute(
+                "
+                CREATE TABLE IF NOT EXISTS dailies (
+                    id TEXT PRIMARY KEY,
+                    last_daily INTEGER NOT NULL
+                )
+                ",
                 [],
             )?;
             rusqlite::vtab::array::load_module(conn)?;
@@ -151,6 +167,59 @@ impl BalanceDatabase for Database {
                 stmt.raw_bind_parameter(1, amount)?;
                 stmt.raw_bind_parameter(2, values)?;
                 Ok(stmt.raw_execute().unwrap())
+            })
+            .await?;
+        Ok(())
+    }
+
+    async fn get_last_daily(&self, user_id: String) -> Result<DateTime<Utc>, Error> {
+        let user = user_id.clone();
+        let last_daily = self
+            .connection
+            .call(move |conn| {
+                let mut stmt =
+                    conn.prepare_cached("SELECT last_daily FROM dailies WHERE id = (?1)")?;
+                Ok(stmt.query_row(params![user], |row| {
+                    let ts: i64 = row.get(0)?;
+                    Ok(ts)
+                }))
+            })
+            .await?;
+
+        let res = match last_daily {
+            Ok(last_daily) => DateTime::<Utc>::from_timestamp(last_daily, 0).unwrap(),
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                let user = user_id;
+                let now = (chrono::Utc::now() - chrono::Duration::days(1)).timestamp();
+                dbg!(chrono::Utc::now().timestamp(), now);
+                let _ = self
+                    .connection
+                    .call(move |conn| {
+                        let mut stmt = conn.prepare_cached(
+                            "INSERT INTO dailies (id, last_daily) VALUES (?1, ?2)",
+                        )?;
+                        Ok(stmt.execute(params![user, now]))
+                    })
+                    .await?;
+                DateTime::from_timestamp(now, 0).unwrap()
+            }
+            Err(e) => return Err(e.into()),
+        };
+        Ok(res)
+    }
+
+    async fn did_daily(&self, user_id: String) -> Result<(), Error> {
+        let _ = self
+            .connection
+            .call(move |conn| {
+                let user = user_id;
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                let mut stmt =
+                    conn.prepare_cached("UPDATE dailies SET last_daily = (?1) WHERE id = (?2)")?;
+                Ok(stmt.execute(params![now, user]))
             })
             .await?;
         Ok(())

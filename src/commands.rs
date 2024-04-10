@@ -32,7 +32,14 @@ pub async fn complete_help<'a>(
     ctx: Context<'a>,
     partial: &'a str,
 ) -> impl Iterator<Item = serenity::AutocompleteChoice> + 'a {
-    let white_listed = ["help", "balance", "leaderboard", "give", "coingamble"];
+    let white_listed = [
+        "help",
+        "balance",
+        "leaderboard",
+        "give",
+        "coingamble",
+        "daily",
+    ];
     poise::builtins::autocomplete_command(ctx, partial)
         .await
         .filter(move |cmd| white_listed.contains(&cmd.as_str()))
@@ -48,7 +55,16 @@ pub async fn help(
     command: Option<String>,
 ) -> Result<(), Error> {
     if let Some(command) = &command {
-        if !["help", "balance", "leaderboard", "give", "coingamble"].contains(&command.as_str()) {
+        if ![
+            "help",
+            "balance",
+            "leaderboard",
+            "give",
+            "coingamble",
+            "daily",
+        ]
+        .contains(&command.as_str())
+        {
             let reply = {
                 CreateReply::default()
                     .content("Unknown command!")
@@ -548,10 +564,10 @@ pub async fn fine(
 
     let msg = match reason {
         Some(r) => format!(
-            "{} was fined {}:dollar:!\nReason: \"*{}*\"",
+            "{} was fined {} :dollar:!\nReason: \"*{}*\"",
             user, amount, r
         ),
-        None => format!("{} was fined {}:dollar:!", user, amount),
+        None => format!("{} was fined {} :dollar:!", user, amount),
     };
 
     // if show_caller is true, send as a reply
@@ -611,10 +627,10 @@ pub async fn award(
     // if show_caller is true, send as a reply
     let msg = match reason {
         Some(m) => format!(
-            "{} was awarded {}:dollar:!\nReason: \"*{}*\"",
+            "{} was awarded {} :dollar:!\nReason: \"*{}*\"",
             user, amount, m
         ),
-        None => format!("{} was awarded {}:dollar:!", user, amount),
+        None => format!("{} was awarded {} :dollar:!", user, amount),
     };
     match show_caller {
         Some(true) => {
