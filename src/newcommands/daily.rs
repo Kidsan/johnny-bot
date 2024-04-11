@@ -75,11 +75,7 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
         .award_balances(vec![user_id.clone()], amount)
         .await?;
     ctx.data().db.did_daily(user_id).await?;
-    let reply = {
-        CreateReply::default()
-            .content(format!("You got {} :dollar:!", amount))
-            .ephemeral(true)
-    };
+    let reply = { CreateReply::default().content(format!("You got {} :dollar:!", amount)) };
     ctx.send(reply).await?;
     Ok(())
 }
