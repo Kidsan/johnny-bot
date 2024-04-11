@@ -1056,7 +1056,7 @@ pub async fn coingamble(
     let prize = game.pot / winners.len() as i32;
     let prize_with_multiplier = (prize as f32 * johnnys_multiplier) as i32;
 
-    if winners.len() != 1 && winners[0] != ctx.data().bot_id {
+    if winners[0] != ctx.data().bot_id {
         db.award_balances(winners.clone(), prize_with_multiplier)
             .await?;
     }
