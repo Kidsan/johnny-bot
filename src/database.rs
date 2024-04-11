@@ -3,9 +3,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use rusqlite::{params, types::Value};
-use tokio::{fs, time};
+use tokio::fs;
 use tokio_rusqlite::Connection;
 
 use crate::Error;

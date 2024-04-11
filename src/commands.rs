@@ -105,7 +105,10 @@ pub async fn checkbucks(
     #[description = "Who to check"] user: serenity::User,
 ) -> Result<(), Error> {
     let user_id = user.id.to_string();
-    let response = ctx.data().db.get_balance(user_id).await?;
+    let response = match user.bot {
+        true => 0,
+        false => ctx.data().db.get_balance(user_id).await?,
+    };
     let reply = {
         CreateReply::default()
             .content(format!("{} has {} J-Buck(s)!", user, response,))
@@ -950,7 +953,7 @@ pub async fn coingamble(
         .await?;
     }
 
-    let game = {
+    let mut game = {
         let mut games = ctx.data().coingames.lock().unwrap();
         games.remove(&id.to_string()).unwrap()
     };
@@ -971,6 +974,14 @@ pub async fn coingamble(
     };
 
     a.edit(ctx, reply).await?;
+
+    if game.heads.is_empty() {
+        game.heads.push(ctx.data().bot_id.to_string());
+        game.pot += game.pot;
+    } else if game.tails.is_empty() {
+        game.tails.push(ctx.data().bot_id.to_string());
+        game.pot += game.pot;
+    }
 
     let coin_flip_result = game.get_winner(&mut ctx.data().rng.lock().unwrap()).clone();
     let winners = match coin_flip_result.as_str() {
@@ -1045,8 +1056,10 @@ pub async fn coingamble(
     let prize = game.pot / winners.len() as i32;
     let prize_with_multiplier = (prize as f32 * johnnys_multiplier) as i32;
 
-    db.award_balances(winners.clone(), prize_with_multiplier)
-        .await?;
+    if winners.len() != 1 && winners[0] != ctx.data().bot_id {
+        db.award_balances(winners.clone(), prize_with_multiplier)
+            .await?;
+    }
 
     let message = {
         let mut picked_heads_users = game
