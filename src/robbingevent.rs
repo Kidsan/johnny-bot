@@ -31,6 +31,11 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
             .ephemeral(true)
     };
     ctx.send(reply).await?;
+    wrapped_robbing_event(ctx).await?;
+    Ok(())
+}
+
+pub async fn wrapped_robbing_event(ctx: Context<'_>) -> Result<(), Error> {
     let leaderboard = ctx.data().db.get_leaderboard().await?;
     if leaderboard.len() < 4 {
         let reply = {
@@ -48,26 +53,37 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
         .collect::<Vec<_>>();
 
     let mut named_players = HashMap::new();
+    let mut abort = false;
 
-    for player in chosen_players.iter() {
-        if player.1 == 0 {
-            let reply = {
-                poise::CreateReply::default()
-                    .content(
-                        "One of the chosen players has no money, so we're skipping this round.",
-                    )
-                    .ephemeral(true)
-            };
-            ctx.send(reply).await?;
+    {
+        let mut locked = ctx.data().locked_balances.lock().unwrap();
+        if !locked.is_empty() {
+            dbg!("Already in a robbing event!");
             return Ok(());
         }
-        let name = get_discord_name(ctx, &player.0).await;
-        named_players.insert(player.0.clone(), name);
-        ctx.data()
-            .locked_balances
-            .lock()
-            .unwrap()
-            .insert(player.0.clone());
+        for player in chosen_players.iter() {
+            if player.1 == 0 {
+                // clear locked balances
+                ctx.data().locked_balances.lock().unwrap().clear();
+                abort = true;
+            }
+            locked.insert(player.0.clone());
+        }
+    }
+
+    if abort {
+        let reply = {
+            poise::CreateReply::default()
+                .content("One of the chosen players has no money, so we're skipping this round.")
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Ok(());
+    }
+    let players = { ctx.data().locked_balances.lock().unwrap().clone() };
+    for player in players {
+        let name = get_discord_name(ctx, &player).await;
+        named_players.insert(player.clone(), name);
     }
 
     let components = vec![CreateActionRow::Buttons(vec![
@@ -272,12 +288,9 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
             .allowed_mentions(CreateAllowedMentions::new().empty_users())
             .reference_message(&id)
     };
-    for user in chosen_players.iter() {
-        ctx.data().locked_balances.lock().unwrap().remove(&user.0);
-    }
+    ctx.data().locked_balances.lock().unwrap().clear();
     ctx.channel_id().send_message(ctx, message).await?;
     ctx.serenity_context().shard.set_activity(None);
-
     Ok(())
 }
 

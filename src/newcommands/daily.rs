@@ -1,4 +1,4 @@
-use crate::{database::BalanceDatabase, Context, Error};
+use crate::{database::BalanceDatabase, robbingevent::wrapped_robbing_event, Context, Error};
 use poise::CreateReply;
 use rand::Rng;
 
@@ -77,5 +77,10 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
     ctx.data().db.did_daily(user_id).await?;
     let reply = { CreateReply::default().content(format!("You got {} :dollar:!", amount)) };
     ctx.send(reply).await?;
+    if ctx.data().rng.lock().unwrap().gen_bool(1.0 / 10.0) {
+        let time_to_wait = { ctx.data().rng.lock().unwrap().gen_range(3..=30) };
+        tokio::time::sleep(std::time::Duration::from_secs(time_to_wait)).await;
+        wrapped_robbing_event(ctx).await?;
+    }
     Ok(())
 }
