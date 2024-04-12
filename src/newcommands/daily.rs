@@ -16,7 +16,13 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
         Err(e) => return Err(e),
     }
     let user_id = ctx.author().id.to_string();
-    let amount = { ctx.data().rng.lock().unwrap().gen_range(5..=10) };
+    let mut amount = { ctx.data().rng.lock().unwrap().gen_range(5..=10) };
+    let balance = { ctx.data().db.get_balance(user_id.clone()).await? };
+    let bonus = {
+        let mp = ctx.data().rng.lock().unwrap().gen_range(0.01..=0.03);
+        (balance as f32 * mp) as i32
+    };
+    amount += bonus;
     ctx.data()
         .db
         .award_balances(vec![user_id.clone()], amount)
