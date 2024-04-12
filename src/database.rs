@@ -21,6 +21,7 @@ pub trait BalanceDatabase {
     async fn get_total(&self) -> Result<i32, Error>;
     async fn get_avg_balance(&self) -> Result<i32, Error>;
     async fn get_zero_balance(&self) -> Result<i32, Error>;
+    async fn get_leader(&self) -> Result<String, Error>;
 }
 
 pub struct Database {
@@ -270,6 +271,22 @@ impl BalanceDatabase for Database {
                     let total: i32 = row.get(0).unwrap();
 
                     Ok(total)
+                });
+                Ok(v.unwrap())
+            })
+            .await
+            .unwrap())
+    }
+
+    async fn get_leader(&self) -> Result<String, Error> {
+        Ok(self
+            .connection
+            .call(move |conn| {
+                let mut stmt =
+                    conn.prepare_cached("SELECT id FROM balances ORDER BY balance DESC LIMIT 1")?;
+                let v = stmt.query_row([], |row| {
+                    let id: String = row.get(0).unwrap();
+                    Ok(id)
                 });
                 Ok(v.unwrap())
             })

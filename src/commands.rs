@@ -1056,11 +1056,17 @@ pub async fn coingamble(
         };
 
     let prize = game.pot / winners.len() as i32;
+    let remainder = game.pot % winners.len() as i32;
     let prize_with_multiplier = (prize as f32 * johnnys_multiplier) as i32;
+    let mut leader = "".to_string();
 
     if winners[0] != ctx.data().bot_id {
         db.award_balances(winners.clone(), prize_with_multiplier)
             .await?;
+        if remainder > 0 {
+            leader = ctx.data().db.get_leader().await?;
+            db.award_balances(vec![leader.clone()], remainder).await?;
+        }
     }
 
     let message = {
@@ -1126,6 +1132,14 @@ pub async fn coingamble(
         a.push_str(&format!("> **Picked Heads**\n{}\n> ", picked_heads_users));
 
         a.push_str(&format!("\n> **Picked Tails**\n{}\n", picked_tails_users));
+
+        if remainder > 0 {
+            a.push_str(&format!(
+                "> \n> +{} :dollar: to <@{}> ||(leader bonus)||",
+                remainder, leader
+            ));
+        }
+
         CreateReply::default()
             .content(a)
             .allowed_mentions(CreateAllowedMentions::new().empty_users())
