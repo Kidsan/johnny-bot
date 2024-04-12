@@ -18,6 +18,9 @@ pub trait BalanceDatabase {
     async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error>;
     async fn get_last_daily(&self, user_id: String) -> Result<DateTime<Utc>, Error>;
     async fn did_daily(&self, user_id: String) -> Result<(), Error>;
+    async fn get_total(&self) -> Result<i32, Error>;
+    async fn get_avg_balance(&self) -> Result<i32, Error>;
+    async fn get_zero_balance(&self) -> Result<i32, Error>;
 }
 
 pub struct Database {
@@ -223,5 +226,54 @@ impl BalanceDatabase for Database {
             })
             .await?;
         Ok(())
+    }
+
+    async fn get_total(&self) -> Result<i32, Error> {
+        Ok(self
+            .connection
+            .call(move |conn| {
+                let mut stmt = conn.prepare_cached("SELECT SUM(balance) FROM balances")?;
+                let v = stmt.query_row([], |row| {
+                    let total: i32 = row.get(0).unwrap();
+
+                    Ok(total)
+                });
+                Ok(v.unwrap())
+            })
+            .await
+            .unwrap())
+    }
+
+    async fn get_avg_balance(&self) -> Result<i32, Error> {
+        Ok(self
+            .connection
+            .call(move |conn| {
+                let mut stmt =
+                    conn.prepare_cached("SELECT AVG(balance) FROM balances where balance > 0")?;
+                let v = stmt.query_row([], |row| {
+                    let total: f32 = row.get(0).unwrap();
+                    Ok(total as i32)
+                });
+                Ok(v.unwrap())
+            })
+            .await
+            .unwrap())
+    }
+
+    async fn get_zero_balance(&self) -> Result<i32, Error> {
+        Ok(self
+            .connection
+            .call(move |conn| {
+                let mut stmt =
+                    conn.prepare_cached("SELECT count(id) FROM balances where balance = 0")?;
+                let v = stmt.query_row([], |row| {
+                    let total: i32 = row.get(0).unwrap();
+
+                    Ok(total)
+                });
+                Ok(v.unwrap())
+            })
+            .await
+            .unwrap())
     }
 }
