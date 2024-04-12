@@ -11,6 +11,28 @@ use rand::Rng;
 /// ```
 #[poise::command(slash_command)]
 pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
+    match daily_cooldown(ctx).await {
+        Ok(_) => {}
+        Err(e) => return Err(e),
+    }
+    let user_id = ctx.author().id.to_string();
+    let amount = { ctx.data().rng.lock().unwrap().gen_range(5..=10) };
+    ctx.data()
+        .db
+        .award_balances(vec![user_id.clone()], amount)
+        .await?;
+    ctx.data().db.did_daily(user_id).await?;
+    let reply = { CreateReply::default().content(format!("You got {} :dollar:!", amount)) };
+    ctx.send(reply).await?;
+    if ctx.data().rng.lock().unwrap().gen_bool(1.0 / 10.0) {
+        let time_to_wait = { ctx.data().rng.lock().unwrap().gen_range(3..=30) };
+        tokio::time::sleep(std::time::Duration::from_secs(time_to_wait)).await;
+        wrapped_robbing_event(ctx).await?;
+    }
+    Ok(())
+}
+
+async fn daily_cooldown(ctx: Context<'_>) -> Result<(), Error> {
     let daily_timer = std::time::Duration::from_secs(86400);
     let time_since = {
         let last_daily = ctx
@@ -67,20 +89,6 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
             time_remaining.as_secs() / 3600
         )
         .into());
-    }
-    let user_id = ctx.author().id.to_string();
-    let amount = { ctx.data().rng.lock().unwrap().gen_range(5..=10) };
-    ctx.data()
-        .db
-        .award_balances(vec![user_id.clone()], amount)
-        .await?;
-    ctx.data().db.did_daily(user_id).await?;
-    let reply = { CreateReply::default().content(format!("You got {} :dollar:!", amount)) };
-    ctx.send(reply).await?;
-    if ctx.data().rng.lock().unwrap().gen_bool(1.0 / 10.0) {
-        let time_to_wait = { ctx.data().rng.lock().unwrap().gen_range(3..=30) };
-        tokio::time::sleep(std::time::Duration::from_secs(time_to_wait)).await;
-        wrapped_robbing_event(ctx).await?;
     }
     Ok(())
 }
