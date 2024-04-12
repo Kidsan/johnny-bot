@@ -39,6 +39,7 @@ pub async fn complete_help<'a>(
         "give",
         "coingamble",
         "daily",
+        "burn",
     ];
     poise::builtins::autocomplete_command(ctx, partial)
         .await
@@ -62,6 +63,7 @@ pub async fn help(
             "give",
             "coingamble",
             "daily",
+            "burn",
         ]
         .contains(&command.as_str())
         {

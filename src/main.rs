@@ -85,6 +85,7 @@ async fn main() {
             commands::coingamble(),
             newcommands::daily::daily(),
             newcommands::stats::stats(),
+            newcommands::burn::burn(),
             robbingevent::robbingevent(),
         ],
         manual_cooldowns: true,
