@@ -85,7 +85,7 @@ async fn main() {
             commands::coingamble(),
             newcommands::daily::daily(),
             newcommands::stats::stats(),
-            newcommands::burn::burn(),
+            newcommands::burn::bury(),
             robbingevent::robbingevent(),
         ],
         manual_cooldowns: true,
@@ -137,7 +137,6 @@ async fn main() {
                             .ephemeral(true)
                     };
                     ctx.send(reply).await?;
-                    dbg!("done");
                     return Ok(false);
                 }
 

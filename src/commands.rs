@@ -569,10 +569,13 @@ pub async fn fine(
 
     let msg = match reason {
         Some(r) => format!(
-            "{} was fined {} :dollar:!\nReason: \"*{}*\"",
+            "{} was fined {} <:jbuck:1228663982462865450>!\nReason: \"*{}*\"",
             user, amount, r
         ),
-        None => format!("{} was fined {} :dollar:!", user, amount),
+        None => format!(
+            "{} was fined {} <:jbuck:1228663982462865450>!",
+            user, amount
+        ),
     };
 
     // if show_caller is true, send as a reply
@@ -632,10 +635,13 @@ pub async fn award(
     // if show_caller is true, send as a reply
     let msg = match reason {
         Some(m) => format!(
-            "{} was awarded {} :dollar:!\nReason: \"*{}*\"",
+            "{} was awarded {} <:jbuck:1228663982462865450>!\nReason: \"*{}*\"",
             user, amount, m
         ),
-        None => format!("{} was awarded {} :dollar:!", user, amount),
+        None => format!(
+            "{} was awarded {} <:jbuck:1228663982462865450>!",
+            user, amount
+        ),
     };
     match show_caller {
         Some(true) => {
@@ -830,7 +836,7 @@ pub async fn coingamble(
     let reply = {
         CreateReply::default()
             .content(format!(
-                "> ### :coin: HEADS OR TAILS?\n> **Bet {} :dollar: **on the correct answer!\n> **Game Ends: **<t:{}:R>",
+                "> ### <:jbuck:1228663982462865450> HEADS OR TAILS?\n> **Bet {} <:jbuck:1228663982462865450> **on the correct answer!\n> **Game Ends: **<t:{}:R>",
                 amount,
                 now + time_to_play
             ))
@@ -969,7 +975,7 @@ pub async fn coingamble(
         ])];
         CreateReply::default()
             .content(format!(
-                "> ### :coin: HEADS OR TAILS?\n> **Bet {} :dollar: **on the correct answer!\n> **Game is over!**",
+                "> ### <:jbuck:1228663982462865450> HEADS OR TAILS?\n> **Bet {} <:jbuck:1228663982462865450> **on the correct answer!\n> **Game is over!**",
                 amount
             ))
             .components(components)
@@ -1007,7 +1013,7 @@ pub async fn coingamble(
             ])];
             CreateReply::default()
             .content(format!(
-                "> ### :coin: HEADS OR TAILS?\n> **Bet {} :dollar: **on the correct answer!\n> **Game is over!**",
+                "> ### <:jbuck:1228663982462865450> HEADS OR TAILS?\n> **Bet {} <:jbuck:1228663982462865450> **on the correct answer!\n> **Game is over!**",
                 amount
             ))
             .components(components)
@@ -1021,7 +1027,7 @@ pub async fn coingamble(
         let m = get_nobody_won(&mut ctx.data().rng.lock().unwrap());
         let reply = {
             CreateReply::default().content(format!(
-                ":coin: **IT WAS {}!**\n{}",
+                "<:jbuck:1228663982462865450> **IT WAS {}!**\n{}",
                 coin_flip_result.to_uppercase(),
                 m
             ))
@@ -1036,7 +1042,7 @@ pub async fn coingamble(
             ])];
             CreateReply::default()
             .content(format!(
-                "> ### :coin: HEADS OR TAILS?\n> **Bet {} :dollar: **on the correct answer!\n> **Game is over!**",
+                "> ### <:jbuck:1228663982462865450> HEADS OR TAILS?\n> **Bet {} <:jbuck:1228663982462865450> **on the correct answer!\n> **Game is over!**",
                 amount
             ))
             .components(components)
@@ -1092,7 +1098,7 @@ pub async fn coingamble(
         }
         if coin_flip_result == "heads" {
             picked_heads_users = format!(
-                "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} :dollar:!",
+                "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} <:jbuck:1228663982462865450>!",
                 picked_heads_users, prize
             );
 
@@ -1113,7 +1119,7 @@ pub async fn coingamble(
                 picked_heads_users
             );
             picked_tails_users = format!(
-                "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} :dollar:!",
+                "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} <:jbuck:1228663982462865450>!",
                 picked_tails_users, prize
             );
             if johnnys_multiplier > 1.0 && prize_with_multiplier - prize > 0 {
@@ -1126,7 +1132,7 @@ pub async fn coingamble(
         }
 
         let mut a = format!(
-            "> ### :coin: IT WAS {}!\n> \n",
+            "> ### <:jbuck:1228663982462865450> IT WAS {}!\n> \n",
             coin_flip_result.to_uppercase()
         );
         a.push_str(&format!("> **Picked Heads**\n{}\n> ", picked_heads_users));
@@ -1135,7 +1141,7 @@ pub async fn coingamble(
 
         if remainder > 0 {
             a.push_str(&format!(
-                "> \n> +{} :dollar: to <@{}> ||(leader bonus)||",
+                "> \n> +{} <:jbuck:1228663982462865450> to <@{}> ||(leader bonus)||",
                 remainder, leader
             ));
         }

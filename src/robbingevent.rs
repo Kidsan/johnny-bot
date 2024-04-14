@@ -113,7 +113,7 @@ pub async fn wrapped_robbing_event(ctx: Context<'_>) -> Result<(), Error> {
     let reply = {
         CreateMessage::default()
             .content(format!(
-                    "> ### :coin: Time for some wealth redistribution!\n> Which one of these players could spare a couple of bucks?\n > **Voting Ends: **<t:{}:R>", now+time_to_play))
+                    "> ### <:jbuck:1228663982462865450> Time for some wealth redistribution!\n> Which one of these players could spare a couple of bucks?\n > **Voting Ends: **<t:{}:R>", now+time_to_play))
             .components(components.clone())
     };
 
@@ -208,7 +208,7 @@ pub async fn wrapped_robbing_event(ctx: Context<'_>) -> Result<(), Error> {
 
     let reply = {
         EditMessage::default()
-            .content("> ### :coin: Time for some wealth redistribution!\n> Which one of these players could spare a couple of bucks?\n > **Voting Has Ended!**".to_string())
+            .content("> ### <:jbuck:1228663982462865450> Time for some wealth redistribution!\n> Which one of these players could spare a couple of bucks?\n > **Voting Has Ended!**".to_string())
             .components(components.clone())
     };
 
@@ -247,7 +247,7 @@ pub async fn wrapped_robbing_event(ctx: Context<'_>) -> Result<(), Error> {
     if each == 0 {
         let message = {
             CreateMessage::default()
-                .content(format!("> ### :coin: Awoo, we just tried to rob <@{}> but they are too poor!\n> I hope you are proud {}.", player, robber_list).to_string())
+                .content(format!("> ### <:jbuck:1228663982462865450> Awoo, we just tried to rob <@{}> but they are too poor!\n> I hope you are proud {}.", player, robber_list).to_string())
                 .allowed_mentions(CreateAllowedMentions::new().empty_users())
                 .reference_message(&id)
         };
@@ -266,14 +266,14 @@ pub async fn wrapped_robbing_event(ctx: Context<'_>) -> Result<(), Error> {
         .await?;
 
     let text = match robbers.len() == 1 {
-        false => format!("> ### :coin: Awoo, we just robbed {} :dollar: from <@{}>!\n> I hope you are proud {}.\n> **You each get {} :dollar:!**", stolen,
+        false => format!("> ### <:jbuck:1228663982462865450> Awoo, we just robbed {} <:jbuck:1228663982462865450> from <@{}>!\n> I hope you are proud {}.\n> **You each get {} <:jbuck:1228663982462865450>!**", stolen,
                     player,
                     robber_list,
                     each
                 )
                 .to_string(),
         true => format!(
-                    "> ### :coin: Awoo, we just robbed {} :dollar: from <@{}>!\n> I hope you are proud {}.\n> **You get {} :dollar:!**",
+                    "> ### <:jbuck:1228663982462865450> Awoo, we just robbed {} <:jbuck:1228663982462865450> from <@{}>!\n> I hope you are proud {}.\n> **You get {} <:jbuck:1228663982462865450>!**",
                     stolen,
                     player,
                     robber_list,

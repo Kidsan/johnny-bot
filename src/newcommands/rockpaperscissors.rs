@@ -43,7 +43,7 @@ pub async fn rockpaperscissors(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "You can't afford to bet {}. You only have {} :dollar:!",
+                    "You can't afford to bet {}. You only have {} <:jbuck:1228663982462865450>!",
                     amount, balance
                 ))
                 .ephemeral(true)
@@ -65,7 +65,7 @@ pub async fn rockpaperscissors(
     let reply = {
         CreateMessage::default()
             .content(format!(
-                "{} has challenged {} to a game of Rock, Paper, Scissors for {} :dollar:!",
+                "{} has challenged {} to a game of Rock, Paper, Scissors for {} <:jbuck:1228663982462865450>!",
                 ctx.author(),
                 user,
                 amount
@@ -110,7 +110,7 @@ pub async fn rockpaperscissors(
             let reply = {
                 CreateReply::default()
                     .content(format!(
-                        "You can't afford to bet {}. You only have {} :dollar:!",
+                        "You can't afford to bet {}. You only have {} <:jbuck:1228663982462865450>!",
                         amount, balance
                     ))
                     .ephemeral(true)

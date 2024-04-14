@@ -28,7 +28,9 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
         .award_balances(vec![user_id.clone()], amount)
         .await?;
     ctx.data().db.did_daily(user_id).await?;
-    let reply = { CreateReply::default().content(format!("You got {} :dollar:!", amount)) };
+    let reply = {
+        CreateReply::default().content(format!("You got {} <:jbuck:1228663982462865450>!", amount))
+    };
     ctx.send(reply).await?;
     if ctx.data().rng.lock().unwrap().gen_bool(1.0 / 10.0) {
         let time_to_wait = { ctx.data().rng.lock().unwrap().gen_range(3..=30) };

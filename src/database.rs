@@ -22,6 +22,7 @@ pub trait BalanceDatabase {
     async fn get_avg_balance(&self) -> Result<i32, Error>;
     async fn get_zero_balance(&self) -> Result<i32, Error>;
     async fn get_leader(&self) -> Result<String, Error>;
+    async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error>;
 }
 
 pub struct Database {
@@ -52,6 +53,14 @@ impl Database {
                     last_daily INTEGER NOT NULL
                 )
                 ",
+                [],
+            )?;
+
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS buried_balances (
+            id TEXT PRIMARY KEY,
+            amount INTEGER NOT NULL
+       )",
                 [],
             )?;
             rusqlite::vtab::array::load_module(conn)?;
@@ -99,6 +108,19 @@ impl BalanceDatabase for Database {
             Err(e) => return Err(e.into()),
         };
         Ok(result)
+    }
+
+    async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error> {
+        let _ = self
+            .connection
+            .call(move |conn| {
+                let mut stmt = conn.prepare_cached(
+                    "INSERT INTO buried_balances (id, amount) VALUES (?1, ?2) ON CONFLICT(id) DO UPDATE SET amount = amount + ?2",
+                )?;
+                Ok(stmt.execute(params![user_id, amount]))
+            })
+            .await?;
+        Ok(())
     }
 
     async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error> {
