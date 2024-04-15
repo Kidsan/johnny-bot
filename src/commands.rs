@@ -1052,7 +1052,7 @@ pub async fn coingamble(
         return Ok(());
     }
 
-    let chance_of_bonus = (game.players.len() as f32 * 0.5) - 0.5;
+    let chance_of_bonus = game.players.len() - 1;
 
     let johnnys_multiplier =
         if ctx.data().rng.lock().unwrap().gen_range(0..100) < chance_of_bonus as i32 {
