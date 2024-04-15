@@ -65,29 +65,36 @@ async fn main() {
         Err(_) => "1049354446578143252".to_string(),
     };
 
+    let mut commands = vec![
+        commands::help(),
+        commands::say(),
+        commands::checkbucks(),
+        commands::balance(),
+        commands::register(),
+        commands::gamble(),
+        commands::leaderboard(),
+        commands::give(),
+        commands::fine(),
+        commands::add_bucks(),
+        commands::remove_bucks(),
+        commands::transfer(),
+        commands::award(),
+        commands::coingamble(),
+        newcommands::daily::daily(),
+        newcommands::stats::stats(),
+        newcommands::burn::bury(),
+        robbingevent::robbingevent(),
+    ];
+
+    if var("MOUNT_ALL").is_ok() {
+        println!("Mounting all commands");
+        commands.push(newcommands::rockpaperscissors::rockpaperscissors())
+    };
+
     // FrameworkOptions contains all of poise's configuration option in one struct
     // Every option can be omitted to use its default value
     let options = poise::FrameworkOptions {
-        commands: vec![
-            commands::help(),
-            commands::say(),
-            commands::checkbucks(),
-            commands::balance(),
-            commands::register(),
-            commands::gamble(),
-            commands::leaderboard(),
-            commands::give(),
-            commands::fine(),
-            commands::add_bucks(),
-            commands::remove_bucks(),
-            commands::transfer(),
-            commands::award(),
-            commands::coingamble(),
-            newcommands::daily::daily(),
-            newcommands::stats::stats(),
-            newcommands::burn::bury(),
-            robbingevent::robbingevent(),
-        ],
+        commands,
         manual_cooldowns: true,
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("~".into()),

@@ -16,20 +16,35 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
         Err(e) => return Err(e),
     }
     let user_id = ctx.author().id.to_string();
-    let mut amount = { ctx.data().rng.lock().unwrap().gen_range(5..=10) };
+    let amount = { ctx.data().rng.lock().unwrap().gen_range(5..=10) };
     let balance = { ctx.data().db.get_balance(user_id.clone()).await? };
     let bonus = {
         let mp = ctx.data().rng.lock().unwrap().gen_range(0.01..=0.03);
+        println!(
+            "mp: {}, balance: {}, bonus: {}",
+            mp,
+            balance,
+            (balance as f32 * mp) as i32
+        );
         (balance as f32 * mp) as i32
     };
-    amount += bonus;
+
     ctx.data()
         .db
-        .award_balances(vec![user_id.clone()], amount)
+        .award_balances(vec![user_id.clone()], amount + bonus)
         .await?;
     ctx.data().db.did_daily(user_id).await?;
     let reply = {
-        CreateReply::default().content(format!("You got {} <:jbuck:1228663982462865450>!", amount))
+        let msg = format!(
+            "You got {} <:jbuck:1228663982462865450>!{}",
+            amount,
+            if bonus > 0 {
+                format!(" (+{} <:jbuck:1228663982462865450> interest)", bonus)
+            } else {
+                "".to_string()
+            }
+        );
+        CreateReply::default().content(msg)
     };
     ctx.send(reply).await?;
     if ctx.data().rng.lock().unwrap().gen_bool(1.0 / 10.0) {

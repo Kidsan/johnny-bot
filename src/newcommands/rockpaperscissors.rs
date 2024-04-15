@@ -33,6 +33,11 @@ pub async fn rockpaperscissors(
 ) -> Result<(), Error> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let time_to_play = ctx.data().game_length;
+    if user.id == ctx.author().id {
+        let reply = { CreateReply::default().content("You can't challenge yourself!") };
+        ctx.send(reply).await?;
+        return Err("Can't challenge yourself".into());
+    }
     let balance = {
         ctx.data()
             .db
@@ -134,18 +139,25 @@ pub async fn rockpaperscissors(
         Some(RPSChoice::Paper) => 1,
         Some(RPSChoice::Scissors) => 2,
         None => {
-            let reply = { CreateReply::default().content("Challengee did not respond in time!") };
+            let reply =
+                { CreateReply::default().content(format!("{} did not respond in time!", user)) };
             ctx.send(reply).await?;
             return Err("Challengee did not respond in time".into());
         }
     };
     let result = (user_choice - challengee_value + 3) % 3;
-    match result {
+    let msg = match result {
         0 => {
             ctx.data()
                 .db
                 .award_balances(vec![ctx.author().id.to_string()], amount)
                 .await?;
+            format!(
+                "{} and {} both chose {:?}, it is a tie! Refunds all around.",
+                ctx.author(),
+                user,
+                choice
+            )
         }
         1 => {
             ctx.data()
@@ -156,28 +168,39 @@ pub async fn rockpaperscissors(
                 .db
                 .subtract_balances(vec![user.id.to_string()], amount)
                 .await?;
+            // toDO; wrong thing picked
+            format!(
+                "{} chose {:?}, {} chose {:?}, {} {}! They get {} <:jbuck:1228663982462865450>",
+                ctx.author(),
+                choice,
+                user,
+                challengee_choice.unwrap(),
+                user,
+                "won",
+                amount * 2
+            )
         }
         2 => {
             ctx.data()
                 .db
                 .award_balances(vec![user.id.to_string()], amount)
                 .await?;
+            format!(
+                "{} chose {:?}, {} chose {:?}, {} {}! {} gets {} <:jbuck:1228663982462865450>",
+                ctx.author(),
+                choice,
+                user,
+                challengee_choice,
+                user,
+                "lost",
+                ctx.author(),
+                amount * 2
+            )
         }
         _ => unreachable!(),
     };
-    let reply = {
-        CreateReply::default().content(format!(
-            "challenger chose {:?}, challengee chose {:?}. challengee {}!",
-            choice,
-            challengee_choice.unwrap(),
-            match result {
-                0 => "tied",
-                1 => "lost",
-                2 => "won",
-                _ => unreachable!(),
-            }
-        ))
-    };
+
+    let reply = { CreateReply::default().content(msg) };
     ctx.send(reply).await?;
     Ok(())
 }
