@@ -128,6 +128,18 @@ async fn main() {
                     return Ok(false);
                 }
 
+                if ctx.command().name.as_str() == "leaderboard"
+                    && !ctx.data().locked_balances.lock().unwrap().is_empty()
+                {
+                    let reply = {
+                        CreateReply::default()
+                            .content("<:dogeTroll:1160530414490886264>")
+                            .ephemeral(true)
+                    };
+                    ctx.send(reply).await?;
+                    return Ok(false);
+                }
+
                 if ["give", "coingamble"].contains(&ctx.command().name.as_str())
                     && ctx
                         .data()
