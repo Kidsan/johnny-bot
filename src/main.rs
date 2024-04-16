@@ -72,7 +72,6 @@ async fn main() {
         commands::balance(),
         commands::register(),
         commands::gamble(),
-        commands::leaderboard(),
         commands::give(),
         commands::fine(),
         commands::add_bucks(),
@@ -84,6 +83,7 @@ async fn main() {
         newcommands::stats::stats(),
         newcommands::burn::bury(),
         robbingevent::robbingevent(),
+        newcommands::leaderboard::leaderboard(),
     ];
 
     if var("MOUNT_ALL").is_ok() {

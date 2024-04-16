@@ -375,38 +375,6 @@ pub async fn gamble(
 }
 
 ///
-/// View Leaderboard
-///
-/// Enter `/leaderboard` to view
-/// ```
-/// /leaderboard
-/// ```
-#[poise::command(slash_command)]
-pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
-    let balances = ctx.data().db.get_leaderboard().await?;
-    let top = balances
-        .iter()
-        .map(|(k, v)| (format!("<@{}>", k), v))
-        .enumerate()
-        .map(|(i, (k, v))| format!("{}: {} with {} J-Buck(s)!", i + 1, k, v))
-        .collect::<Vec<_>>()
-        .join("\n");
-    if top.is_empty() {
-        ctx.say("Nobody has any J-Bucks yet!").await?;
-        return Ok(());
-    }
-
-    let reply = {
-        CreateReply::default()
-            .content(format!("Leaderboard:\n{}", top))
-            .allowed_mentions(CreateAllowedMentions::new().empty_users())
-    };
-
-    ctx.send(reply).await?;
-    Ok(())
-}
-
-///
 /// Give some bucks to another player
 ///
 /// Enter `/give <recipient> <amount>`

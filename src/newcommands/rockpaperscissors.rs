@@ -3,9 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::{database::BalanceDatabase, Context, Error};
 use poise::CreateReply;
 
-use ::poise::serenity_prelude::{
-    self as serenity, CreateAllowedMentions, CreateInteractionResponseMessage, User,
-};
+use ::poise::serenity_prelude::{self as serenity};
 use ::serenity::all::CreateMessage;
 
 #[derive(Debug, poise::ChoiceParameter, Clone)]
