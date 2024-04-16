@@ -969,8 +969,25 @@ pub async fn coingamble(
 
     if coin_flip_result == "side" {
         let emoji = get_troll_emoji(&mut ctx.data().rng.lock().unwrap());
-        let text = get_landed_on_side_text(&mut ctx.data().rng.lock().unwrap());
-        let reply = { CreateReply::default().content(format!("{} {}", text, emoji)) };
+        let leaders: Vec<String> = db
+            .get_leaderboard()
+            .await?
+            .iter()
+            .map(|(u, _b)| u.to_owned())
+            .collect();
+        let each = game.pot / leaders.len() as i32;
+        let text = match each {
+            0 => format!(
+                "{} {}",
+                get_landed_on_side_text(&mut ctx.data().rng.lock().unwrap()),
+                emoji
+            ),
+            _ => {
+                ctx.data().db.award_balances(leaders, each).await?;
+                format!("### Woah, a side coin!\n No way to call a winner here, let's split it with everyone on the leaderboard to be fair <:dogeTroll:1160530414490886264> (+ {} <:jbuck:1228663982462865450> to everyone in the top 10)", each)
+            }
+        };
+        let reply = { CreateReply::default().content(text) };
         ctx.send(reply).await?;
         let edit = {
             let components = vec![serenity::CreateActionRow::Buttons(vec![

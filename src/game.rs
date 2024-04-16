@@ -86,10 +86,10 @@ impl CoinGame {
 
     pub fn get_winner(&self, rng: &mut rand::rngs::StdRng) -> String {
         let num = rng.gen_range(0..100);
-
-        if num < 49 - (self.side_chance / 2) {
+        let normal_result_probability = 99 - self.side_chance;
+        if num < normal_result_probability / 2 {
             "heads".to_owned()
-        } else if num < 99 - (self.side_chance / 2) {
+        } else if num > normal_result_probability / 2 && num < normal_result_probability {
             "tails".to_owned()
         } else {
             "side".to_owned()
@@ -172,7 +172,7 @@ mod tests {
 
         let mut side = 0;
         let num_games = 1000000;
-        
+
         for _i in 0..num_games {
             let a = game.get_winner(&mut rng);
             if a == "side" {
