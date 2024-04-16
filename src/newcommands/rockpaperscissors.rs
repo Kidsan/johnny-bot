@@ -70,7 +70,7 @@ pub async fn rockpaperscissors(
     let reply = {
         CreateMessage::default()
             .content(format!(
-                "{} has challenged {} to a game of Rock, Paper, Scissors for {} <:jbuck:1228663982462865450>!",
+                "{} has challenged {} to a game of :rock: :roll_of_paper: :scissors: for {} <:jbuck:1228663982462865450>!",
                 ctx.author(),
                 user,
                 amount
@@ -139,10 +139,19 @@ pub async fn rockpaperscissors(
         Some(RPSChoice::Paper) => 1,
         Some(RPSChoice::Scissors) => 2,
         None => {
-            let reply =
-                { CreateReply::default().content(format!("{} did not respond in time!", user)) };
+            ctx.data()
+                .db
+                .award_balances(vec![ctx.author().id.to_string()], amount)
+                .await?;
+            let reply = {
+                // TODO: reply to challenge message
+                CreateReply::default().content(format!(
+                    "{} did not respond in time! You get your money back!",
+                    user
+                ))
+            };
             ctx.send(reply).await?;
-            return Err("Challengee did not respond in time".into());
+            return Err("{} did not respond in time".into());
         }
     };
     let result = (user_choice - challengee_value + 3) % 3;
@@ -168,15 +177,16 @@ pub async fn rockpaperscissors(
                 .db
                 .subtract_balances(vec![user.id.to_string()], amount)
                 .await?;
-            // toDO; wrong thing picked
+
             format!(
-                "{} chose {:?}, {} chose {:?}, {} {}! They get {} <:jbuck:1228663982462865450>",
+                "{} chose {:?}, {} chose {:?}, {} {}! {} gets {} <:jbuck:1228663982462865450>",
                 ctx.author(),
                 choice,
                 user,
                 challengee_choice.unwrap(),
                 user,
-                "won",
+                "lost",
+                ctx.author(),
                 amount * 2
             )
         }
@@ -190,10 +200,10 @@ pub async fn rockpaperscissors(
                 ctx.author(),
                 choice,
                 user,
-                challengee_choice,
+                challengee_choice.unwrap(),
                 user,
-                "lost",
-                ctx.author(),
+                "won",
+                user,
                 amount * 2
             )
         }
