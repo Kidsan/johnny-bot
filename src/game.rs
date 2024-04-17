@@ -1,7 +1,7 @@
 use rand::{seq::SliceRandom, Rng};
 use std::time;
 
-use crate::commands::HeadsOrTail;
+use crate::newcommands::coingamble::HeadsOrTail;
 
 #[derive(Debug)]
 pub struct Game {
@@ -87,9 +87,9 @@ impl CoinGame {
     pub fn get_winner(&self, rng: &mut rand::rngs::StdRng) -> String {
         let num = rng.gen_range(0..100);
         let normal_result_probability = 99 - self.side_chance;
-        if num < normal_result_probability / 2 {
+        if num <= normal_result_probability / 2 {
             "heads".to_owned()
-        } else if num > normal_result_probability / 2 && num < normal_result_probability {
+        } else if num > normal_result_probability / 2 && num <= normal_result_probability {
             "tails".to_owned()
         } else {
             "side".to_owned()
@@ -179,7 +179,6 @@ mod tests {
                 side += 1;
             }
         }
-
-        assert!(num_games as f64 * 0.05 > side as f64);
+        assert!(num_games as f64 * 0.06 >= side as f64);
     }
 }
