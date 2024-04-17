@@ -25,11 +25,13 @@ pub trait BalanceDatabase {
     async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error>;
 }
 
+#[derive(Debug)]
 pub struct Database {
     connection: tokio_rusqlite::Connection,
 }
 
 impl Database {
+    #[tracing::instrument(level = "info")]
     pub async fn new() -> Result<Self, Error> {
         fs::create_dir_all("./data").await?;
         let db = Connection::open("./data/johnny.db").await.unwrap();
@@ -73,6 +75,7 @@ impl Database {
 }
 
 impl BalanceDatabase for Database {
+    #[tracing::instrument(level = "info")]
     async fn get_balance(&self, user_id: String) -> Result<i32, Error> {
         let user = user_id.clone();
         let balance = self
@@ -110,6 +113,7 @@ impl BalanceDatabase for Database {
         Ok(result)
     }
 
+    #[tracing::instrument(level = "info")]
     async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error> {
         let _ = self
             .connection
@@ -123,6 +127,7 @@ impl BalanceDatabase for Database {
         Ok(())
     }
 
+    #[tracing::instrument(level = "info")]
     async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error> {
         let leaderboard = self
             .connection
@@ -140,6 +145,7 @@ impl BalanceDatabase for Database {
         Ok(leaderboard)
     }
 
+    #[tracing::instrument(level = "info")]
     async fn set_balance(&self, user_id: String, balance: i32) -> Result<(), Error> {
         let _ = self
             .connection
@@ -152,6 +158,7 @@ impl BalanceDatabase for Database {
         Ok(())
     }
 
+    #[tracing::instrument(level = "info")]
     async fn award_balances(&self, user_ids: Vec<String>, award: i32) -> Result<(), Error> {
         let _ = self
             .connection
@@ -175,6 +182,7 @@ impl BalanceDatabase for Database {
         Ok(())
     }
 
+    #[tracing::instrument(level = "info")]
     async fn subtract_balances(&self, user_ids: Vec<String>, amount: i32) -> Result<(), Error> {
         let _ = self
             .connection
@@ -198,6 +206,7 @@ impl BalanceDatabase for Database {
         Ok(())
     }
 
+    #[tracing::instrument(level = "info")]
     async fn get_last_daily(&self, user_id: String) -> Result<DateTime<Utc>, Error> {
         let user = user_id.clone();
         let last_daily = self
@@ -234,6 +243,7 @@ impl BalanceDatabase for Database {
         Ok(res)
     }
 
+    #[tracing::instrument(level = "info")]
     async fn did_daily(&self, user_id: String) -> Result<(), Error> {
         let _ = self
             .connection
@@ -251,6 +261,7 @@ impl BalanceDatabase for Database {
         Ok(())
     }
 
+    #[tracing::instrument(level = "info")]
     async fn get_total(&self) -> Result<i32, Error> {
         Ok(self
             .connection
@@ -267,6 +278,7 @@ impl BalanceDatabase for Database {
             .unwrap())
     }
 
+    #[tracing::instrument(level = "info")]
     async fn get_avg_balance(&self) -> Result<i32, Error> {
         Ok(self
             .connection
@@ -283,6 +295,7 @@ impl BalanceDatabase for Database {
             .unwrap())
     }
 
+    #[tracing::instrument(level = "info")]
     async fn get_zero_balance(&self) -> Result<i32, Error> {
         Ok(self
             .connection
@@ -300,6 +313,7 @@ impl BalanceDatabase for Database {
             .unwrap())
     }
 
+    #[tracing::instrument(level = "info")]
     async fn get_leader(&self) -> Result<String, Error> {
         Ok(self
             .connection

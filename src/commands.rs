@@ -741,7 +741,7 @@ pub async fn transfer(
     Ok(())
 }
 
-#[derive(poise::ChoiceParameter, Clone)]
+#[derive(poise::ChoiceParameter, Clone, Debug)]
 pub enum HeadsOrTail {
     #[name = "Heads"]
     Heads,
@@ -766,6 +766,7 @@ impl Display for HeadsOrTail {
 /// /coingamble 10
 /// ```
 #[poise::command(slash_command)]
+#[tracing::instrument(level = "info")]
 pub async fn coingamble(
     ctx: Context<'_>,
     #[min = 1]
@@ -960,6 +961,11 @@ pub async fn coingamble(
     }
 
     let coin_flip_result = game.get_winner(&mut ctx.data().rng.lock().unwrap()).clone();
+    tracing::event!(
+        tracing::Level::INFO,
+        "Coin flip result: {}",
+        coin_flip_result
+    );
     let winners = match coin_flip_result.as_str() {
         "heads" => game.heads.clone(),
         "tails" => game.tails.clone(),

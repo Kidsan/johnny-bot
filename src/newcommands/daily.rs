@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use crate::{database::BalanceDatabase, robbingevent::wrapped_robbing_event, Context, Error};
 use poise::CreateReply;
 use rand::Rng;
@@ -12,6 +10,7 @@ use rand::Rng;
 /// /daily
 /// ```
 #[poise::command(slash_command)]
+#[tracing::instrument(level = "info")]
 pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
     match daily_cooldown(ctx).await {
         Ok(_) => {}
@@ -22,7 +21,7 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
     let balance = { ctx.data().db.get_balance(user_id.clone()).await? };
     let bonus = {
         let mp = ctx.data().rng.lock().unwrap().gen_range(0.01..=0.03);
-        println!(
+        tracing::info!(
             "mp: {}, balance: {}, bonus: {}",
             mp,
             balance,

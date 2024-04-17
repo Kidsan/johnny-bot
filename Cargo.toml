@@ -13,6 +13,8 @@ rand = "0.8.5"
 rusqlite = { version = "0.31.0", features = [ "array","bundled", "trace" ]}
 tokio = { version = "1.36.0", features = [ "rt-multi-thread", "signal" ]}
 tokio-rusqlite = {version ="0.5.1"}
+tracing = {version = "0.1.40", features = ["log-always"]}
+tracing-subscriber = "0.3.18"
 
 [dependencies.serenity]
 default-features = false

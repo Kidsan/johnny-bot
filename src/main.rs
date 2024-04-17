@@ -18,6 +18,7 @@ type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
 // Custom user data passed to all command functions
+#[derive(Debug)]
 pub struct Data {
     games: Mutex<HashMap<String, game::Game>>,
     coingames: Mutex<HashMap<String, game::CoinGame>>,
@@ -64,6 +65,12 @@ async fn main() {
         Ok(id) => id,
         Err(_) => "1049354446578143252".to_string(),
     };
+
+    let my_subscriber = tracing_subscriber::FmtSubscriber::builder()
+        .with_max_level(tracing::Level::INFO)
+        .finish();
+
+    tracing::subscriber::set_global_default(my_subscriber).expect("setting tracing default failed");
 
     let mut commands = vec![
         commands::help(),
