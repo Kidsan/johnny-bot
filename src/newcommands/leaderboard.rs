@@ -13,7 +13,7 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let balances = ctx.data().db.get_leaderboard().await?;
     let top = balances
         .iter()
-        .map(|(k, v)| (format!("<@{}>", k), v))
+        .map(|(k, v)| (format!("<@!{}>", k), v))
         .enumerate()
         .map(|(i, (k, v))| {
             if i == 0 {
@@ -31,7 +31,7 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let reply = {
         CreateReply::default()
             .content(format!(
-                "> ### Top {} <:jbuck:1228663982462865450> Holders\n> \n{}\n> **Keep gambling.**",
+                "> ### Top {} <:jbuck:1228663982462865450> Holders\n> \n{}\n> ***Keep gambling.***",
                 balances.len(),
                 top
             ))
