@@ -182,3 +182,35 @@ mod tests {
         assert!(num_games as f64 * 0.06 >= side as f64);
     }
 }
+
+#[derive(Debug)]
+pub struct Blackjack {
+    pub id: String,
+    pub players: Vec<String>,
+    pub players_scores: Vec<i32>,
+}
+
+impl Blackjack {
+    pub fn new(id: String, player: String) -> Self {
+        Self {
+            id,
+            players: vec![player],
+            players_scores: vec![0],
+        }
+    }
+    pub fn player_joined(&mut self, player: String) {
+        self.players.push(player);
+        self.players_scores.push(0);
+    }
+    pub fn get_winner(&self) -> String {
+        let mut max_score = 0;
+        let mut winner = "".to_owned();
+        for (i, score) in self.players_scores.iter().enumerate() {
+            if score > &max_score && score <= &21 {
+                max_score = *score;
+                winner = self.players[i].clone();
+            }
+        }
+        winner
+    }
+}

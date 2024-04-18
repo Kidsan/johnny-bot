@@ -19,8 +19,8 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
     let user_id = ctx.author().id.to_string();
     let amount = { ctx.data().rng.lock().unwrap().gen_range(5..=10) };
     let balance = { ctx.data().db.get_balance(user_id.clone()).await? };
-    let bonus = {
-        let mp = ctx.data().rng.lock().unwrap().gen_range(0.01..=0.03);
+    let interest = {
+        let mp = { ctx.data().rng.lock().unwrap().gen_range(0.01..=0.03) };
         tracing::info!(
             "mp: {}, balance: {}, bonus: {}",
             mp,
@@ -30,17 +30,57 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
         (balance as f32 * mp) as i32
     };
 
+    let n = {
+        let user = poise::serenity_prelude::UserId::new(ctx.author().id.into())
+            .to_user(ctx)
+            .await
+            .unwrap();
+
+        let guild_id = ctx.guild_id().unwrap();
+        let guild = ctx.guild().unwrap().clone();
+
+        let has = match guild.role_by_name("Nitro Dealers") {
+            Some(role) => {
+                let has_role = user.has_role(ctx, guild_id, role.id).await;
+                has_role.unwrap()
+            }
+            None => {
+                tracing::error!("Nitro Dealers role not found");
+                false
+            }
+        };
+
+        let mut v = 0;
+        if has {
+            let mp = { ctx.data().rng.lock().unwrap().gen_range(1.5..=2.0) };
+            let bonus = ((amount as f32 + interest as f32) * mp) as i32;
+            tracing::info!(
+                "mp: {}, bonus: {}, bonus-amount: {}",
+                mp,
+                bonus,
+                bonus - amount - interest
+            );
+            v = bonus - amount - interest
+        }
+        v
+    };
+
     ctx.data()
         .db
-        .award_balances(vec![user_id.clone()], amount + bonus)
+        .award_balances(vec![user_id.clone()], amount + interest + n)
         .await?;
     ctx.data().db.did_daily(user_id).await?;
     let reply = {
         let msg = format!(
-            "You got {} <:jbuck:1228663982462865450>!{}",
+            "You got **{}** <:jbuck:1228663982462865450>!{}{}",
             amount,
-            if bonus > 0 {
-                format!(" (+{} <:jbuck:1228663982462865450> interest)", bonus)
+            if interest > 0 {
+                format!("\n**+{}** <:jbuck:1228663982462865450> interest!", interest)
+            } else {
+                "".to_string()
+            },
+            if n > 0 {
+                format!("\n+**{}** <:jbuck:1228663982462865450> booster bonus!", n)
             } else {
                 "".to_string()
             }

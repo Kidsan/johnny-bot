@@ -1,3 +1,4 @@
+pub mod blackjack;
 pub mod burn;
 pub mod coingamble;
 pub mod daily;
