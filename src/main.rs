@@ -95,7 +95,8 @@ async fn main() {
 
     if var("MOUNT_ALL").is_ok() {
         println!("Mounting all commands");
-        commands.push(newcommands::rockpaperscissors::rockpaperscissors())
+        commands.push(newcommands::rockpaperscissors::rockpaperscissors());
+        commands.push(newcommands::blackjack::blackjack());
     };
 
     // FrameworkOptions contains all of poise's configuration option in one struct

@@ -14,7 +14,7 @@ use rand::{seq::SliceRandom, Rng};
 #[tracing::instrument(level = "info")]
 pub async fn blackjack(ctx: Context<'_>) -> Result<(), Error> {
     let game_length = ctx.data().game_length;
-    let db = &ctx.data().db;
+    // let db = &ctx.data().db;
     let game_starter = ctx.author().id.to_string();
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let time_to_play = game_length;
@@ -25,8 +25,7 @@ pub async fn blackjack(ctx: Context<'_>) -> Result<(), Error> {
     let reply = {
         CreateReply::default()
             .content(format!(
-                "> ### <:jbuck:1228663982462865450> HEADS OR TAILS?\n> **Bet {} <:jbuck:1228663982462865450> **on the correct answer!\n> **Game Ends: **<t:{}:R>",
-                0,
+                "> ### It's Blackjack time, roll the :game_die: to play!\n> **You have <t:{}:R> seconds to play.**",
                 now + time_to_play
             ))
             .components(components.clone())
@@ -34,6 +33,9 @@ pub async fn blackjack(ctx: Context<'_>) -> Result<(), Error> {
 
     let a = ctx.send(reply).await?;
     let id = a.message().await?.id;
+    ctx.serenity_context()
+        .shard
+        .set_activity(Some(serenity::ActivityData::playing("Blackjack!")));
 
     let mut blackjack = Blackjack::new(id.to_string(), game_starter);
 
@@ -46,7 +48,7 @@ pub async fn blackjack(ctx: Context<'_>) -> Result<(), Error> {
     while let Some(mci) = serenity::ComponentInteractionCollector::new(ctx)
         .channel_id(ctx.channel_id())
         .custom_ids(vec!["twodice".to_string(), "onedice".to_string()])
-        .message_id(id)
+        // .message_id(id)
         .timeout(std::time::Duration::from_secs(
             (now + time_to_play - 1) - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
         ))
@@ -81,6 +83,24 @@ pub async fn blackjack(ctx: Context<'_>) -> Result<(), Error> {
             .unwrap()
             .0;
 
+        if blackjack.players_scores[idx] >= 21 {
+            msg = format!(
+                "You already have a score of {}.\nYou can't roll anymore.",
+                blackjack.players_scores[idx]
+            );
+            mci.create_response(
+                ctx,
+                serenity::CreateInteractionResponse::Message(
+                    serenity::CreateInteractionResponseMessage::new()
+                        .content(msg)
+                        .allowed_mentions(serenity::CreateAllowedMentions::new().empty_users())
+                        .ephemeral(true),
+                ),
+            )
+            .await?;
+            continue;
+        }
+
         if mci.data.custom_id == "twodice" {
             let one = ctx.data().rng.lock().unwrap().gen_range(1..=6);
             let two = ctx.data().rng.lock().unwrap().gen_range(1..=6);
@@ -91,6 +111,21 @@ pub async fn blackjack(ctx: Context<'_>) -> Result<(), Error> {
                 one, two, total, blackjack.players_scores[idx]
             )
         } else if mci.data.custom_id == "onedice" {
+            if blackjack.players_scores[idx] < 16 {
+                msg = "You can't roll a single dice until your score is 16 or higher.".to_string();
+                mci.create_response(
+                    ctx,
+                    serenity::CreateInteractionResponse::Message(
+                        serenity::CreateInteractionResponseMessage::new()
+                            .content(msg)
+                            .allowed_mentions(serenity::CreateAllowedMentions::new().empty_users())
+                            .components(components.clone())
+                            .ephemeral(true),
+                    ),
+                )
+                .await?;
+                continue;
+            }
             let total = ctx.data().rng.lock().unwrap().gen_range(1..=6);
             blackjack.players_scores[idx] += total;
             msg = format!(
@@ -100,17 +135,29 @@ pub async fn blackjack(ctx: Context<'_>) -> Result<(), Error> {
         }
 
         if blackjack.players_scores[idx] > 21 {
-            msg = format!(
-                "You busted with a score of {}.",
-                blackjack.players_scores[idx]
-            );
+            msg += "\nYou busted!";
         }
+
+        let components = match blackjack.players_scores[idx] >= 16 {
+            true => vec![serenity::CreateActionRow::Buttons(vec![
+                new_twodice_button(),
+                new_onedice_button(),
+                new_player_count_button(blackjack.players.len() as i32),
+                new_pot_counter_button(0),
+            ])],
+            false => vec![serenity::CreateActionRow::Buttons(vec![
+                new_twodice_button(),
+                new_player_count_button(blackjack.players.len() as i32),
+                new_pot_counter_button(0),
+            ])],
+        };
 
         mci.create_response(
             ctx,
             serenity::CreateInteractionResponse::Message(
                 serenity::CreateInteractionResponseMessage::new()
-                    .content(format!("You have voted for {}", mci.data.custom_id))
+                    .content(msg)
+                    .components(components.clone())
                     .allowed_mentions(serenity::CreateAllowedMentions::new().empty_users())
                     .ephemeral(true),
             ),
@@ -118,17 +165,17 @@ pub async fn blackjack(ctx: Context<'_>) -> Result<(), Error> {
         .await?;
     }
 
-    let mut game = {
-        let mut games = ctx.data().coingames.lock().unwrap();
-        games.remove(&id.to_string()).unwrap()
-    };
+    // let mut game = {
+    //     let mut games = ctx.data().coingames.lock().unwrap();
+    //     games.remove(&id.to_string()).unwrap()
+    // };
 
     let reply = {
         let components = vec![serenity::CreateActionRow::Buttons(vec![
             new_twodice_button().disabled(true),
-            new_twodice_button().disabled(true),
-            new_player_count_button(game.players.len() as i32),
-            new_pot_counter_button(game.pot),
+            new_onedice_button().disabled(true),
+            new_player_count_button(blackjack.players.len() as i32),
+            new_pot_counter_button(0),
         ])];
         CreateReply::default()
             .content(format!(
@@ -139,164 +186,7 @@ pub async fn blackjack(ctx: Context<'_>) -> Result<(), Error> {
     };
 
     a.edit(ctx, reply).await?;
-
-    if game.heads.is_empty() {
-        game.heads.push(ctx.data().bot_id.to_string());
-        game.players.push(ctx.data().bot_id.to_string());
-        game.pot += game.pot;
-    } else if game.tails.is_empty() {
-        game.tails.push(ctx.data().bot_id.to_string());
-        game.players.push(ctx.data().bot_id.to_string());
-        game.pot += game.pot;
-    }
-
-    let coin_flip_result = game.get_winner(&mut ctx.data().rng.lock().unwrap()).clone();
-    tracing::event!(
-        tracing::Level::INFO,
-        "Coin flip result: {}",
-        coin_flip_result
-    );
-    let winners = match coin_flip_result.as_str() {
-        "heads" => game.heads.clone(),
-        "tails" => game.tails.clone(),
-        "side" => vec![],
-        _ => vec![],
-    };
-
-    if coin_flip_result == "side" {
-        let emoji = get_troll_emoji(&mut ctx.data().rng.lock().unwrap());
-        let leaders: Vec<String> = db
-            .get_leaderboard()
-            .await?
-            .iter()
-            .map(|(u, _b)| u.to_owned())
-            .collect();
-        let each = game.pot / leaders.len() as i32;
-        let text = match each {
-            0 => format!("{} {}", "", emoji),
-            _ => {
-                ctx.data().db.award_balances(leaders, each).await?;
-                format!("### Woah, a side coin!\n No way to call a winner here, let's split it with everyone on the leaderboard to be fair <:dogeTroll:1160530414490886264> (+ {} <:jbuck:1228663982462865450> to everyone in the top 10)", each)
-            }
-        };
-        let reply = { CreateReply::default().content(text) };
-        ctx.send(reply).await?;
-        let edit = {
-            let components = vec![serenity::CreateActionRow::Buttons(vec![
-                new_twodice_button().disabled(true),
-                new_twodice_button().disabled(true),
-                new_player_count_button(game.players.len() as i32),
-                new_pot_counter_button(game.pot),
-            ])];
-            CreateReply::default()
-            .content(format!(
-                "> ### <:jbuck:1228663982462865450> HEADS OR TAILS?\n> **Bet {} <:jbuck:1228663982462865450> **on the correct answer!\n> **Game is over!**",
-                0
-            ))
-            .components(components)
-        };
-
-        a.edit(ctx, edit).await?;
-        return Ok(());
-    }
-    let chance_of_bonus = game.players.len();
-
-    let johnnys_multiplier = if ctx.data().rng.lock().unwrap().gen_range(0..100) < chance_of_bonus {
-        ctx.data().rng.lock().unwrap().gen_range(0.20..=2.0)
-    } else {
-        0.0
-    };
-
-    let prize = game.pot / winners.len() as i32;
-    let remainder = game.pot % winners.len() as i32;
-    let prize_with_multiplier = prize + (prize as f32 * johnnys_multiplier) as i32;
-    let mut leader = "".to_string();
-
-    if winners[0] != ctx.data().bot_id {
-        db.award_balances(winners.clone(), prize_with_multiplier)
-            .await?;
-        if remainder > 0 {
-            leader = ctx.data().db.get_leader().await?;
-            db.award_balances(vec![leader.clone()], remainder).await?;
-        }
-    }
-
-    let message = {
-        let mut picked_heads_users = game
-            .heads
-            .iter()
-            .map(|u| format!("<@{}>", u))
-            .collect::<Vec<_>>()
-            .join(" ");
-
-        let mut picked_tails_users = game
-            .tails
-            .iter()
-            .map(|u| format!("<@{}>", u))
-            .collect::<Vec<_>>()
-            .join(" ");
-
-        if picked_heads_users.is_empty() {
-            picked_heads_users = "Nobody!".to_string();
-        }
-        if picked_tails_users.is_empty() {
-            picked_tails_users = "Nobody!".to_string();
-        }
-        if coin_flip_result == "heads" {
-            picked_heads_users = format!(
-                "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} <:jbuck:1228663982462865450>!",
-                picked_heads_users, prize
-            );
-
-            if johnnys_multiplier > 1.0 && prize_with_multiplier - prize > 0 {
-                picked_heads_users = format!(
-                    "{} +{} Bonus!",
-                    picked_heads_users,
-                    prize_with_multiplier - prize
-                );
-            }
-            picked_tails_users = format!(
-                "> {}\n> <:dogeCrying:1160530365413330974> So sad.",
-                picked_tails_users
-            );
-        } else {
-            picked_heads_users = format!(
-                "> {}\n> <:dogeCrying:1160530365413330974> So sad.",
-                picked_heads_users
-            );
-            picked_tails_users = format!(
-                "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} <:jbuck:1228663982462865450>!",
-                picked_tails_users, prize
-            );
-            if johnnys_multiplier > 1.0 && prize_with_multiplier - prize > 0 {
-                picked_tails_users = format!(
-                    "{} +{} Bonus!",
-                    picked_tails_users,
-                    prize_with_multiplier - prize
-                );
-            }
-        }
-
-        let mut a = format!(
-            "> ### <:jbuck:1228663982462865450> IT WAS {}!\n> \n",
-            coin_flip_result.to_uppercase()
-        );
-        a.push_str(&format!("> **Picked Heads**\n{}\n> ", picked_heads_users));
-
-        a.push_str(&format!("\n> **Picked Tails**\n{}\n", picked_tails_users));
-
-        if remainder > 0 {
-            a.push_str(&format!(
-                "> \n> +{} <:jbuck:1228663982462865450> to <@{}> ||(leader bonus)||",
-                remainder, leader
-            ));
-        }
-
-        CreateReply::default()
-            .content(a)
-            .allowed_mentions(serenity::CreateAllowedMentions::new().empty_users())
-    };
-    ctx.send(message).await?;
+    ctx.serenity_context().shard.set_activity(None);
     Ok(())
 }
 

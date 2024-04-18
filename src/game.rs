@@ -213,4 +213,18 @@ impl Blackjack {
         }
         winner
     }
+
+    pub fn get_winners(&self) -> Vec<String> {
+        let mut winners = vec![];
+        let mut max_score = 0;
+        for (i, score) in self.players_scores.iter().enumerate() {
+            if score > &max_score && score <= &21 {
+                max_score = *score;
+                winners = vec![self.players[i].clone()];
+            } else if score == &max_score && score <= &21 {
+                winners.push(self.players[i].clone());
+            }
+        }
+        winners
+    }
 }

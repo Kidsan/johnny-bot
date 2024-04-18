@@ -21,6 +21,10 @@ pub async fn coingamble(
     amount: i32,
     choice: HeadsOrTail,
 ) -> Result<(), Error> {
+    match minute_cooldown(ctx).await {
+        Ok(_) => {}
+        Err(e) => return Err(e),
+    }
     let game_length = ctx.data().game_length;
     let db = &ctx.data().db;
     let game_starter = ctx.author().id.to_string();
@@ -415,4 +419,41 @@ pub fn get_troll_emoji(a: &mut rand::rngs::StdRng) -> String {
     .unwrap()
     .to_string();
     emoji
+}
+
+async fn minute_cooldown(ctx: Context<'_>) -> Result<(), Error> {
+    let mut remains = time::Duration::from_secs(0);
+    let proceed = {
+        let mut cooldown_tracker = ctx.command().cooldowns.lock().unwrap();
+
+        let cooldown_durations = poise::CooldownConfig {
+            user: Some(time::Duration::from_secs(60)),
+            ..Default::default()
+        };
+
+        match cooldown_tracker.remaining_cooldown(ctx.cooldown_context(), &cooldown_durations) {
+            Some(remaining) => {
+                let var_name = false;
+                remains = remaining;
+                var_name
+            }
+            None => {
+                cooldown_tracker.start_cooldown(ctx.cooldown_context());
+                true
+            }
+        }
+    };
+    if !proceed {
+        let reply = {
+            CreateReply::default()
+                .content(format!(
+                    "You can use this command again in {} seconds",
+                    remains.as_secs()
+                ))
+                .ephemeral(true)
+        };
+        ctx.send(reply).await.unwrap();
+        return Err("You can use this command again in 60 seconds".into());
+    }
+    Ok(())
 }
