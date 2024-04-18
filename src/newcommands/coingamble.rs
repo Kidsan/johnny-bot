@@ -200,9 +200,11 @@ pub async fn coingamble(
 
     if game.heads.is_empty() {
         game.heads.push(ctx.data().bot_id.to_string());
+        game.players.push(ctx.data().bot_id.to_string());
         game.pot += game.pot;
     } else if game.tails.is_empty() {
         game.tails.push(ctx.data().bot_id.to_string());
+        game.players.push(ctx.data().bot_id.to_string());
         game.pot += game.pot;
     }
 
@@ -259,18 +261,17 @@ pub async fn coingamble(
         a.edit(ctx, edit).await?;
         return Ok(());
     }
-    let chance_of_bonus = game.players.len() - 1;
+    let chance_of_bonus = game.players.len();
 
-    let johnnys_multiplier =
-        if ctx.data().rng.lock().unwrap().gen_range(0..100) < chance_of_bonus as i32 {
-            2.0
-        } else {
-            1.0
-        };
+    let johnnys_multiplier = if ctx.data().rng.lock().unwrap().gen_range(0..100) < chance_of_bonus {
+        ctx.data().rng.lock().unwrap().gen_range(0.20..=2.0)
+    } else {
+        0.0
+    };
 
     let prize = game.pot / winners.len() as i32;
     let remainder = game.pot % winners.len() as i32;
-    let prize_with_multiplier = (prize as f32 * johnnys_multiplier) as i32;
+    let prize_with_multiplier = prize + (prize as f32 * johnnys_multiplier) as i32;
     let mut leader = "".to_string();
 
     if winners[0] != ctx.data().bot_id {
