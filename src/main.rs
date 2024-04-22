@@ -148,7 +148,7 @@ async fn main() {
                     return Ok(false);
                 }
 
-                if ["give", "coingamble"].contains(&ctx.command().name.as_str())
+                if ["give", "coingamble", "bury"].contains(&ctx.command().name.as_str())
                     && ctx
                         .data()
                         .locked_balances
