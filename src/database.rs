@@ -23,6 +23,7 @@ pub trait BalanceDatabase {
     async fn get_zero_balance(&self) -> Result<i32, Error>;
     async fn get_leader(&self) -> Result<String, Error>;
     async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error>;
+    async fn get_dailies_today(&self) -> Result<i32, Error>;
 }
 
 #[derive(Debug)]
@@ -324,6 +325,31 @@ impl BalanceDatabase for Database {
                     let id: String = row.get(0).unwrap();
                     Ok(id)
                 });
+                Ok(v.unwrap())
+            })
+            .await
+            .unwrap())
+    }
+
+    #[tracing::instrument(level = "info")]
+    async fn get_dailies_today(&self) -> Result<i32, Error> {
+        Ok(self
+            .connection
+            .call(move |conn| {
+                let mut stmt =
+                    conn.prepare_cached("SELECT count(id) FROM dailies where last_daily > ?")?;
+                let v = stmt.query_row(
+                    [chrono::Utc::now()
+                        .date_naive()
+                        .and_hms_opt(0, 0, 0)
+                        .unwrap()
+                        .and_utc()
+                        .timestamp()],
+                    |row| {
+                        let total: i32 = row.get(0).unwrap();
+                        Ok(total)
+                    },
+                );
                 Ok(v.unwrap())
             })
             .await

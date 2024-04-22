@@ -194,8 +194,8 @@ impl Blackjack {
     pub fn new(id: String, player: String) -> Self {
         Self {
             id,
-            players: vec![player],
-            players_scores: vec![0],
+            players: vec![],
+            players_scores: vec![],
         }
     }
     pub fn player_joined(&mut self, player: String) {
@@ -226,5 +226,13 @@ impl Blackjack {
             }
         }
         winners
+    }
+
+    pub fn get_leaderboard(&self) -> Vec<(String, i32)> {
+        self.players
+            .iter()
+            .zip(self.players_scores.iter())
+            .map(|(player, score)| (player.clone(), *score))
+            .collect()
     }
 }

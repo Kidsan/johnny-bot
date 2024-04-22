@@ -18,10 +18,12 @@ pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
     let total_economy = ctx.data().db.get_total().await?;
     let avg_balance = ctx.data().db.get_avg_balance().await?;
     let count_of_zero = ctx.data().db.get_zero_balance().await?;
+    let dailies_today = ctx.data().db.get_dailies_today().await?;
 
     let message = format!(
-        "Total economy: {}\nAverage balance: {}\nCount of zero balances: {}",
-        total_economy, avg_balance, count_of_zero
+        "Total economy: {}\nAverage balance: {}\nCount of zero balances: {}\nDailies done today: {}",
+        total_economy, avg_balance, count_of_zero, dailies_today
+            
     );
 
     let reply = CreateReply::default().content(message).ephemeral(true);
