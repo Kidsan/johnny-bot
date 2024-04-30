@@ -155,6 +155,12 @@ pub async fn rockpaperscissors(
         }
         let balance = { ctx.data().db.get_balance(user.id.to_string()).await? };
         if amount > balance {
+            {
+                ctx.data()
+                    .db
+                    .award_balances(vec![ctx.author().id.to_string()], amount)
+                    .await?;
+            }
             let content = message.content.clone();
             message
                 .edit(
