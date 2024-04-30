@@ -93,11 +93,11 @@ async fn main() {
         robbingevent::robbingevent(),
         newcommands::leaderboard::leaderboard(),
         robbingevent::buyrobbery(),
+        newcommands::rockpaperscissors::rockpaperscissors(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
         println!("Mounting all commands");
-        commands.push(newcommands::rockpaperscissors::rockpaperscissors());
         commands.push(newcommands::blackjack::blackjack());
     };
 
