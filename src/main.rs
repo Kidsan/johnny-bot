@@ -28,6 +28,7 @@ pub struct Data {
     rng: Mutex<rand::rngs::StdRng>,
     locked_balances: Mutex<HashSet<String>>,
     bot_id: String,
+    blackjack_active: Mutex<bool>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -91,6 +92,7 @@ async fn main() {
         newcommands::burn::bury(),
         robbingevent::robbingevent(),
         newcommands::leaderboard::leaderboard(),
+        robbingevent::buyrobbery(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
@@ -148,7 +150,8 @@ async fn main() {
                     return Ok(false);
                 }
 
-                if ["give", "coingamble", "bury"].contains(&ctx.command().name.as_str())
+                if ["give", "coingamble", "bury", "buyrobbery"]
+                    .contains(&ctx.command().name.as_str())
                     && ctx
                         .data()
                         .locked_balances
@@ -198,6 +201,7 @@ async fn main() {
                     rng: Mutex::new(rand::SeedableRng::from_entropy()),
                     locked_balances: Mutex::new(HashSet::new()),
                     bot_id,
+                    blackjack_active: Mutex::new(false),
                 })
             })
         })

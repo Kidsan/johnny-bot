@@ -1,4 +1,5 @@
 use crate::{database::BalanceDatabase, Context, Error};
+use poise::serenity_prelude;
 use rand::{seq::SliceRandom, Rng};
 use serenity::all::{
     ActivityData, ComponentInteractionCollector, CreateActionRow, CreateAllowedMentions,
@@ -9,6 +10,36 @@ use std::{
     collections::{HashMap, HashSet},
     time::{SystemTime, UNIX_EPOCH},
 };
+
+async fn no_locked_balances(ctx: Context<'_>) -> Result<bool, Error> {
+    if ctx.data().locked_balances.lock().unwrap().is_empty() {
+        Ok(true)
+    } else {
+        let reply = {
+            poise::CreateReply::default()
+                .content("There is already a robbing event in progress!")
+                .ephemeral(true)
+        };
+        let _ = ctx.send(reply).await;
+        Ok(false)
+    }
+}
+
+async fn enough_players(ctx: Context<'_>) -> Result<bool, Error> {
+    let leaderboard = ctx.data().db.get_leaderboard().await?;
+    if leaderboard.len() < 4 {
+        let reply = {
+            poise::CreateReply::default()
+                .content("Not enough players to rob from.")
+                .ephemeral(true)
+        };
+        let _ = ctx.send(reply).await;
+        Ok(false)
+    } else {
+        Ok(true)
+    }
+}
+
 ///
 /// Start a robbing event
 ///
@@ -22,7 +53,9 @@ use std::{
     slash_command,
     category = "Admin",
     default_member_permissions = "ADMINISTRATOR",
-    hide_in_help
+    hide_in_help,
+    check = "no_locked_balances",
+    check = "enough_players"
 )]
 pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
     let reply = {
@@ -31,22 +64,70 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
             .ephemeral(true)
     };
     ctx.send(reply).await?;
-    wrapped_robbing_event(ctx).await?;
+    wrapped_robbing_event(ctx, None).await?;
     Ok(())
 }
 
-pub async fn wrapped_robbing_event(ctx: Context<'_>) -> Result<(), Error> {
-    let leaderboard = ctx.data().db.get_leaderboard().await?;
-    if leaderboard.len() < 4 {
+///
+/// pay 10 J-Bucks to start a robbing event
+///
+/// Enter `/buyrobbery` to start a robbing event. Event costs 10 JBucks This will randomly select 4 players from the leaderboard and ask the chat to vote on who to rob from.
+/// Requires that there be 4 players on the leaderboard. Will fail if one of the chosen players has
+/// 0 bucks
+/// ```
+/// /buyrobbery
+/// ```
+#[poise::command(slash_command, check = "no_locked_balances", check = "enough_players")]
+pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
+    match weekly_cooldown(ctx).await {
+        Ok(_) => {}
+        Err(e) => return Err(e),
+    }
+    let user_balance = ctx
+        .data()
+        .db
+        .get_balance(ctx.author().id.to_string())
+        .await?;
+    if user_balance < 10 {
         let reply = {
             poise::CreateReply::default()
-                .content("Not enough players to rob from.")
+                .content(format!(
+                    "You can't afford to do that!\nYour balance is only {} J-Buck(s)",
+                    user_balance
+                ))
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
+        return Err("can't afford to do that".into());
+    }
+    ctx.data()
+        .db
+        .subtract_balances(vec![ctx.author().id.to_string()], 10)
+        .await?;
+
+    let reply = {
+        poise::CreateReply::default()
+            .content("Success!")
+            .ephemeral(true)
+    };
+    ctx.send(reply).await?;
+    wrapped_robbing_event(ctx, Some(ctx.author().clone())).await?;
+    ctx.data()
+        .db
+        .bought_robbery(ctx.author().id.to_string())
+        .await?;
+    Ok(())
+}
+
+pub async fn wrapped_robbing_event(
+    ctx: Context<'_>,
+    user: Option<serenity_prelude::User>,
+) -> Result<(), Error> {
+    if !ctx.data().locked_balances.lock().unwrap().is_empty() {
+        tracing::info!("locked balances not empty, aborting robbing event");
         return Ok(());
     }
-
+    let leaderboard = ctx.data().db.get_leaderboard().await?;
     let chosen_players = leaderboard
         .choose_multiple(&mut rand::thread_rng(), 4)
         .cloned()
@@ -57,10 +138,6 @@ pub async fn wrapped_robbing_event(ctx: Context<'_>) -> Result<(), Error> {
 
     {
         let mut locked = ctx.data().locked_balances.lock().unwrap();
-        if !locked.is_empty() {
-            dbg!("Already in a robbing event!");
-            return Ok(());
-        }
         for player in chosen_players.iter() {
             if player.1 == 0 {
                 // clear locked balances
@@ -110,10 +187,15 @@ pub async fn wrapped_robbing_event(ctx: Context<'_>) -> Result<(), Error> {
     ctx.serenity_context()
         .shard
         .set_activity(Some(ActivityData::custom("redistributing wealth")));
+
+    let msg = match user {
+        Some(u) => format!("{} has started a wealth redistribution!", u),
+        None => "Time for some wealth redistribution!".to_string(),
+    };
     let reply = {
         CreateMessage::default()
             .content(format!(
-                    "> ### <:jbuck:1228663982462865450> Time for some wealth redistribution!\n> Which one of these players could spare a couple of bucks?\n > **Voting Ends: **<t:{}:R>", now+time_to_play))
+                    "> ### <:jbuck:1228663982462865450> {}\n> Which one of these players could spare a couple of bucks?\n > **Voting Ends: **<t:{}:R>", msg, now+time_to_play))
             .components(components.clone())
     };
 
@@ -208,15 +290,23 @@ pub async fn wrapped_robbing_event(ctx: Context<'_>) -> Result<(), Error> {
 
     let reply = {
         EditMessage::default()
-            .content("> ### <:jbuck:1228663982462865450> Time for some wealth redistribution!\n> Which one of these players could spare a couple of bucks?\n > **Voting Has Ended!**".to_string())
+            .content(format!("> ### <:jbuck:1228663982462865450> {}\n> Which one of these players could spare a couple of bucks?\n > **Voting Has Ended!**", msg))
             .components(components.clone())
     };
 
     id.edit(ctx, reply).await?;
 
     // get the highest voted player
-    let (player, _) = votes.iter().max_by_key(|x| x.1.len()).unwrap();
-    let robbers = votes.get(player).unwrap();
+    // let (player, _) = votes.iter().max_by_key(|x| x.1.len()).unwrap();
+    let (player, robbers) = match votes
+        .iter()
+        .filter(|x| !x.1.is_empty())
+        .collect::<Vec<_>>()
+        .choose(&mut rand::thread_rng())
+    {
+        Some(x) => (x.0.clone(), x.1.clone()),
+        None => ("".to_string(), vec![]),
+    };
     if robbers.is_empty() {
         let message = {
             CreateMessage::default()
@@ -308,4 +398,32 @@ async fn get_discord_name(ctx: Context<'_>, user: &str) -> String {
     user.nick_in(ctx, ctx.guild_id().unwrap())
         .await
         .unwrap_or(user.name)
+}
+
+async fn weekly_cooldown(ctx: Context<'_>) -> Result<(), Error> {
+    let now = chrono::Utc::now();
+
+    let a_week_ago = now - chrono::Duration::days(7);
+
+    let last_robbery = ctx
+        .data()
+        .db
+        .get_last_bought_robbery(ctx.author().id.to_string())
+        .await?;
+
+    // if the last time they bought a robbery was less than a week ago
+    if !last_robbery.naive_utc().le(&a_week_ago.naive_utc()) {
+        let ts = last_robbery + chrono::Duration::days(7);
+        let reply = {
+            poise::CreateReply::default()
+                .content(format!(
+                    "You can only do this once per week! Try again <t:{}:R>.",
+                    ts.timestamp()
+                ))
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("You can only do this once per week.".to_string().into());
+    }
+    Ok(())
 }

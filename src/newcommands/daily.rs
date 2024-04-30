@@ -91,7 +91,7 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
     if ctx.data().rng.lock().unwrap().gen_bool(1.0 / 10.0) {
         let time_to_wait = { ctx.data().rng.lock().unwrap().gen_range(3..=30) };
         tokio::time::sleep(std::time::Duration::from_secs(time_to_wait)).await;
-        wrapped_robbing_event(ctx).await?;
+        wrapped_robbing_event(ctx, None).await?;
     }
     Ok(())
 }

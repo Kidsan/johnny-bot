@@ -23,7 +23,6 @@ pub async fn stats(ctx: Context<'_>) -> Result<(), Error> {
     let message = format!(
         "Total economy: {}\nAverage balance: {}\nCount of zero balances: {}\nDailies done today: {}",
         total_economy, avg_balance, count_of_zero, dailies_today
-            
     );
 
     let reply = CreateReply::default().content(message).ephemeral(true);

@@ -13,6 +13,16 @@ pub enum RPSChoice {
     Scissors,
 }
 
+impl std::fmt::Display for RPSChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RPSChoice::Rock => write!(f, ":rock:"),
+            RPSChoice::Paper => write!(f, ":roll_of_paper:"),
+            RPSChoice::Scissors => write!(f, ":scissors:"),
+        }
+    }
+}
+
 ///
 /// Play a game of Rock, Paper, Scissors with someone
 ///
@@ -80,7 +90,7 @@ pub async fn rockpaperscissors(
             ])])
     };
 
-    let message = ctx.channel_id().send_message(ctx, reply).await?;
+    let mut message = ctx.channel_id().send_message(ctx, reply).await?;
 
     let user_choice = match choice {
         RPSChoice::Rock => 0,
@@ -104,21 +114,33 @@ pub async fn rockpaperscissors(
         .await
     {
         if mci.user.id != user.id {
-            mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
-                .await?;
+            mci.create_response(
+                ctx,
+                serenity::CreateInteractionResponse::Message(
+                    serenity::CreateInteractionResponseMessage::new()
+                        .content(format!("You are not {}", user))
+                        .allowed_mentions(serenity::CreateAllowedMentions::new().empty_users())
+                        .ephemeral(true),
+                ),
+            )
+            .await?;
             continue;
         }
         let balance = { ctx.data().db.get_balance(user.id.to_string()).await? };
         if amount > balance {
-            let reply = {
-                CreateReply::default()
+            mci.create_response(
+                ctx,
+                serenity::CreateInteractionResponse::Message(
+                    serenity::CreateInteractionResponseMessage::new()
+                        .allowed_mentions(serenity::CreateAllowedMentions::new().empty_users())
                     .content(format!(
-                        "You can't afford to bet {}. You only have {} <:jbuck:1228663982462865450>!",
+                        "You can't afford to play {}. You only have {} <:jbuck:1228663982462865450>!",
                         amount, balance
                     ))
-                    .ephemeral(true)
-            };
-            ctx.send(reply).await?;
+                        .ephemeral(true),
+                ),
+            )
+            .await?;
             return Err("Not enough money".into());
         }
         challengee_choice = match mci.data.custom_id.to_string().as_str() {
@@ -141,14 +163,25 @@ pub async fn rockpaperscissors(
                 .db
                 .award_balances(vec![ctx.author().id.to_string()], amount)
                 .await?;
-            let reply = {
-                // TODO: reply to challenge message
-                CreateReply::default().content(format!(
-                    "{} did not respond in time! You get your money back!",
-                    user
-                ))
+            let content = message.content.clone();
+
+            message
+                .edit(
+                    ctx,
+                    serenity::EditMessage::new()
+                        .content(content)
+                        .components(vec![]),
+                )
+                .await?;
+            let msg = {
+                CreateMessage::default()
+                    .content(format!(
+                        "{} did not respond in time! You get your money back!",
+                        user
+                    ))
+                    .reference_message(&message)
             };
-            ctx.send(reply).await?;
+            ctx.channel_id().send_message(ctx, msg).await?;
             return Err("{} did not respond in time".into());
         }
     };
@@ -160,7 +193,7 @@ pub async fn rockpaperscissors(
                 .award_balances(vec![ctx.author().id.to_string()], amount)
                 .await?;
             format!(
-                "{} and {} both chose {:?}, it is a tie! Refunds all around.",
+                "{} and {} both chose {}\nit is a tie! **Refunds all around**",
                 ctx.author(),
                 user,
                 choice
@@ -177,14 +210,13 @@ pub async fn rockpaperscissors(
                 .await?;
 
             format!(
-                "{} chose {:?}, {} chose {:?}, {} {}! {} gets {} <:jbuck:1228663982462865450>",
+                "{} chose {}, {} chose {}\n{} {}! **They get {} **<:jbuck:1228663982462865450>",
                 ctx.author(),
                 choice,
                 user,
                 challengee_choice.unwrap(),
-                user,
-                "lost",
                 ctx.author(),
+                "won",
                 amount * 2
             )
         }
@@ -194,22 +226,36 @@ pub async fn rockpaperscissors(
                 .award_balances(vec![user.id.to_string()], amount)
                 .await?;
             format!(
-                "{} chose {:?}, {} chose {:?}, {} {}! {} gets {} <:jbuck:1228663982462865450>",
+                "{} chose {}, {} chose {}\n{} {}! **They get {}** <:jbuck:1228663982462865450>",
                 ctx.author(),
                 choice,
                 user,
                 challengee_choice.unwrap(),
                 user,
                 "won",
-                user,
                 amount * 2
             )
         }
         _ => unreachable!(),
     };
 
-    let reply = { CreateReply::default().content(msg) };
-    ctx.send(reply).await?;
+    let content = message.content.clone();
+
+    message
+        .edit(
+            ctx,
+            serenity::EditMessage::new()
+                .content(content)
+                .components(vec![]),
+        )
+        .await?;
+
+    let reply = {
+        CreateMessage::default()
+            .content(msg)
+            .reference_message(&message)
+    };
+    ctx.channel_id().send_message(ctx, reply).await?;
     Ok(())
 }
 

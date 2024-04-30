@@ -24,6 +24,8 @@ pub trait BalanceDatabase {
     async fn get_leader(&self) -> Result<String, Error>;
     async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error>;
     async fn get_dailies_today(&self) -> Result<i32, Error>;
+    async fn get_last_bought_robbery(&self, user_id: String) -> Result<DateTime<Utc>, Error>;
+    async fn bought_robbery(&self, user_id: String) -> Result<(), Error>;
 }
 
 #[derive(Debug)]
@@ -64,6 +66,15 @@ impl Database {
             id TEXT PRIMARY KEY,
             amount INTEGER NOT NULL
        )",
+                [],
+            )?;
+            conn.execute(
+                "
+                CREATE TABLE IF NOT EXISTS bought_robberies (
+                    id TEXT PRIMARY KEY,
+                    last_bought INTEGER NOT NULL
+                )
+                ",
                 [],
             )?;
             rusqlite::vtab::array::load_module(conn)?;
@@ -354,5 +365,59 @@ impl BalanceDatabase for Database {
             })
             .await
             .unwrap())
+    }
+
+    async fn get_last_bought_robbery(&self, user_id: String) -> Result<DateTime<Utc>, Error> {
+        let user = user_id.clone();
+        let last_daily = self
+            .connection
+            .call(move |conn| {
+                let mut stmt = conn
+                    .prepare_cached("SELECT last_bought FROM bought_robberies WHERE id = (?1)")?;
+                Ok(stmt.query_row(params![user], |row| {
+                    let ts: i64 = row.get(0)?;
+                    Ok(ts)
+                }))
+            })
+            .await?;
+
+        let res = match last_daily {
+            Ok(last_daily) => DateTime::<Utc>::from_timestamp(last_daily, 0).unwrap(),
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                let user = user_id;
+                let now = (chrono::Utc::now() - chrono::Duration::days(7)).timestamp();
+                dbg!(chrono::Utc::now().timestamp(), now);
+                let _ = self
+                    .connection
+                    .call(move |conn| {
+                        let mut stmt = conn.prepare_cached(
+                            "INSERT INTO bought_robberies (id, last_bought) VALUES (?1, ?2)",
+                        )?;
+                        Ok(stmt.execute(params![user, now]))
+                    })
+                    .await?;
+                DateTime::from_timestamp(now, 0).unwrap()
+            }
+            Err(e) => return Err(e.into()),
+        };
+        Ok(res)
+    }
+
+    async fn bought_robbery(&self, user_id: String) -> Result<(), Error> {
+        let _ = self
+            .connection
+            .call(move |conn| {
+                let user = user_id;
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                let mut stmt = conn.prepare_cached(
+                    "UPDATE bought_robberies SET last_bought = (?1) WHERE id = (?2)",
+                )?;
+                Ok(stmt.execute(params![now, user]))
+            })
+            .await?;
+        Ok(())
     }
 }

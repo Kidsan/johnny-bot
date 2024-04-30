@@ -183,11 +183,12 @@ mod tests {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Blackjack {
     pub id: String,
     pub players: Vec<String>,
     pub players_scores: Vec<i32>,
+    pub pot: i32,
 }
 
 impl Blackjack {
@@ -196,6 +197,7 @@ impl Blackjack {
             id,
             players: vec![],
             players_scores: vec![],
+            pot: 0,
         }
     }
     pub fn player_joined(&mut self, player: String) {
