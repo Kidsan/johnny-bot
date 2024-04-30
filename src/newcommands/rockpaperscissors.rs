@@ -39,6 +39,15 @@ pub async fn rockpaperscissors(
     #[description = "Who to challenge"] user: poise::serenity_prelude::User,
     #[description = "Your choice"] choice: RPSChoice,
 ) -> Result<(), Error> {
+    if user.bot && user.id.to_string() != ctx.data().bot_id {
+        let reply = {
+            CreateReply::default()
+                .content("You can't play against a bot, they have no hands")
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("You can't do that".into());
+    }
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let time_to_play = ctx.data().game_length;
     if user.id == ctx.author().id {
@@ -75,6 +84,15 @@ pub async fn rockpaperscissors(
     ctx.send(CreateReply::default().content("success").ephemeral(true))
         .await?;
 
+    let components = match user.id.to_string() == ctx.data().bot_id {
+        true => vec![],
+        false => vec![serenity::CreateActionRow::Buttons(vec![
+            new_rock_button(),
+            new_paper_button(),
+            new_scissors_button(),
+        ])],
+    };
+
     let reply = {
         CreateMessage::default()
             .content(format!(
@@ -83,14 +101,23 @@ pub async fn rockpaperscissors(
                 user,
                 amount
             ))
-            .components(vec![serenity::CreateActionRow::Buttons(vec![
-                new_rock_button(),
-                new_paper_button(),
-                new_scissors_button(),
-            ])])
+            .components(components)
     };
 
     let mut message = ctx.channel_id().send_message(ctx, reply).await?;
+
+    if user.id.to_string() == ctx.data().bot_id {
+        let reply = {
+            CreateMessage::default()
+                .content(format!(
+                    "I win! {}",
+                    crate::newcommands::blackjack::get_troll_emoji()
+                ))
+                .reference_message(&message)
+        };
+        ctx.channel_id().send_message(ctx, reply).await?;
+        return Ok(());
+    }
 
     let user_choice = match choice {
         RPSChoice::Rock => 0,
@@ -128,6 +155,15 @@ pub async fn rockpaperscissors(
         }
         let balance = { ctx.data().db.get_balance(user.id.to_string()).await? };
         if amount > balance {
+            let content = message.content.clone();
+            message
+                .edit(
+                    ctx,
+                    serenity::EditMessage::new()
+                        .content(content)
+                        .components(vec![]),
+                )
+                .await?;
             mci.create_response(
                 ctx,
                 serenity::CreateInteractionResponse::Message(
