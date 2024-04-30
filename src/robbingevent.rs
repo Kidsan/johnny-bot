@@ -403,7 +403,7 @@ async fn get_discord_name(ctx: Context<'_>, user: &str) -> String {
 async fn weekly_cooldown(ctx: Context<'_>) -> Result<(), Error> {
     let now = chrono::Utc::now();
 
-    let a_week_ago = now - chrono::Duration::days(7);
+    let a_week_ago = now - chrono::Duration::days(3);
 
     let last_robbery = ctx
         .data()
@@ -413,17 +413,17 @@ async fn weekly_cooldown(ctx: Context<'_>) -> Result<(), Error> {
 
     // if the last time they bought a robbery was less than a week ago
     if !last_robbery.naive_utc().le(&a_week_ago.naive_utc()) {
-        let ts = last_robbery + chrono::Duration::days(7);
+        let ts = last_robbery + chrono::Duration::days(3);
         let reply = {
             poise::CreateReply::default()
                 .content(format!(
-                    "You can only do this once per week! Try again <t:{}:R>.",
+                    "You can only do this every 3 days! Try again <t:{}:R>.",
                     ts.timestamp()
                 ))
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
-        return Err("You can only do this once per week.".to_string().into());
+        return Err("You can only do this every 3 days.".to_string().into());
     }
     Ok(())
 }
