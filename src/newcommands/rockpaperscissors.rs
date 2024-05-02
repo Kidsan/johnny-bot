@@ -30,8 +30,8 @@ impl std::fmt::Display for RPSChoice {
 /// ```
 /// /rockpaperscissors 10 @John
 /// ```
-#[poise::command(slash_command)]
-pub async fn rockpaperscissors(
+#[poise::command(slash_command, aliases("rockpaperscissors"))]
+pub async fn rpsgamble(
     ctx: Context<'_>,
     #[description = "The amount of J-Bucks to bet"]
     #[min = 0]

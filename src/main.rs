@@ -96,7 +96,7 @@ async fn main() {
         robbingevent::robbingevent(),
         newcommands::leaderboard::leaderboard(),
         robbingevent::buyrobbery(),
-        newcommands::rockpaperscissors::rockpaperscissors(),
+        newcommands::rockpaperscissors::rpsgamble(),
         newcommands::paidchannels::setchannelprice(),
     ];
 
@@ -162,7 +162,7 @@ async fn main() {
                     return Ok(false);
                 }
 
-                if ["give", "coingamble", "bury", "buyrobbery"]
+                if ["give", "coingamble", "bury", "buyrobbery", "rpsgamble"]
                     .contains(&ctx.command().name.as_str())
                     && ctx
                         .data()
