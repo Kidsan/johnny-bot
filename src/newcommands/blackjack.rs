@@ -43,7 +43,7 @@ pub async fn blackjack(
     }
     let game_length = ctx.data().game_length;
     let db = &ctx.data().db;
-    let game_starter = ctx.author().id.to_string();
+    // let game_starter = ctx.author().id.to_string();
     let player_balance = db.get_balance(ctx.author().id.to_string()).await?;
     if player_balance < amount {
         let reply = {
@@ -83,7 +83,7 @@ pub async fn blackjack(
         .shard
         .set_activity(Some(serenity::ActivityData::playing("Blackjack!")));
 
-    let game = Mutex::new(Blackjack::new(id.to_string(), game_starter.clone()));
+    let game = Mutex::new(Blackjack::new(id.to_string()));
     let bot_idx = {
         let mut g = game.lock().unwrap();
         g.player_joined(ctx.data().bot_id.clone());

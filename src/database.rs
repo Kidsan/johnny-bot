@@ -26,6 +26,9 @@ pub trait BalanceDatabase {
     async fn get_dailies_today(&self) -> Result<i32, Error>;
     async fn get_last_bought_robbery(&self, user_id: String) -> Result<DateTime<Utc>, Error>;
     async fn bought_robbery(&self, user_id: String) -> Result<(), Error>;
+    async fn get_paid_channels(&self) -> Result<Vec<(u64, i32)>, Error>;
+    async fn set_channel_price(&self, channel_id: u64, price: i32) -> Result<(), Error>;
+    async fn remove_paid_channel(&self, channel_id: u64) -> Result<(), Error>;
 }
 
 #[derive(Debug)]
@@ -73,6 +76,15 @@ impl Database {
                 CREATE TABLE IF NOT EXISTS bought_robberies (
                     id TEXT PRIMARY KEY,
                     last_bought INTEGER NOT NULL
+                )
+                ",
+                [],
+            )?;
+            conn.execute(
+                "
+                CREATE TABLE IF NOT EXISTS paid_channels (
+                    id INTEGER PRIMARY KEY,
+                    price INTEGER NOT NULL
                 )
                 ",
                 [],
@@ -418,6 +430,46 @@ impl BalanceDatabase for Database {
                 Ok(stmt.execute(params![now, user]))
             })
             .await?;
+        Ok(())
+    }
+
+    async fn get_paid_channels(&self) -> Result<Vec<(u64, i32)>, Error> {
+        Ok(self
+            .connection
+            .call(|conn| {
+                let mut stmt = conn.prepare_cached("SELECT id, price FROM paid_channels")?;
+                let channels = stmt
+                    .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                    .unwrap()
+                    .collect::<std::result::Result<Vec<(u64, i32)>, rusqlite::Error>>();
+                Ok(channels)
+            })
+            .await
+            .unwrap()?)
+    }
+
+    async fn set_channel_price(&self, channel_id: u64, price: i32) -> Result<(), Error> {
+        self
+            .connection
+            .call(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "INSERT INTO paid_channels (id, price) VALUES (?1, ?2) ON CONFLICT(id) DO UPDATE SET price = ?2",
+            )?;
+            Ok(stmt.execute(params![channel_id, price]))
+            })
+            .await
+            .unwrap()?;
+        Ok(())
+    }
+
+    async fn remove_paid_channel(&self, channel_id: u64) -> Result<(), Error> {
+        self.connection
+            .call(move |conn| {
+                let mut stmt = conn.prepare_cached("DELETE FROM paid_channels WHERE id = (?1)")?;
+                Ok(stmt.execute(params![channel_id]))
+            })
+            .await
+            .unwrap()?;
         Ok(())
     }
 }

@@ -192,7 +192,7 @@ pub struct Blackjack {
 }
 
 impl Blackjack {
-    pub fn new(id: String, player: String) -> Self {
+    pub fn new(id: String) -> Self {
         Self {
             id,
             players: vec![],
@@ -203,17 +203,6 @@ impl Blackjack {
     pub fn player_joined(&mut self, player: String) {
         self.players.push(player);
         self.players_scores.push(0);
-    }
-    pub fn get_winner(&self) -> String {
-        let mut max_score = 0;
-        let mut winner = "".to_owned();
-        for (i, score) in self.players_scores.iter().enumerate() {
-            if score > &max_score && score <= &21 {
-                max_score = *score;
-                winner = self.players[i].clone();
-            }
-        }
-        winner
     }
 
     pub fn get_winners(&self) -> Vec<String> {

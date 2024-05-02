@@ -1,5 +1,7 @@
+use crate::database::BalanceDatabase;
 mod commands;
 mod database;
+mod eventhandler;
 mod game;
 mod newcommands;
 mod robbingevent;
@@ -29,6 +31,7 @@ pub struct Data {
     locked_balances: Mutex<HashSet<String>>,
     bot_id: String,
     blackjack_active: Mutex<bool>,
+    paid_channels: Mutex<HashMap<serenity::ChannelId, i32>>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -94,12 +97,21 @@ async fn main() {
         newcommands::leaderboard::leaderboard(),
         robbingevent::buyrobbery(),
         newcommands::rockpaperscissors::rockpaperscissors(),
+        newcommands::paidchannels::setchannelprice(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
         println!("Mounting all commands");
         commands.push(newcommands::blackjack::blackjack());
     };
+
+    let db: database::Database = database::Database::new().await.unwrap();
+
+    let paid_channels = db.get_paid_channels().await.unwrap();
+    let paid_channels_map: HashMap<_, _> = paid_channels
+        .iter()
+        .map(|(channel_id, amount)| (serenity::ChannelId::new(*channel_id), *amount))
+        .collect();
 
     // FrameworkOptions contains all of poise's configuration option in one struct
     // Every option can be omitted to use its default value
@@ -176,14 +188,8 @@ async fn main() {
         // Enforce command checks even for owners (enforced by default)
         // Set to true to bypass checks, which is useful for testing
         skip_checks_for_owners: false,
-        event_handler: |_ctx, event, _framework, _data| {
-            Box::pin(async move {
-                println!(
-                    "Got an event in event handler: {:?}",
-                    event.snake_case_name()
-                );
-                Ok(())
-            })
+        event_handler: |ctx, event, _framework, data| {
+            Box::pin(eventhandler::event_handler(ctx, event, _framework, data))
         },
         ..Default::default()
     };
@@ -195,13 +201,14 @@ async fn main() {
                 Ok(Data {
                     games: Mutex::new(HashMap::new()),
                     coingames: Mutex::new(HashMap::new()),
-                    db: database::Database::new().await?,
+                    db,
                     side_chance,
                     game_length,
                     rng: Mutex::new(rand::SeedableRng::from_entropy()),
                     locked_balances: Mutex::new(HashSet::new()),
                     bot_id,
                     blackjack_active: Mutex::new(false),
+                    paid_channels: Mutex::new(paid_channels_map),
                 })
             })
         })
