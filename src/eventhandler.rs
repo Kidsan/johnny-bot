@@ -32,6 +32,7 @@ pub async fn event_handler(
                 .await?;
 
             if balance < price {
+                new_message.delete(ctx).await?;
                 new_message
                 .author
                 .dm(
@@ -43,7 +44,6 @@ pub async fn event_handler(
                     )),
                 )
                 .await?;
-                new_message.delete(ctx).await?;
                 return Ok(());
             }
 
