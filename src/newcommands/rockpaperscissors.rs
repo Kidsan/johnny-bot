@@ -24,18 +24,18 @@ impl std::fmt::Display for RPSChoice {
 }
 
 ///
-/// Play a game of Rock, Paper, Scissors with someone
+/// Play a friendly game of Rock, Paper, Scissors with someone
 ///
-/// Enter `/rockpaperscissors <amount> @John` to challenge someone to a game of rock, paper, scissors.
+/// Enter `/rpsgamble <amount> @John` to challenge someone to a game of rock, paper, scissors.
 /// ```
-/// /rockpaperscissors 10 @John
+/// /rpsgamble 10 @John
 /// ```
 #[poise::command(slash_command, aliases("rockpaperscissors"))]
 pub async fn rpsgamble(
     ctx: Context<'_>,
     #[description = "The amount of J-Bucks to bet"]
     #[min = 0]
-    amount: i32,
+    amount: Option<i32>,
     #[description = "Who to challenge"] user: poise::serenity_prelude::User,
     #[description = "Your choice"] choice: RPSChoice,
 ) -> Result<(), Error> {
@@ -55,6 +55,8 @@ pub async fn rpsgamble(
         ctx.send(reply).await?;
         return Err("Can't challenge yourself".into());
     }
+
+    let amount = amount.unwrap_or(0);
     let balance = {
         ctx.data()
             .db
@@ -96,10 +98,14 @@ pub async fn rpsgamble(
     let reply = {
         CreateMessage::default()
             .content(format!(
-                "{} has challenged {} to a game of :rock: :roll_of_paper: :scissors: for {} <:jbuck:1228663982462865450>!",
+                "{} has challenged {} to a game of :rock: :roll_of_paper: :scissors:{}",
                 ctx.author(),
                 user,
-                amount
+                if amount > 0 {
+                    format!(" for {} <:jbuck:1228663982462865450>!", amount)
+                } else {
+                    "".to_string()
+                }
             ))
             .components(components)
     };
@@ -218,8 +224,13 @@ pub async fn rpsgamble(
             let msg = {
                 CreateMessage::default()
                     .content(format!(
-                        "{} did not respond in time! You get your money back!",
-                        user
+                        "{} did not respond in time!{}",
+                        user,
+                        if amount > 0 {
+                            format!(" Refunding {} <:jbuck:1228663982462865450>!", amount)
+                        } else {
+                            "".to_string()
+                        }
                     ))
                     .reference_message(&message)
             };
@@ -235,10 +246,15 @@ pub async fn rpsgamble(
                 .award_balances(vec![ctx.author().id.to_string()], amount)
                 .await?;
             format!(
-                "{} and {} both chose {}\nit is a tie! **Refunds all around**",
+                "{} and {} both chose {}\nit is a tie!{}",
                 ctx.author(),
                 user,
-                choice
+                choice,
+                if amount > 0 {
+                    " **Refunds all around**".to_string()
+                } else {
+                    "".to_string()
+                }
             )
         }
         1 => {
@@ -252,14 +268,18 @@ pub async fn rpsgamble(
                 .await?;
 
             format!(
-                "{} chose {}, {} chose {}\n{} {}! **They get {} **<:jbuck:1228663982462865450>",
+                "{} chose {}, {} chose {}\n{} {}!{}",
                 ctx.author(),
                 choice,
                 user,
                 challengee_choice.unwrap(),
                 ctx.author(),
                 "won",
-                amount * 2
+                if amount > 0 {
+                    format!(" **They get {} **<:jbuck:1228663982462865450>", amount * 2)
+                } else {
+                    "".to_string()
+                },
             )
         }
         2 => {
@@ -268,14 +288,18 @@ pub async fn rpsgamble(
                 .award_balances(vec![user.id.to_string()], amount)
                 .await?;
             format!(
-                "{} chose {}, {} chose {}\n{} {}! **They get {}** <:jbuck:1228663982462865450>",
+                "{} chose {}, {} chose {}\n{} {}!{}",
                 ctx.author(),
                 choice,
                 user,
                 challengee_choice.unwrap(),
                 user,
                 "won",
-                amount * 2
+                if amount > 0 {
+                    format!(" **They get {} **<:jbuck:1228663982462865450>", amount * 2)
+                } else {
+                    "".to_string()
+                }
             )
         }
         _ => unreachable!(),
