@@ -79,7 +79,7 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
 /// ```
 #[poise::command(slash_command, check = "no_locked_balances", check = "enough_players")]
 pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
-    match weekly_cooldown(ctx).await {
+    match daily_cooldown(ctx).await {
         Ok(_) => {}
         Err(e) => return Err(e),
     }
@@ -399,31 +399,32 @@ async fn get_discord_name(ctx: Context<'_>, user: &str) -> String {
         .await
         .unwrap_or(user.name)
 }
+async fn daily_cooldown(ctx: Context<'_>) -> Result<(), Error> {
+    let today = chrono::Utc::now()
+        .date_naive()
+        .and_hms_opt(0, 0, 0)
+        .unwrap();
 
-async fn weekly_cooldown(ctx: Context<'_>) -> Result<(), Error> {
-    let now = chrono::Utc::now();
-
-    let a_week_ago = now - chrono::Duration::days(3);
-
-    let last_robbery = ctx
+    let tomorrow = today + chrono::Duration::days(1);
+    let last_daily = ctx
         .data()
         .db
         .get_last_bought_robbery(ctx.author().id.to_string())
         .await?;
 
-    // if the last time they bought a robbery was less than a week ago
-    if !last_robbery.naive_utc().le(&a_week_ago.naive_utc()) {
-        let ts = last_robbery + chrono::Duration::days(3);
+    if last_daily.naive_utc() > today {
+        let ts = tomorrow.and_utc().timestamp();
+
         let reply = {
             poise::CreateReply::default()
                 .content(format!(
-                    "You can only do this every 3 days! Try again <t:{}:R>.",
-                    ts.timestamp()
+                    "You can only do this once per day! Try again <t:{}:R>.",
+                    ts
                 ))
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
-        return Err("You can only do this every 3 days.".to_string().into());
+        return Err("You can only do this once per day.".to_string().into());
     }
     Ok(())
 }

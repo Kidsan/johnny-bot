@@ -16,7 +16,7 @@ pub enum RPSChoice {
 impl std::fmt::Display for RPSChoice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RPSChoice::Rock => write!(f, ":rock:"),
+            RPSChoice::Rock => write!(f, ":moyai:"),
             RPSChoice::Paper => write!(f, ":roll_of_paper:"),
             RPSChoice::Scissors => write!(f, ":scissors:"),
         }
@@ -98,7 +98,7 @@ pub async fn rpsgamble(
     let reply = {
         CreateMessage::default()
             .content(format!(
-                "{} has challenged {} to a game of :rock: :roll_of_paper: :scissors:{}",
+                "{} has challenged {} to a game of :moyai: :roll_of_paper: :scissors:{}",
                 ctx.author(),
                 user,
                 if amount > 0 {
