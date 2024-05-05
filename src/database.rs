@@ -29,6 +29,9 @@ pub trait BalanceDatabase {
     async fn get_paid_channels(&self) -> Result<Vec<(u64, i32)>, Error>;
     async fn set_channel_price(&self, channel_id: u64, price: i32) -> Result<(), Error>;
     async fn remove_paid_channel(&self, channel_id: u64) -> Result<(), Error>;
+    async fn get_purchasable_roles(&self) -> Result<Vec<(u64, i32, bool)>, Error>;
+    async fn set_role_price(&self, role_id: u64, price: i32) -> Result<(), Error>;
+    async fn toggle_role_unique(&self, role_id: u64, only_one: bool) -> Result<(), Error>;
 }
 
 #[derive(Debug)]
@@ -89,6 +92,16 @@ impl Database {
                 ",
                 [],
             )?;
+            conn.execute(
+                "
+                CREATE TABLE IF NOT EXISTS purchaseable_roles (
+                    role_id TEXT PRIMARY KEY,
+                    price INTEGER NOT NULL,
+                    only_one BOOLEAN NOT NULL
+                )
+                ",
+                [],
+            )?;
             rusqlite::vtab::array::load_module(conn)?;
             Ok(())
         })
@@ -135,38 +148,6 @@ impl BalanceDatabase for Database {
             Err(e) => return Err(e.into()),
         };
         Ok(result)
-    }
-
-    #[tracing::instrument(level = "info")]
-    async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error> {
-        let _ = self
-            .connection
-            .call(move |conn| {
-                let mut stmt = conn.prepare_cached(
-                    "INSERT INTO buried_balances (id, amount) VALUES (?1, ?2) ON CONFLICT(id) DO UPDATE SET amount = amount + ?2",
-                )?;
-                Ok(stmt.execute(params![user_id, amount]))
-            })
-            .await?;
-        Ok(())
-    }
-
-    #[tracing::instrument(level = "info")]
-    async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error> {
-        let leaderboard = self
-            .connection
-            .call(|conn| {
-                let mut stmt = conn.prepare_cached(
-                    "SELECT id, balance FROM balances ORDER BY balance DESC LIMIT 10",
-                )?;
-                let people = stmt
-                    .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
-                    .collect::<std::result::Result<Vec<(String, i32)>, rusqlite::Error>>();
-                Ok(people)
-            })
-            .await
-            .unwrap()?;
-        Ok(leaderboard)
     }
 
     #[tracing::instrument(level = "info")]
@@ -228,6 +209,24 @@ impl BalanceDatabase for Database {
             })
             .await?;
         Ok(())
+    }
+
+    #[tracing::instrument(level = "info")]
+    async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error> {
+        let leaderboard = self
+            .connection
+            .call(|conn| {
+                let mut stmt = conn.prepare_cached(
+                    "SELECT id, balance FROM balances ORDER BY balance DESC LIMIT 10",
+                )?;
+                let people = stmt
+                    .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+                    .collect::<std::result::Result<Vec<(String, i32)>, rusqlite::Error>>();
+                Ok(people)
+            })
+            .await
+            .unwrap()?;
+        Ok(leaderboard)
     }
 
     #[tracing::instrument(level = "info")]
@@ -355,6 +354,20 @@ impl BalanceDatabase for Database {
     }
 
     #[tracing::instrument(level = "info")]
+    async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error> {
+        let _ = self
+            .connection
+            .call(move |conn| {
+                let mut stmt = conn.prepare_cached(
+                    "INSERT INTO buried_balances (id, amount) VALUES (?1, ?2) ON CONFLICT(id) DO UPDATE SET amount = amount + ?2",
+                )?;
+                Ok(stmt.execute(params![user_id, amount]))
+            })
+            .await?;
+        Ok(())
+    }
+
+    #[tracing::instrument(level = "info")]
     async fn get_dailies_today(&self) -> Result<i32, Error> {
         Ok(self
             .connection
@@ -467,6 +480,49 @@ impl BalanceDatabase for Database {
             .call(move |conn| {
                 let mut stmt = conn.prepare_cached("DELETE FROM paid_channels WHERE id = (?1)")?;
                 Ok(stmt.execute(params![channel_id]))
+            })
+            .await
+            .unwrap()?;
+        Ok(())
+    }
+
+    async fn get_purchasable_roles(&self) -> Result<Vec<(u64, i32, bool)>, Error> {
+        Ok(self
+            .connection
+            .call(|conn| {
+                let mut stmt =
+                    conn.prepare_cached("SELECT role_id, price, only_one FROM purchaseable_roles")?;
+                let roles = stmt
+                    .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+                    .unwrap()
+                    .collect::<std::result::Result<Vec<(u64, i32, bool)>, rusqlite::Error>>();
+                Ok(roles)
+            })
+            .await
+            .unwrap()?)
+    }
+
+    async fn set_role_price(&self, role_id: u64, price: i32) -> Result<(), Error> {
+        self
+            .connection
+            .call(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "INSERT INTO purchaseable_roles (role_id, price) VALUES (?1, ?2) ON CONFLICT(role_id) DO UPDATE SET price = ?2",
+            )?;
+            Ok(stmt.execute(params![role_id, price]))
+            })
+            .await
+            .unwrap()?;
+        Ok(())
+    }
+
+    async fn toggle_role_unique(&self, role_id: u64, only_one: bool) -> Result<(), Error> {
+        self.connection
+            .call(move |conn| {
+            let mut stmt = conn.prepare_cached(
+                "INSERT INTO purchaseable_roles (role_id, only_one) VALUES (?1, ?2) ON CONFLICT(role_id) DO UPDATE SET only_one = ?2",
+            )?;
+            Ok(stmt.execute(params![role_id, only_one]))
             })
             .await
             .unwrap()?;

@@ -211,16 +211,22 @@ pub async fn give(
         ctx.send(reply).await?;
         return Err("You can't afford to do that".into());
     }
+
+    let tax = amount as f32 * 0.02;
+    // round tax up to the nearest integer
+    let tax = tax.ceil() as i32;
+
     db.set_balance(sender.clone(), sender_balance - amount)
         .await?;
-    db.set_balance(recipient_id.clone(), recipient_balance + amount)
+    db.set_balance(recipient_id.clone(), recipient_balance + (amount - tax))
         .await?;
     let reply = {
         CreateReply::default().content(format!(
-            "{} sent {} J-Buck(s) to {}!",
+            "{} sent {} <:jbuck:1228663982462865450> to {}!\n -{} <:jbuck:1228663982462865450> Johnny's work fee. <:doge:1228663982462865450>",
             ctx.author(),
             amount,
-            recipient
+            recipient,
+            tax,
         ))
     };
     ctx.send(reply).await?;

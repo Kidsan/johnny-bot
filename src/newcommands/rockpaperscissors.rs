@@ -239,6 +239,8 @@ pub async fn rpsgamble(
         }
     };
     let result = (user_choice - challengee_value + 3) % 3;
+    let tax = (amount as f32 * 0.02).ceil() as i32;
+    let prize = (amount * 2) - ((amount * 2) as f32 * 0.02).ceil() as i32;
     let msg = match result {
         0 => {
             ctx.data()
@@ -260,7 +262,7 @@ pub async fn rpsgamble(
         1 => {
             ctx.data()
                 .db
-                .award_balances(vec![ctx.author().id.to_string()], amount * 2)
+                .award_balances(vec![ctx.author().id.to_string()], prize)
                 .await?;
             ctx.data()
                 .db
@@ -268,7 +270,7 @@ pub async fn rpsgamble(
                 .await?;
 
             format!(
-                "{} chose {}, {} chose {}\n{} {}!{}",
+                "{} chose {}, {} chose {}\n{} {}!{}\n{}",
                 ctx.author(),
                 choice,
                 user,
@@ -280,15 +282,20 @@ pub async fn rpsgamble(
                 } else {
                     "".to_string()
                 },
+                if prize < amount * 2 {
+                    format!("{} <:jbuck:1228663982462865450> was paid to Johnny.", tax)
+                } else {
+                    "".to_string()
+                }
             )
         }
         2 => {
             ctx.data()
                 .db
-                .award_balances(vec![user.id.to_string()], amount)
+                .award_balances(vec![user.id.to_string()], prize)
                 .await?;
             format!(
-                "{} chose {}, {} chose {}\n{} {}!{}",
+                "{} chose {}, {} chose {}\n{} {}!{}\n{}",
                 ctx.author(),
                 choice,
                 user,
@@ -296,7 +303,12 @@ pub async fn rpsgamble(
                 user,
                 "won",
                 if amount > 0 {
-                    format!(" **They get {} **<:jbuck:1228663982462865450>", amount * 2)
+                    format!(" **They get {} **<:jbuck:1228663982462865450>", prize)
+                } else {
+                    "".to_string()
+                },
+                if prize < amount * 2 {
+                    format!("{} <:jbuck:1228663982462865450> was paid to Johnny.", tax)
                 } else {
                     "".to_string()
                 }

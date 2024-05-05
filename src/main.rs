@@ -32,6 +32,8 @@ pub struct Data {
     bot_id: String,
     blackjack_active: Mutex<bool>,
     paid_channels: Mutex<HashMap<serenity::ChannelId, i32>>,
+    roles: Mutex<HashMap<serenity::RoleId, i32>>,
+    unique_roles: HashSet<serenity::RoleId>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -98,6 +100,7 @@ async fn main() {
         robbingevent::buyrobbery(),
         newcommands::rockpaperscissors::rpsgamble(),
         newcommands::paidchannels::setchannelprice(),
+        newcommands::buy::buy(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
@@ -112,6 +115,18 @@ async fn main() {
         .iter()
         .map(|(channel_id, amount)| (serenity::ChannelId::new(*channel_id), *amount))
         .collect();
+
+    let paid_roles = db.get_purchasable_roles().await.unwrap();
+    let roles = paid_roles
+        .iter()
+        .map(|(role_id, amount, _)| (serenity::RoleId::new(*role_id), *amount))
+        .collect::<HashMap<_, _>>();
+
+    let unique_roles = paid_roles
+        .iter()
+        .filter(|(_, _, unique)| *unique)
+        .map(|(role_id, _, _)| serenity::RoleId::new(*role_id))
+        .collect::<HashSet<_>>();
 
     // FrameworkOptions contains all of poise's configuration option in one struct
     // Every option can be omitted to use its default value
@@ -209,6 +224,8 @@ async fn main() {
                     bot_id,
                     blackjack_active: Mutex::new(false),
                     paid_channels: Mutex::new(paid_channels_map),
+                    roles: Mutex::new(roles),
+                    unique_roles,
                 })
             })
         })
