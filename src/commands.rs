@@ -222,7 +222,7 @@ pub async fn give(
         .await?;
     let reply = {
         CreateReply::default().content(format!(
-            "{} sent {} <:jbuck:1228663982462865450> to {}!\n -{} <:jbuck:1228663982462865450> Johnny's work fee. <:doge:1228663982462865450>",
+            "{} sent {} <:jbuck:1228663982462865450> to {}!\n -{} <:jbuck:1228663982462865450> Johnny's work fee.",
             ctx.author(),
             amount,
             recipient,
