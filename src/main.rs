@@ -100,11 +100,11 @@ async fn main() {
         robbingevent::buyrobbery(),
         newcommands::rockpaperscissors::rpsgamble(),
         newcommands::paidchannels::setchannelprice(),
-        newcommands::buy::buy(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
         println!("Mounting all commands");
+        commands.push(newcommands::buy::buy());
         commands.push(newcommands::blackjack::blackjack());
     };
 
