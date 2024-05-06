@@ -427,7 +427,7 @@ async fn minute_cooldown(ctx: Context<'_>) -> Result<(), Error> {
         let mut cooldown_tracker = ctx.command().cooldowns.lock().unwrap();
 
         let cooldown_durations = poise::CooldownConfig {
-            user: Some(time::Duration::from_secs(60)),
+            user: Some(time::Duration::from_secs(ctx.data().game_length)),
             ..Default::default()
         };
 

@@ -21,7 +21,7 @@ pub async fn setchannelprice(
     amount: i32,
 ) -> Result<(), Error> {
     let c = ctx.channel_id();
-    let v: u64 = c.into();
+    let v: i64 = c.into();
     if amount == 0 {
         ctx.data()
             .paid_channels
