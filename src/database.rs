@@ -1,8 +1,33 @@
 use chrono::{DateTime, Utc};
-use sqlx::{Execute, Pool};
+use sqlx::Pool;
 use tokio::fs;
 
 use crate::Error;
+
+#[derive(Debug, sqlx::FromRow)]
+struct Balance {
+    id: String,
+    balance: i32,
+}
+#[derive(Debug, sqlx::FromRow)]
+struct Daily {
+    last_daily: i64,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+struct Total {
+    total: i32,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+struct Average {
+    average: f32,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+struct BoughtRobbery {
+    last_bought: i64,
+}
 
 pub trait BalanceDatabase {
     async fn get_balance(&self, user_id: String) -> Result<i32, Error>;
@@ -13,7 +38,7 @@ pub trait BalanceDatabase {
     async fn get_last_daily(&self, user_id: String) -> Result<DateTime<Utc>, Error>;
     async fn did_daily(&self, user_id: String) -> Result<(), Error>;
     async fn get_total(&self) -> Result<i32, Error>;
-    async fn get_avg_balance(&self) -> Result<i32, Error>;
+    async fn get_avg_balance(&self) -> Result<f32, Error>;
     async fn get_zero_balance(&self) -> Result<i32, Error>;
     async fn get_leader(&self) -> Result<String, Error>;
     async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error>;
@@ -105,33 +130,6 @@ impl Database {
         //  .unwrap();
         Ok(Self { connection: pool })
     }
-}
-#[derive(Debug, sqlx::FromRow)]
-struct Balance {
-    id: String,
-    balance: i32,
-}
-#[derive(Debug, sqlx::FromRow)]
-struct Daily {
-    id: String,
-    last_daily: i64,
-}
-
-#[derive(Debug, sqlx::FromRow)]
-struct Total {
-    total: f32,
-}
-
-#[derive(Debug, sqlx::FromRow)]
-struct BoughtRobbery {
-    id: String,
-    last_bought: i64,
-}
-
-#[derive(Debug, sqlx::FromRow)]
-struct Channel {
-    id: u64,
-    price: i32,
 }
 
 impl BalanceDatabase for Database {
@@ -249,13 +247,13 @@ impl BalanceDatabase for Database {
     }
 
     #[tracing::instrument(level = "info")]
-    async fn get_avg_balance(&self) -> Result<i32, Error> {
-        Ok(sqlx::query_as::<_, Total>(
-            "SELECT AVG(balance) as total FROM balances WHERE balance > 0",
+    async fn get_avg_balance(&self) -> Result<f32, Error> {
+        Ok(sqlx::query_as::<_, Average>(
+            "SELECT AVG(balance) as average FROM balances WHERE balance > 0",
         )
         .fetch_one(&self.connection)
         .await?
-        .total as i32)
+        .average)
     }
 
     #[tracing::instrument(level = "info")]
@@ -300,7 +298,7 @@ impl BalanceDatabase for Database {
             sqlx::query_as::<_, Total>(
                 "SELECT count(id) as total FROM dailies where last_daily > ?",
             )
-            .bind(time.to_string())
+            .bind(time.and_utc().timestamp())
             .fetch_one(&self.connection)
             .await?
             .total as i32,
