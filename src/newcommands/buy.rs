@@ -1,6 +1,57 @@
 use crate::{database::BalanceDatabase, Context, Error};
 use poise::CreateReply;
 
+#[poise::command(slash_command)]
+pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
+    let reply = {
+        let roles = ctx.data().roles.lock().unwrap();
+        let mut role_prices = roles
+            .iter()
+            .map(|(role_id, price)| {
+                format!("> <@&{}> - {} <:jbuck:1228663982462865450>", role_id, price)
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+        role_prices.insert_str(0, "**Roles for sale:**\n");
+        role_prices.insert_str(
+            0,
+            "### <:jbuck:1228663982462865450> Shop <:jbuck:1228663982462865450> ###\n\n",
+        );
+        CreateReply::default().content(role_prices).ephemeral(true)
+    };
+    ctx.send(reply).await?;
+
+    Ok(())
+}
+
+#[poise::command(
+    slash_command,
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR",
+    hide_in_help
+)]
+pub async fn setroleprice(
+    ctx: Context<'_>,
+    price: i32,
+    role: poise::serenity_prelude::Role,
+) -> Result<(), Error> {
+    ctx.data()
+        .db
+        .set_role_price(role.id.to_string().parse()?, price)
+        .await?;
+    ctx.data().roles.lock().unwrap().insert(role.id, price);
+    let reply = {
+        CreateReply::default()
+            .content(format!(
+                "You have set the price for the role {} to {}!",
+                role, price
+            ))
+            .ephemeral(true)
+    };
+    ctx.send(reply).await?;
+    Ok(())
+}
+
 ///
 /// Buy something with your JBucks
 ///
@@ -76,25 +127,26 @@ pub async fn role(
         .subtract_balances(vec![ctx.author().id.to_string()], price)
         .await?;
 
-    let remove = {
-        ctx.data().unique_roles.contains(&role.id)
-        // find users with the role
-
-        // ctx.serenity_context()
-        //     .http
-        //     .remove_member_roles(ctx.guild_id().unwrap(), ctx.author().id, &roles)
-        //     .await?;
-    };
-    if remove {
-        // remove the role from anyone who has it
-    }
-
     // give the user the role
     ctx.serenity_context()
         .http
-        .add_member_role(ctx.guild_id().unwrap(), ctx.author().id, role.id, None)
+        .add_member_role(
+            ctx.guild_id().unwrap(),
+            ctx.author().id,
+            role.id,
+            Some("Buying a role"),
+        )
         .await?;
 
-    ctx.say(format!("You want to buy a role {}", role)).await?;
+    let reply = {
+        CreateReply::default()
+            .content(format!(
+                "You have purchased the role {} for {} <:jbuck:1228663982462865450>!",
+                role, price
+            ))
+            .ephemeral(true)
+    };
+    ctx.send(reply).await?;
+
     Ok(())
 }

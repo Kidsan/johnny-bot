@@ -97,11 +97,12 @@ impl Database {
                 CREATE TABLE IF NOT EXISTS purchaseable_roles (
                     role_id TEXT PRIMARY KEY,
                     price INTEGER NOT NULL,
-                    only_one BOOLEAN NOT NULL
+                    only_one BOOLEAN NOT NULL DEFAULT FALSE
                 )
                 ",
                 [],
             )?;
+
             rusqlite::vtab::array::load_module(conn)?;
             Ok(())
         })
@@ -493,8 +494,15 @@ impl BalanceDatabase for Database {
                 let mut stmt =
                     conn.prepare_cached("SELECT role_id, price, only_one FROM purchaseable_roles")?;
                 let roles = stmt
-                    .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+                    .query_map([], |row| {
+                        Ok((row.get::<usize, String>(0)?, row.get(1)?, row.get(2)?))
+                    })
                     .unwrap()
+                    .map(|r| {
+                        let (role_id, price, only_one) = r.unwrap();
+                        let role_id = role_id.parse().unwrap();
+                        Ok((role_id, price, only_one))
+                    })
                     .collect::<std::result::Result<Vec<(u64, i32, bool)>, rusqlite::Error>>();
                 Ok(roles)
             })
@@ -507,7 +515,7 @@ impl BalanceDatabase for Database {
             .connection
             .call(move |conn| {
             let mut stmt = conn.prepare_cached(
-                "INSERT INTO purchaseable_roles (role_id, price) VALUES (?1, ?2) ON CONFLICT(role_id) DO UPDATE SET price = ?2",
+                "INSERT INTO purchaseable_roles (role_id, price,only_one) VALUES (?1, ?2, false) ON CONFLICT(role_id) DO UPDATE SET price = ?2",
             )?;
             Ok(stmt.execute(params![role_id, price]))
             })

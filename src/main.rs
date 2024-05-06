@@ -100,11 +100,13 @@ async fn main() {
         robbingevent::buyrobbery(),
         newcommands::rockpaperscissors::rpsgamble(),
         newcommands::paidchannels::setchannelprice(),
+        newcommands::buy::buy(),
+        newcommands::buy::shop(),
+        newcommands::buy::setroleprice(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
         println!("Mounting all commands");
-        commands.push(newcommands::buy::buy());
         commands.push(newcommands::blackjack::blackjack());
     };
 
@@ -177,8 +179,15 @@ async fn main() {
                     return Ok(false);
                 }
 
-                if ["give", "coingamble", "bury", "buyrobbery", "rpsgamble"]
-                    .contains(&ctx.command().name.as_str())
+                if [
+                    "give",
+                    "coingamble",
+                    "bury",
+                    "buyrobbery",
+                    "rpsgamble",
+                    "buy",
+                ]
+                .contains(&ctx.command().name.as_str())
                     && ctx
                         .data()
                         .locked_balances
