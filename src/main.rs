@@ -100,13 +100,13 @@ async fn main() {
         robbingevent::buyrobbery(),
         newcommands::rockpaperscissors::rpsgamble(),
         newcommands::paidchannels::setchannelprice(),
-        newcommands::buy::buy(),
-        newcommands::buy::shop(),
-        newcommands::buy::setroleprice(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
         println!("Mounting all commands");
+        commands.push(newcommands::buy::buy());
+        commands.push(newcommands::buy::shop());
+        commands.push(newcommands::buy::setroleprice());
         commands.push(newcommands::blackjack::blackjack());
     };
 
@@ -115,19 +115,29 @@ async fn main() {
     let paid_channels = db.get_paid_channels().await.unwrap();
     let paid_channels_map: HashMap<_, _> = paid_channels
         .iter()
-        .map(|(channel_id, amount)| (serenity::ChannelId::new(*channel_id), *amount))
+        .map(|(channel_id, amount)| {
+            (
+                serenity::ChannelId::new((*channel_id).try_into().unwrap()),
+                *amount,
+            )
+        })
         .collect();
 
     let paid_roles = db.get_purchasable_roles().await.unwrap();
     let roles = paid_roles
         .iter()
-        .map(|(role_id, amount, _)| (serenity::RoleId::new(*role_id), *amount))
+        .map(|(role_id, amount, _)| {
+            (
+                serenity::RoleId::new((*role_id).try_into().unwrap()),
+                *amount,
+            )
+        })
         .collect::<HashMap<_, _>>();
 
     let unique_roles = paid_roles
         .iter()
         .filter(|(_, _, unique)| *unique)
-        .map(|(role_id, _, _)| serenity::RoleId::new(*role_id))
+        .map(|(role_id, _, _)| serenity::RoleId::new((*role_id).try_into().unwrap()))
         .collect::<HashSet<_>>();
 
     // FrameworkOptions contains all of poise's configuration option in one struct

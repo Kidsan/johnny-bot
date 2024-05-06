@@ -60,6 +60,7 @@
             })
             bashInteractive
             cargo-watch
+            sqlx-cli
           ];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
           shellHook = ''
