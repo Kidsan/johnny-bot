@@ -1,7 +1,7 @@
 {
   inputs = {
-    rust-overlay.url = "github:oxalica/rust-overlay";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    rust-overlay.url = "github:oxalica/rust-overlay";
     utils.url = "github:numtide/flake-utils";
     cargo2nix.url = "github:cargo2nix/cargo2nix/unstable";
   };
@@ -22,10 +22,8 @@
           buildInputs = [ pkgs.openssl ];
           nativeBuildInputs = [
             pkgs.pkg-config
-            # pkgs.gcc
           ];
           doCheck = false;
-          # RUSTFLAGS = "-C target-feature=+crt-static";
         });
         rustPkgs = pkgs.rustBuilder.makePackageSet
           {
@@ -36,18 +34,17 @@
       rec
       {
         packages = {
-          bot = build-bot pkgs;
-          bot2 = (rustPkgs.workspace.bot { });
+          bot = (rustPkgs.workspace.bot { });
           bot-cross-aarch64-linux = build-bot pkgs.pkgsCross.aarch64-multiplatform;
           docker = pkgs.dockerTools.buildLayeredImage {
             name = "registry.digitalocean.com/johnnybot/bot";
             tag = if (self ? rev) then self.shortRev else "dirty";
-            config.Cmd = [ "${packages.bot2}/bin/bot" ];
-            contents = [ packages.bot2 ];
+            config.Cmd = [ "${packages.bot}/bin/bot" ];
+            contents = [ packages.bot ];
           };
         };
 
-        defaultPackage = packages.bot2;
+        defaultPackage = packages.bot;
 
 
         devShell = with pkgs; mkShell {
