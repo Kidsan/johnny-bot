@@ -15,6 +15,7 @@ pub mod leaderboard;
 pub mod paidchannels;
 pub mod register;
 pub mod removebucks;
+pub mod robbingevent;
 pub mod rockpaperscissors;
 pub mod say;
 pub mod stats;
