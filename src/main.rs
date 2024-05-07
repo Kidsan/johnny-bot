@@ -3,7 +3,6 @@ mod commands;
 mod database;
 mod eventhandler;
 mod game;
-mod robbingevent;
 mod texts;
 
 use poise::{serenity_prelude as serenity, CreateReply};

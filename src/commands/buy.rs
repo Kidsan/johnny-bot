@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::{database::BalanceDatabase, Context, Error};
 use poise::CreateReply;
 
@@ -61,6 +63,7 @@ pub async fn setroleprice(
     #[description = "An optional prerequisite role"] required_role: Option<
         poise::serenity_prelude::Role,
     >,
+    #[description = "Can only one person have this role?"] only_one: Option<bool>,
 ) -> Result<(), Error> {
     let required_role_id = required_role
         .clone()
@@ -72,6 +75,7 @@ pub async fn setroleprice(
             price,
             increment,
             required_role_id,
+            only_one,
         )
         .await?;
 
@@ -214,6 +218,7 @@ pub async fn role(
         ctx.send(reply).await?;
         return Err("Not enough money".into());
     }
+
     // give the user the role
     ctx.serenity_context()
         .http
@@ -229,6 +234,24 @@ pub async fn role(
         .db
         .subtract_balances(vec![ctx.author().id.to_string()], price.0)
         .await?;
+
+    if ctx.data().unique_roles.contains(&role.id) {
+        if let Some(user) = ctx.data().db.get_unique_role_holder(role.id.into()).await? {
+            ctx.serenity_context()
+                .http
+                .remove_member_role(
+                    ctx.guild_id().unwrap(),
+                    poise::serenity_prelude::UserId::from_str(&user.user_id)?,
+                    role.id,
+                    Some(format!("{} bought it", ctx.author().id).as_str()),
+                )
+                .await?;
+        };
+        ctx.data()
+            .db
+            .set_unique_role_holder(role.id.into(), ctx.author().id.to_string().as_str())
+            .await?;
+    }
 
     incrementroleprice(ctx, role.id.to_string()).await?;
 

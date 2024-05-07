@@ -38,6 +38,11 @@ pub struct PurchaseableRole {
     pub required_role_id: Option<String>,
 }
 
+#[derive(Debug, sqlx::FromRow)]
+pub struct UserID {
+    pub user_id: String,
+}
+
 pub trait BalanceDatabase {
     async fn get_balance(&self, user_id: String) -> Result<i32, Error>;
     async fn set_balance(&self, user_id: String, balance: i32) -> Result<(), Error>;
@@ -65,8 +70,11 @@ pub trait BalanceDatabase {
         price: i32,
         increment: Option<i32>,
         required_role: Option<i64>,
+        only_one: Option<bool>,
     ) -> Result<(), Error>;
     async fn toggle_role_unique(&self, role_id: i64, only_one: bool) -> Result<(), Error>;
+    async fn get_unique_role_holder(&self, role_id: i64) -> Result<Option<UserID>, Error>;
+    async fn set_unique_role_holder(&self, role_id: i64, user_id: &str) -> Result<(), Error>;
 }
 
 #[derive(Debug)]
@@ -331,6 +339,7 @@ impl BalanceDatabase for Database {
         price: i32,
         increment: Option<i32>,
         required_role: Option<i64>,
+        only_one: Option<bool>,
     ) -> Result<(), Error> {
         if price == 0 {
             sqlx::query("DELETE FROM purchaseable_roles WHERE role_id = ?")
@@ -339,14 +348,16 @@ impl BalanceDatabase for Database {
                 .await?;
             return Ok(());
         }
-        sqlx::query("INSERT INTO purchaseable_roles (role_id, price, increment, required_role_id) VALUES (?, ?, ?, ?) ON CONFLICT(role_id) DO UPDATE SET price = ?, increment = ?, required_role_id = ?")
+        sqlx::query("INSERT INTO purchaseable_roles (role_id, price, increment, required_role_id, only_one) VALUES (?, ?, ?, ?, ?) ON CONFLICT(role_id) DO UPDATE SET price = ?, increment = ?, required_role_id = ?, only_one = ?")
             .bind(role_id)
             .bind(price)
             .bind(increment)
             .bind(required_role)
+            .bind(only_one)
             .bind(price)
             .bind(increment)
             .bind(required_role)
+            .bind(only_one)
             .execute(&self.connection)
             .await?;
 
@@ -370,6 +381,25 @@ impl BalanceDatabase for Database {
         .bind(role_id)
         .execute(&self.connection)
         .await?;
+        Ok(())
+    }
+
+    async fn get_unique_role_holder(&self, role_id: i64) -> Result<Option<UserID>, Error> {
+        Ok(
+            sqlx::query_as::<_, UserID>("SELECT user_id FROM role_holders WHERE role_id = ?")
+                .bind(role_id)
+                .fetch_optional(&self.connection)
+                .await?,
+        )
+    }
+
+    async fn set_unique_role_holder(&self, role_id: i64, user_id: &str) -> Result<(), Error> {
+        sqlx::query("INSERT INTO role_holders (role_id, user_id) VALUES (?, ?) ON CONFLICT(role_id) DO UPDATE SET user_id = ?")
+            .bind(role_id)
+            .bind(user_id)
+            .bind(user_id)
+            .execute(&self.connection)
+            .await?;
         Ok(())
     }
 }

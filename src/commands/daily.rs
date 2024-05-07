@@ -1,4 +1,4 @@
-use crate::{database::BalanceDatabase, robbingevent::wrapped_robbing_event, Context, Error};
+use crate::{database::BalanceDatabase, Context, Error};
 use poise::CreateReply;
 use rand::Rng;
 
