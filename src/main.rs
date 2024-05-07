@@ -32,7 +32,7 @@ pub struct Data {
     bot_id: String,
     blackjack_active: Mutex<bool>,
     paid_channels: Mutex<HashMap<serenity::ChannelId, i32>>,
-    roles: Mutex<HashMap<serenity::RoleId, i32>>,
+    roles: Mutex<HashMap<serenity::RoleId, (i32, Option<serenity::RoleId>)>>,
     unique_roles: HashSet<serenity::RoleId>,
 }
 
@@ -100,13 +100,13 @@ async fn main() {
         robbingevent::buyrobbery(),
         newcommands::rockpaperscissors::rpsgamble(),
         newcommands::paidchannels::setchannelprice(),
+        newcommands::buy::buy(),
+        newcommands::buy::shop(),
+        newcommands::buy::setroleprice(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
         println!("Mounting all commands");
-        commands.push(newcommands::buy::buy());
-        commands.push(newcommands::buy::shop());
-        commands.push(newcommands::buy::setroleprice());
         commands.push(newcommands::blackjack::blackjack());
     };
 
@@ -126,18 +126,22 @@ async fn main() {
     let paid_roles = db.get_purchasable_roles().await.unwrap();
     let roles = paid_roles
         .iter()
-        .map(|(role_id, amount, _)| {
+        .map(|role| {
+            let required_role = role.required_role_id.clone();
             (
-                serenity::RoleId::new((*role_id).try_into().unwrap()),
-                *amount,
+                serenity::RoleId::new(role.role_id.parse::<u64>().unwrap()),
+                (
+                    role.price,
+                    required_role.map(|role| serenity::RoleId::new(role.clone().parse().unwrap())),
+                ),
             )
         })
         .collect::<HashMap<_, _>>();
 
     let unique_roles = paid_roles
         .iter()
-        .filter(|(_, _, unique)| *unique)
-        .map(|(role_id, _, _)| serenity::RoleId::new((*role_id).try_into().unwrap()))
+        .filter(|role| role.only_one)
+        .map(|role| serenity::RoleId::new(role.role_id.parse::<u64>().unwrap()))
         .collect::<HashSet<_>>();
 
     // FrameworkOptions contains all of poise's configuration option in one struct

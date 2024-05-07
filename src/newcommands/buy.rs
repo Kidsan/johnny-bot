@@ -8,7 +8,10 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
         let mut role_prices = roles
             .iter()
             .map(|(role_id, price)| {
-                format!("> <@&{}> - {} <:jbuck:1228663982462865450>", role_id, price)
+                format!(
+                    "> <@&{}> - {} <:jbuck:1228663982462865450>",
+                    role_id, price.0
+                )
             })
             .collect::<Vec<String>>()
             .join("\n");
@@ -32,14 +35,33 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn setroleprice(
     ctx: Context<'_>,
-    price: i32,
     role: poise::serenity_prelude::Role,
+    #[min = 0] price: i32,
+    #[min = 0] increment: Option<i32>,
+    required_role: Option<poise::serenity_prelude::Role>,
 ) -> Result<(), Error> {
+    let required_role_id = required_role
+        .clone()
+        .map(|role| role.id.to_string().parse().unwrap());
     ctx.data()
         .db
-        .set_role_price(role.id.to_string().parse()?, price)
+        .set_role_price(
+            role.id.to_string().parse()?,
+            price,
+            increment,
+            required_role_id,
+        )
         .await?;
-    ctx.data().roles.lock().unwrap().insert(role.id, price);
+
+    let id = match required_role {
+        Some(role) => Some(role.id),
+        None => None,
+    };
+    ctx.data()
+        .roles
+        .lock()
+        .unwrap()
+        .insert(role.id, (price, id));
     let reply = {
         CreateReply::default()
             .content(format!(
@@ -49,6 +71,26 @@ pub async fn setroleprice(
             .ephemeral(true)
     };
     ctx.send(reply).await?;
+    Ok(())
+}
+
+pub async fn incrementroleprice(ctx: Context<'_>, role_id: String) -> Result<(), Error> {
+    ctx.data().db.increment_role_price(role_id).await?;
+    let prices = ctx.data().db.get_purchasable_roles().await?;
+    {
+        let mut roles = ctx.data().roles.lock().unwrap();
+        for price in prices {
+            roles.insert(
+                poise::serenity_prelude::RoleId::new(price.role_id.parse().unwrap()),
+                (
+                    price.price,
+                    price
+                        .required_role_id
+                        .map(|role| poise::serenity_prelude::RoleId::new(role.parse().unwrap())),
+                ),
+            );
+        }
+    }
     Ok(())
 }
 
@@ -109,24 +151,37 @@ pub async fn role(
 
     let price = { ctx.data().roles.lock().unwrap()[&role.id] };
 
-    if balance < price {
+    if let Some(required_role) = price.1 {
+        if !ctx
+            .author()
+            .has_role(ctx, ctx.guild_id().unwrap(), required_role)
+            .await?
+        {
+            let reply = {
+                CreateReply::default()
+                    .content(format!(
+                        "You need the role <@&{}> to purchase this role!",
+                        required_role
+                    ))
+                    .ephemeral(true)
+            };
+            ctx.send(reply).await?;
+            return Err("Missing required role".into());
+        }
+    }
+
+    if balance < price.0 {
         let reply = {
             CreateReply::default()
                 .content(format!(
                     "You can't afford that role! You need {} <:jbuck:1228663982462865450>!",
-                    price
+                    price.0
                 ))
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
         return Err("Not enough money".into());
     }
-
-    ctx.data()
-        .db
-        .subtract_balances(vec![ctx.author().id.to_string()], price)
-        .await?;
-
     // give the user the role
     ctx.serenity_context()
         .http
@@ -138,11 +193,18 @@ pub async fn role(
         )
         .await?;
 
+    ctx.data()
+        .db
+        .subtract_balances(vec![ctx.author().id.to_string()], price.0)
+        .await?;
+
+    incrementroleprice(ctx, role.id.to_string()).await?;
+
     let reply = {
         CreateReply::default()
             .content(format!(
                 "You have purchased the role {} for {} <:jbuck:1228663982462865450>!",
-                role, price
+                role, price.0
             ))
             .ephemeral(true)
     };

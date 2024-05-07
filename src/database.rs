@@ -29,6 +29,15 @@ struct BoughtRobbery {
     last_bought: i64,
 }
 
+#[derive(Debug, sqlx::FromRow)]
+pub struct PurchaseableRole {
+    pub role_id: String,
+    pub price: i32,
+    pub only_one: bool,
+    pub increment: Option<i32>,
+    pub required_role_id: Option<String>,
+}
+
 pub trait BalanceDatabase {
     async fn get_balance(&self, user_id: String) -> Result<i32, Error>;
     async fn set_balance(&self, user_id: String, balance: i32) -> Result<(), Error>;
@@ -48,8 +57,15 @@ pub trait BalanceDatabase {
     async fn get_paid_channels(&self) -> Result<Vec<(i64, i32)>, Error>;
     async fn set_channel_price(&self, channel_id: i64, price: i32) -> Result<(), Error>;
     async fn remove_paid_channel(&self, channel_id: i64) -> Result<(), Error>;
-    async fn get_purchasable_roles(&self) -> Result<Vec<(i64, i32, bool)>, Error>;
-    async fn set_role_price(&self, role_id: i64, price: i32) -> Result<(), Error>;
+    async fn get_purchasable_roles(&self) -> Result<Vec<PurchaseableRole>, Error>;
+    async fn increment_role_price(&self, role_id: String) -> Result<(), Error>;
+    async fn set_role_price(
+        &self,
+        role_id: i64,
+        price: i32,
+        increment: Option<i32>,
+        required_role: Option<i64>,
+    ) -> Result<(), Error>;
     async fn toggle_role_unique(&self, role_id: i64, only_one: bool) -> Result<(), Error>;
 }
 
@@ -301,24 +317,32 @@ impl BalanceDatabase for Database {
         Ok(())
     }
 
-    async fn get_purchasable_roles(&self) -> Result<Vec<(i64, i32, bool)>, Error> {
-        Ok(
-            sqlx::query_as("SELECT role_id, price, only_one FROM purchaseable_roles")
-                .fetch_all(&self.connection)
-                .await?
-                .iter()
-                .map(|x: &(String, i32, bool)| (x.0.parse().unwrap(), x.1, x.2))
-                .collect(),
+    async fn get_purchasable_roles(&self) -> Result<Vec<PurchaseableRole>, Error> {
+        Ok(sqlx::query_as(
+            "SELECT role_id, price, only_one, required_role_id, increment FROM purchaseable_roles",
         )
+        .fetch_all(&self.connection)
+        .await?)
     }
 
-    async fn set_role_price(&self, role_id: i64, price: i32) -> Result<(), Error> {
-        sqlx::query("INSERT INTO purchaseable_roles (role_id, price, only_one) VALUES (?, ?, false) ON CONFLICT(role_id) DO UPDATE SET price = ?")
+    async fn set_role_price(
+        &self,
+        role_id: i64,
+        price: i32,
+        increment: Option<i32>,
+        required_role: Option<i64>,
+    ) -> Result<(), Error> {
+        sqlx::query("INSERT INTO purchaseable_roles (role_id, price, increment, required_role_id) VALUES (?, ?, ?, ?) ON CONFLICT(role_id) DO UPDATE SET price = ?, increment = ?, required_role_id = ?")
             .bind(role_id)
             .bind(price)
+            .bind(increment)
+            .bind(required_role)
             .bind(price)
+            .bind(increment)
+            .bind(required_role)
             .execute(&self.connection)
             .await?;
+
         Ok(())
     }
 
@@ -329,6 +353,16 @@ impl BalanceDatabase for Database {
             .bind(only_one)
             .execute(&self.connection)
             .await?;
+        Ok(())
+    }
+
+    async fn increment_role_price(&self, role_id: String) -> Result<(), Error> {
+        sqlx::query(
+            "UPDATE purchaseable_roles SET price = price+COALESCE(increment,0) WHERE role_id = ?",
+        )
+        .bind(role_id)
+        .execute(&self.connection)
+        .await?;
         Ok(())
     }
 }
