@@ -1,6 +1,14 @@
 use crate::{database::BalanceDatabase, Context, Error};
 use poise::CreateReply;
 
+///
+/// List the items for sale in the shop
+///
+/// Enter `/shop`
+/// ```
+/// /shop
+/// ```
+///
 #[poise::command(slash_command)]
 pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
     let reply = {
@@ -27,6 +35,14 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+///
+/// Set the price for a role
+///
+/// Enter `/setroleprice [role] [price] [increment] [required_role]`
+/// ```
+/// /setroleprice @Johnny'sChosen 5 1
+/// ```
+///
 #[poise::command(
     slash_command,
     category = "Admin",
@@ -35,10 +51,16 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn setroleprice(
     ctx: Context<'_>,
-    role: poise::serenity_prelude::Role,
-    #[min = 0] price: i32,
-    #[min = 0] increment: Option<i32>,
-    required_role: Option<poise::serenity_prelude::Role>,
+    #[description = "The role to set the price for"] role: poise::serenity_prelude::Role,
+    #[min = 0]
+    #[description = "The price for this role"]
+    price: i32,
+    #[min = 0]
+    #[description = "The amount to increase the price buy after a purchase"]
+    increment: Option<i32>,
+    #[description = "An optional prerequisite role"] required_role: Option<
+        poise::serenity_prelude::Role,
+    >,
 ) -> Result<(), Error> {
     let required_role_id = required_role
         .clone()
