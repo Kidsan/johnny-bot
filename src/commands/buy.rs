@@ -256,12 +256,12 @@ pub async fn role(
     incrementroleprice(ctx, role.id.to_string()).await?;
 
     let reply = {
-        CreateReply::default()
-            .content(format!(
-                "You have purchased the role {} for {} <:jbuck:1228663982462865450>!",
-                role, price.0
-            ))
-            .ephemeral(true)
+        CreateReply::default().content(format!(
+            "{} purchased {} for {} <:jbuck:1228663982462865450>!",
+            ctx.author(),
+            role,
+            price.0
+        ))
     };
     ctx.send(reply).await?;
 
