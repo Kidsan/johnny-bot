@@ -117,7 +117,7 @@ pub async fn rpsgamble(
             CreateMessage::default()
                 .content(format!(
                     "I win! {}",
-                    crate::newcommands::blackjack::get_troll_emoji()
+                    crate::commands::blackjack::get_troll_emoji()
                 ))
                 .reference_message(&message)
         };

@@ -1,5 +1,5 @@
-use crate::newcommands::coingamble::new_player_count_button;
-use crate::newcommands::coingamble::new_pot_counter_button;
+use crate::commands::coingamble::new_player_count_button;
+use crate::commands::coingamble::new_pot_counter_button;
 use std::time::{self, SystemTime, UNIX_EPOCH};
 
 use crate::{database::BalanceDatabase, Context, Error};
@@ -14,11 +14,10 @@ use poise::{serenity_prelude as serenity, CreateReply};
 #[poise::command(
     track_edits,
     slash_command,
-    // user_cooldown = 120
     category = "Admin",
     default_member_permissions = "ADMINISTRATOR",
     hide_in_help
-    )]
+)]
 pub async fn gamble(
     ctx: Context<'_>,
     #[description = "amount to play"]

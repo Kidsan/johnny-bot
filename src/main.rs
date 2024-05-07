@@ -3,7 +3,6 @@ mod commands;
 mod database;
 mod eventhandler;
 mod game;
-mod newcommands;
 mod robbingevent;
 mod texts;
 
@@ -79,35 +78,35 @@ async fn main() {
     tracing::subscriber::set_global_default(my_subscriber).expect("setting tracing default failed");
 
     let mut commands = vec![
-        commands::help(),
-        commands::say(),
-        commands::checkbucks(),
-        commands::balance(),
-        commands::register(),
-        newcommands::gamble::gamble(),
-        commands::give(),
-        commands::fine(),
-        commands::add_bucks(),
-        commands::remove_bucks(),
-        commands::transfer(),
-        commands::award(),
-        newcommands::coingamble::coingamble(),
-        newcommands::daily::daily(),
-        newcommands::stats::stats(),
-        newcommands::burn::bury(),
+        commands::help::help(),
+        commands::say::say(),
+        commands::checkbucks::checkbucks(),
+        commands::balance::balance(),
+        commands::register::register(),
+        commands::gamble::gamble(),
+        commands::give::give(),
+        commands::fine::fine(),
+        commands::addbucks::add_bucks(),
+        commands::removebucks::remove_bucks(),
+        commands::transfer::transfer(),
+        commands::award::award(),
+        commands::coingamble::coingamble(),
+        commands::daily::daily(),
+        commands::stats::stats(),
+        commands::burn::bury(),
         robbingevent::robbingevent(),
-        newcommands::leaderboard::leaderboard(),
+        commands::leaderboard::leaderboard(),
         robbingevent::buyrobbery(),
-        newcommands::rockpaperscissors::rpsgamble(),
-        newcommands::paidchannels::setchannelprice(),
-        newcommands::buy::buy(),
-        newcommands::buy::shop(),
-        newcommands::buy::setroleprice(),
+        commands::rockpaperscissors::rpsgamble(),
+        commands::paidchannels::setchannelprice(),
+        commands::buy::buy(),
+        commands::buy::shop(),
+        commands::buy::setroleprice(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
         println!("Mounting all commands");
-        commands.push(newcommands::blackjack::blackjack());
+        commands.push(commands::blackjack::blackjack());
     };
 
     let db: database::Database = database::Database::new().await.unwrap();

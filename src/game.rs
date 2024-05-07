@@ -1,7 +1,7 @@
 use rand::{seq::SliceRandom, Rng};
 use std::time;
 
-use crate::newcommands::coingamble::HeadsOrTail;
+use crate::commands::coingamble::HeadsOrTail;
 
 #[derive(Debug)]
 pub struct Game {
