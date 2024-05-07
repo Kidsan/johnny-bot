@@ -62,6 +62,16 @@ pub async fn setroleprice(
         .lock()
         .unwrap()
         .insert(role.id, (price, id));
+    if price == 0 {
+        ctx.data().roles.lock().unwrap().remove(&role.id);
+        let reply = {
+            CreateReply::default()
+                .content(format!("You have removed the role {} from the shop!", role))
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Ok(());
+    }
     let reply = {
         CreateReply::default()
             .content(format!(

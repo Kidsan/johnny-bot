@@ -332,6 +332,13 @@ impl BalanceDatabase for Database {
         increment: Option<i32>,
         required_role: Option<i64>,
     ) -> Result<(), Error> {
+        if price == 0 {
+            sqlx::query("DELETE FROM purchaseable_roles WHERE role_id = ?")
+                .bind(role_id)
+                .execute(&self.connection)
+                .await?;
+            return Ok(());
+        }
         sqlx::query("INSERT INTO purchaseable_roles (role_id, price, increment, required_role_id) VALUES (?, ?, ?, ?) ON CONFLICT(role_id) DO UPDATE SET price = ?, increment = ?, required_role_id = ?")
             .bind(role_id)
             .bind(price)
