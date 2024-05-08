@@ -74,13 +74,18 @@ pub async fn give(
         "".to_string()
     };
     let reply = {
-        CreateReply::default().content(format!(
-            "{} sent {} <:jbuck:1228663982462865450> to {}!\n{}",
-            ctx.author(),
-            amount,
-            recipient,
-            tax_msg,
-        ))
+        CreateReply::default()
+            .content(format!(
+                "{} sent {} <:jbuck:1228663982462865450> to {}!\n{}",
+                ctx.author(),
+                amount,
+                recipient,
+                tax_msg,
+            ))
+            .allowed_mentions(
+                poise::serenity_prelude::CreateAllowedMentions::new()
+                    .users(vec![ctx.author(), &recipient]),
+            )
     };
     ctx.send(reply).await?;
     Ok(())

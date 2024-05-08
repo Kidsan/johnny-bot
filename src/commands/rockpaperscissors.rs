@@ -349,6 +349,10 @@ pub async fn rpsgamble(
         CreateMessage::default()
             .content(msg)
             .reference_message(&message)
+            .allowed_mentions(
+                poise::serenity_prelude::CreateAllowedMentions::new()
+                    .users(vec![ctx.author(), &user]),
+            )
     };
     ctx.channel_id().send_message(ctx, reply).await?;
     Ok(())
