@@ -3,6 +3,8 @@ use crate::{Context, Error};
 use poise::serenity_prelude::User;
 use poise::CreateReply;
 
+use super::rockpaperscissors::award_role_holder;
+
 ///
 /// Give some bucks to another player
 ///
@@ -62,13 +64,22 @@ pub async fn give(
         .await?;
     db.set_balance(recipient_id.clone(), recipient_balance + (amount - tax))
         .await?;
+
+    let tax_msg = if let Some(user) = award_role_holder(ctx, tax).await? {
+        format!(
+            "-{} <:jbuck:1228663982462865450> to <@{}> (Crown's Tax)",
+            tax, user
+        )
+    } else {
+        "".to_string()
+    };
     let reply = {
         CreateReply::default().content(format!(
-            "{} sent {} <:jbuck:1228663982462865450> to {}!\n -{} <:jbuck:1228663982462865450> Johnny's work fee.",
+            "{} sent {} <:jbuck:1228663982462865450> to {}!\n{}",
             ctx.author(),
             amount,
             recipient,
-            tax,
+            tax_msg,
         ))
     };
     ctx.send(reply).await?;

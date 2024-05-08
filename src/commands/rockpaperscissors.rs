@@ -269,6 +269,15 @@ pub async fn rpsgamble(
                 .subtract_balances(vec![user.id.to_string()], amount)
                 .await?;
 
+            let tax_msg = if let Some(crowned) = award_role_holder(ctx, tax).await? {
+                format!(
+                    "{} <:jbuck:1228663982462865450>  was paid to <@{}>! (Crown's Tax)",
+                    tax, crowned
+                )
+            } else {
+                "".to_string()
+            };
+
             format!(
                 "{} chose {}, {} chose {}\n{} {}!{}\n{}",
                 ctx.author(),
@@ -283,7 +292,7 @@ pub async fn rpsgamble(
                     "".to_string()
                 },
                 if prize < amount * 2 {
-                    format!("{} <:jbuck:1228663982462865450> was paid to Johnny.", tax)
+                    tax_msg
                 } else {
                     "".to_string()
                 }
@@ -294,6 +303,14 @@ pub async fn rpsgamble(
                 .db
                 .award_balances(vec![user.id.to_string()], prize)
                 .await?;
+            let tax_msg = if let Some(crowned) = award_role_holder(ctx, tax).await? {
+                format!(
+                    "{} <:jbuck:1228663982462865450>  was paid to <@{}>! (Crown's Tax)",
+                    tax, crowned
+                )
+            } else {
+                "".to_string()
+            };
             format!(
                 "{} chose {}, {} chose {}\n{} {}!{}\n{}",
                 ctx.author(),
@@ -308,7 +325,7 @@ pub async fn rpsgamble(
                     "".to_string()
                 },
                 if prize < amount * 2 {
-                    format!("{} <:jbuck:1228663982462865450> was paid to Johnny.", tax)
+                    tax_msg
                 } else {
                     "".to_string()
                 }
@@ -351,4 +368,21 @@ fn new_scissors_button() -> serenity::CreateButton {
     serenity::CreateButton::new("scissors")
         .label("Scissors")
         .style(poise::serenity_prelude::ButtonStyle::Primary)
+}
+
+pub async fn award_role_holder(ctx: Context<'_>, amount: i32) -> Result<Option<String>, Error> {
+    if let Some(user) = ctx
+        .data()
+        .db
+        .get_unique_role_holder(ctx.data().crown_role_id)
+        .await?
+    {
+        ctx.data()
+            .db
+            .award_balances(vec![user.user_id.clone()], amount)
+            .await?;
+        Ok(Some(user.user_id))
+    } else {
+        Ok(None)
+    }
 }

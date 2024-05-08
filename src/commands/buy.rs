@@ -185,6 +185,30 @@ pub async fn buy(_: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+pub async fn complete_roles<'a>(
+    ctx: Context<'a>,
+    _partial: &'a str,
+) -> impl Iterator<Item = poise::serenity_prelude::AutocompleteChoice> + 'a {
+    let for_sale = ctx.data().roles.lock().unwrap().clone();
+    let roles = ctx
+        .serenity_context()
+        .http
+        .get_guild_roles(ctx.guild_id().unwrap())
+        .await
+        .unwrap()
+        .clone();
+
+    roles
+        .iter()
+        .filter(move |cmd| for_sale.contains_key(&cmd.id))
+        .map(|cmd| {
+            println!("Role: {:?}", cmd.name);
+            poise::serenity_prelude::AutocompleteChoice::new(cmd.name.to_string(), cmd.to_string())
+        })
+        .collect::<Vec<poise::serenity_prelude::AutocompleteChoice>>()
+        .into_iter()
+}
+
 ///
 /// Buy a role with your JBucks
 ///
@@ -195,7 +219,9 @@ pub async fn buy(_: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command)]
 pub async fn role(
     ctx: Context<'_>,
-    #[description = "role to purchase"] role: poise::serenity_prelude::Role,
+    #[description = "role to purchase"]
+    #[autocomplete = "complete_roles"]
+    role: poise::serenity_prelude::Role,
 ) -> Result<(), Error> {
     if !ctx.data().roles.lock().unwrap().contains_key(&role.id) {
         let reply = {

@@ -1,7 +1,8 @@
 use std::time::{self, SystemTime, UNIX_EPOCH};
 
 use crate::{
-    database::BalanceDatabase, game::CoinGame, texts::landedside::LANDEDSIDE, Context, Error,
+    commands::rockpaperscissors::award_role_holder, database::BalanceDatabase, game::CoinGame,
+    texts::landedside::LANDEDSIDE, Context, Error,
 };
 use poise::{serenity_prelude as serenity, CreateReply};
 use rand::{seq::SliceRandom, Rng};
@@ -282,8 +283,12 @@ pub async fn coingamble(
         db.award_balances(winners.clone(), prize_with_multiplier)
             .await?;
         if remainder > 0 {
-            leader = ctx.data().db.get_leader().await?;
             db.award_balances(vec![leader.clone()], remainder).await?;
+            leader = if let Some(user) = award_role_holder(ctx, remainder).await? {
+                user
+            } else {
+                "".to_string()
+            };
         }
     }
 
@@ -353,7 +358,7 @@ pub async fn coingamble(
 
         if remainder > 0 {
             a.push_str(&format!(
-                "> \n> +{} <:jbuck:1228663982462865450> to <@{}> ||(leader bonus)||",
+                "> \n> +{} <:jbuck:1228663982462865450> to <@{}> ||(Crown's Tax)||",
                 remainder, leader
             ));
         }

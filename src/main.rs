@@ -32,6 +32,7 @@ pub struct Data {
     paid_channels: Mutex<HashMap<serenity::ChannelId, i32>>,
     roles: Mutex<HashMap<serenity::RoleId, (i32, Option<serenity::RoleId>)>>,
     unique_roles: Mutex<HashSet<serenity::RoleId>>,
+    crown_role_id: i64,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -68,6 +69,11 @@ async fn main() {
     let bot_id = match var("BOT_ID") {
         Ok(id) => id,
         Err(_) => "1049354446578143252".to_string(),
+    };
+
+    let crown_role_id = match var("CROWN_ROLE_ID") {
+        Ok(id) => id.parse().unwrap(),
+        Err(_) => "1237724109756956753".to_string().parse().unwrap(),
     };
 
     let my_subscriber = tracing_subscriber::FmtSubscriber::builder()
@@ -247,6 +253,7 @@ async fn main() {
                     paid_channels: Mutex::new(paid_channels_map),
                     roles: Mutex::new(roles),
                     unique_roles: Mutex::new(unique_roles),
+                    crown_role_id,
                 })
             })
         })
