@@ -86,7 +86,12 @@ impl Database {
     #[tracing::instrument(level = "info")]
     pub async fn new() -> Result<Self, Error> {
         fs::create_dir_all("./data").await?;
-        let pool = sqlx::sqlite::SqlitePool::connect("sqlite:./data/johnny.db?mode=rwc").await?;
+        let options = sqlx::sqlite::SqliteConnectOptions::new()
+            .filename("./data/johnny.db")
+            .optimize_on_close(true, None)
+            .create_if_missing(true);
+
+        let pool = sqlx::sqlite::SqlitePool::connect_with(options).await?;
         sqlx::migrate!().run(&pool).await?;
         Ok(Self { connection: pool })
     }
@@ -97,7 +102,7 @@ impl BalanceDatabase for Database {
     async fn get_balance(&self, user_id: String) -> Result<i32, Error> {
         let user = user_id.clone();
         let balance: Result<Balance, sqlx::Error> =
-            sqlx::query_as("SELECT id, balance FROM balances WHERE id = ?")
+            sqlx::query_as("SELECT id, balance FROM balances WHERE id = $1")
                 .bind(user)
                 .fetch_one(&self.connection)
                 .await;
@@ -106,7 +111,7 @@ impl BalanceDatabase for Database {
             Ok(user_balance) => user_balance.balance,
             Err(sqlx::Error::RowNotFound) => {
                 let user = user_id;
-                let _ = sqlx::query("INSERT INTO balances (id, balance) VALUES (?, ?)")
+                let _ = sqlx::query("INSERT INTO balances (id, balance) VALUES ($1, $2)")
                     .bind(user)
                     .bind(50)
                     .execute(&self.connection)
@@ -120,7 +125,7 @@ impl BalanceDatabase for Database {
 
     #[tracing::instrument(level = "info")]
     async fn set_balance(&self, user_id: String, balance: i32) -> Result<(), Error> {
-        sqlx::query("UPDATE balances SET balance = ? WHERE id = ?")
+        sqlx::query("UPDATE balances SET balance = $1 WHERE id = $2")
             .bind(balance)
             .bind(user_id)
             .execute(&self.connection)
@@ -128,25 +133,36 @@ impl BalanceDatabase for Database {
         Ok(())
     }
 
-    #[tracing::instrument(level = "info")]
+    #[tracing::instrument(level = "debug")]
     async fn award_balances(&self, user_ids: Vec<String>, award: i32) -> Result<(), Error> {
         let a = user_ids.join(", ");
-        sqlx::query("UPDATE balances SET balance = balance + ? WHERE id IN (?)")
-            .bind(award)
-            .bind(a)
-            .execute(&self.connection)
-            .await?;
+
+        sqlx::query(
+            format!(
+                "UPDATE balances SET balance = balance + $1 WHERE id IN ({})",
+                a
+            )
+            .as_str(),
+        )
+        .bind(award)
+        .execute(&self.connection)
+        .await?;
         Ok(())
     }
 
     #[tracing::instrument(level = "info")]
     async fn subtract_balances(&self, user_ids: Vec<String>, amount: i32) -> Result<(), Error> {
         let a = user_ids.join(", ");
-        sqlx::query("UPDATE balances SET balance = balance - ? WHERE id IN (?)")
-            .bind(amount)
-            .bind(a)
-            .execute(&self.connection)
-            .await?;
+        sqlx::query(
+            format!(
+                "UPDATE balances SET balance = balance - $1 WHERE id IN ({})",
+                a
+            )
+            .as_str(),
+        )
+        .bind(amount)
+        .execute(&self.connection)
+        .await?;
         Ok(())
     }
 
@@ -163,7 +179,7 @@ impl BalanceDatabase for Database {
     async fn get_last_daily(&self, user_id: String) -> Result<DateTime<Utc>, Error> {
         let user = user_id.clone();
         let last_daily: Result<Daily, sqlx::Error> =
-            sqlx::query_as("SELECT id, last_daily FROM dailies WHERE id = ?")
+            sqlx::query_as("SELECT id, last_daily FROM dailies WHERE id = $1")
                 .bind(user)
                 .fetch_one(&self.connection)
                 .await;
@@ -174,7 +190,7 @@ impl BalanceDatabase for Database {
                 let user = user_id;
                 let now = (chrono::Utc::now() - chrono::Duration::days(1)).timestamp();
                 dbg!(chrono::Utc::now().timestamp(), now);
-                sqlx::query("INSERT INTO dailies (id, last_daily) VALUES (?, ?)")
+                sqlx::query("INSERT INTO dailies (id, last_daily) VALUES ($1, $2)")
                     .bind(user)
                     .bind(now)
                     .execute(&self.connection)
@@ -188,7 +204,7 @@ impl BalanceDatabase for Database {
 
     #[tracing::instrument(level = "info")]
     async fn did_daily(&self, user_id: String) -> Result<(), Error> {
-        sqlx::query("UPDATE dailies SET last_daily = ? WHERE id = ?")
+        sqlx::query("UPDATE dailies SET last_daily = $1 WHERE id = $2")
             .bind(chrono::Utc::now().timestamp())
             .bind(user_id)
             .execute(&self.connection)
@@ -238,9 +254,8 @@ impl BalanceDatabase for Database {
 
     #[tracing::instrument(level = "info")]
     async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error> {
-        sqlx::query("INSERT INTO buried_balances (id, amount) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET amount = amount + ?")
+        sqlx::query("INSERT INTO buried_balances (id, amount) VALUES ($1, $2) ON CONFLICT(id) DO UPDATE SET amount = amount + $1")
             .bind(user_id)
-            .bind(amount)
             .bind(amount)
             .execute(&self.connection)
             .await?;
@@ -254,21 +269,19 @@ impl BalanceDatabase for Database {
             .date_naive()
             .and_hms_opt(0, 0, 0)
             .unwrap();
-        Ok(
-            sqlx::query_as::<_, Total>(
-                "SELECT count(id) as total FROM dailies where last_daily > ?",
-            )
-            .bind(time.and_utc().timestamp())
-            .fetch_one(&self.connection)
-            .await?
-            .total as i32,
+        Ok(sqlx::query_as::<_, Total>(
+            "SELECT count(id) as total FROM dailies where last_daily > $1",
         )
+        .bind(time.and_utc().timestamp())
+        .fetch_one(&self.connection)
+        .await?
+        .total as i32)
     }
 
     async fn get_last_bought_robbery(&self, user_id: String) -> Result<DateTime<Utc>, Error> {
         let user = user_id.clone();
         let last_daily = sqlx::query_as::<_, BoughtRobbery>(
-            "SELECT last_bought FROM bought_robberies WHERE id = ?",
+            "SELECT last_bought FROM bought_robberies WHERE id = $1",
         )
         .bind(user)
         .fetch_one(&self.connection)
@@ -280,7 +293,7 @@ impl BalanceDatabase for Database {
                 let user = user_id;
                 let now = (chrono::Utc::now() - chrono::Duration::days(7)).timestamp();
                 dbg!(chrono::Utc::now().timestamp(), now);
-                sqlx::query("INSERT INTO bought_robberies (id, last_bought) VALUES (?, ?)")
+                sqlx::query("INSERT INTO bought_robberies (id, last_bought) VALUES ($1, $2)")
                     .bind(user)
                     .bind(now)
                     .execute(&self.connection)
@@ -293,7 +306,7 @@ impl BalanceDatabase for Database {
     }
 
     async fn bought_robbery(&self, user_id: String) -> Result<(), Error> {
-        sqlx::query("UPDATE bought_robberies SET last_bought = ? WHERE id = ?")
+        sqlx::query("UPDATE bought_robberies SET last_bought = 1 WHERE id = $2")
             .bind(chrono::Utc::now().timestamp())
             .bind(user_id)
             .execute(&self.connection)
@@ -308,9 +321,8 @@ impl BalanceDatabase for Database {
     }
 
     async fn set_channel_price(&self, channel_id: i64, price: i32) -> Result<(), Error> {
-        sqlx::query("INSERT INTO paid_channels (id, price) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET price = ?")
+        sqlx::query("INSERT INTO paid_channels (id, price) VALUES ($1, $2) ON CONFLICT(id) DO UPDATE SET price = $2")
             .bind(channel_id)
-            .bind(price)
             .bind(price)
             .execute(&self.connection)
             .await?;
@@ -318,7 +330,7 @@ impl BalanceDatabase for Database {
     }
 
     async fn remove_paid_channel(&self, channel_id: i64) -> Result<(), Error> {
-        sqlx::query("DELETE FROM paid_channels WHERE id = ?")
+        sqlx::query("DELETE FROM paid_channels WHERE id = $1")
             .bind(channel_id)
             .execute(&self.connection)
             .await?;
@@ -342,18 +354,14 @@ impl BalanceDatabase for Database {
         only_one: Option<bool>,
     ) -> Result<(), Error> {
         if price == 0 {
-            sqlx::query("DELETE FROM purchaseable_roles WHERE role_id = ?")
+            sqlx::query("DELETE FROM purchaseable_roles WHERE role_id = $1")
                 .bind(role_id)
                 .execute(&self.connection)
                 .await?;
             return Ok(());
         }
-        sqlx::query("INSERT INTO purchaseable_roles (role_id, price, increment, required_role_id, only_one) VALUES (?, ?, ?, ?, ?) ON CONFLICT(role_id) DO UPDATE SET price = ?, increment = ?, required_role_id = ?, only_one = ?")
+        sqlx::query("INSERT INTO purchaseable_roles (role_id, price, increment, required_role_id, only_one) VALUES ($1, $2, $3, $4, $5) ON CONFLICT(role_id) DO UPDATE SET price = $2, increment = $3, required_role_id = $4, only_one = $5")
             .bind(role_id)
-            .bind(price)
-            .bind(increment)
-            .bind(required_role)
-            .bind(only_one)
             .bind(price)
             .bind(increment)
             .bind(required_role)
@@ -365,9 +373,8 @@ impl BalanceDatabase for Database {
     }
 
     async fn toggle_role_unique(&self, role_id: i64, only_one: bool) -> Result<(), Error> {
-        sqlx::query("INSERT INTO purchaseable_roles (role_id, only_one) VALUES (?, ?) ON CONFLICT(role_id) DO UPDATE SET only_one = ?")
+        sqlx::query("INSERT INTO purchaseable_roles (role_id, only_one) VALUES ($1, $2) ON CONFLICT(role_id) DO UPDATE SET only_one = $2")
             .bind(role_id)
-            .bind(only_one)
             .bind(only_one)
             .execute(&self.connection)
             .await?;
@@ -376,7 +383,7 @@ impl BalanceDatabase for Database {
 
     async fn increment_role_price(&self, role_id: String) -> Result<(), Error> {
         sqlx::query(
-            "UPDATE purchaseable_roles SET price = price+COALESCE(increment,0) WHERE role_id = ?",
+            "UPDATE purchaseable_roles SET price = price+COALESCE(increment,0) WHERE role_id = $1",
         )
         .bind(role_id)
         .execute(&self.connection)
@@ -386,7 +393,7 @@ impl BalanceDatabase for Database {
 
     async fn get_unique_role_holder(&self, role_id: i64) -> Result<Option<UserID>, Error> {
         Ok(
-            sqlx::query_as::<_, UserID>("SELECT user_id FROM role_holders WHERE role_id = ?")
+            sqlx::query_as::<_, UserID>("SELECT user_id FROM role_holders WHERE role_id = $1")
                 .bind(role_id)
                 .fetch_optional(&self.connection)
                 .await?,
@@ -394,9 +401,8 @@ impl BalanceDatabase for Database {
     }
 
     async fn set_unique_role_holder(&self, role_id: i64, user_id: &str) -> Result<(), Error> {
-        sqlx::query("INSERT INTO role_holders (role_id, user_id) VALUES (?, ?) ON CONFLICT(role_id) DO UPDATE SET user_id = ?")
+        sqlx::query("INSERT INTO role_holders (role_id, user_id) VALUES ($1, $2) ON CONFLICT(role_id) DO UPDATE SET user_id = $2")
             .bind(role_id)
-            .bind(user_id)
             .bind(user_id)
             .execute(&self.connection)
             .await?;
