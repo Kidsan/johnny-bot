@@ -15,12 +15,19 @@ use poise::CreateReply;
 pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
     let reply = {
         let roles = ctx.data().roles.lock().unwrap();
+        let uniques = ctx.data().unique_roles.lock().unwrap();
         let mut role_prices = roles
             .iter()
             .map(|(role_id, price)| {
                 format!(
-                    "> <@&{}> - {} <:jbuck:1228663982462865450>",
-                    role_id, price.0
+                    "> <@&{}> - {} <:jbuck:1228663982462865450>{}",
+                    role_id,
+                    price.0,
+                    if uniques.contains(role_id) {
+                        " (Unique)"
+                    } else {
+                        ""
+                    }
                 )
             })
             .collect::<Vec<String>>()
@@ -30,6 +37,8 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
             0,
             "### <:jbuck:1228663982462865450> Shop <:jbuck:1228663982462865450> ###\n\n",
         );
+
+        role_prices = format!("{}\n\n{}", role_prices, "More info on roles at: https://canary.discord.com/channels/1128350000343167130/1227274968312844320\nTo buy a role use the **/buy role** command.");
         CreateReply::default().content(role_prices).ephemeral(true)
     };
     ctx.send(reply).await?;
@@ -88,6 +97,19 @@ pub async fn setroleprice(
         .lock()
         .unwrap()
         .insert(role.id, (price, id));
+
+    match only_one {
+        Some(true) => {
+            ctx.data().unique_roles.lock().unwrap().insert(role.id);
+        }
+        Some(false) => {
+            ctx.data().unique_roles.lock().unwrap().remove(&role.id);
+        }
+        None => {
+            ctx.data().unique_roles.lock().unwrap().remove(&role.id);
+        }
+    }
+
     if price == 0 {
         ctx.data().roles.lock().unwrap().remove(&role.id);
         let reply = {
@@ -235,7 +257,7 @@ pub async fn role(
         .subtract_balances(vec![ctx.author().id.to_string()], price.0)
         .await?;
 
-    if ctx.data().unique_roles.contains(&role.id) {
+    if ctx.data().unique_roles.lock().unwrap().contains(&role.id) {
         if let Some(user) = ctx.data().db.get_unique_role_holder(role.id.into()).await? {
             ctx.serenity_context()
                 .http

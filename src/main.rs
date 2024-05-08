@@ -31,7 +31,7 @@ pub struct Data {
     blackjack_active: Mutex<bool>,
     paid_channels: Mutex<HashMap<serenity::ChannelId, i32>>,
     roles: Mutex<HashMap<serenity::RoleId, (i32, Option<serenity::RoleId>)>>,
-    unique_roles: HashSet<serenity::RoleId>,
+    unique_roles: Mutex<HashSet<serenity::RoleId>>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -246,7 +246,7 @@ async fn main() {
                     blackjack_active: Mutex::new(false),
                     paid_channels: Mutex::new(paid_channels_map),
                     roles: Mutex::new(roles),
-                    unique_roles,
+                    unique_roles: Mutex::new(unique_roles),
                 })
             })
         })
