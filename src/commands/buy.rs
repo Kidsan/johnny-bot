@@ -14,19 +14,40 @@ use poise::CreateReply;
 #[poise::command(slash_command)]
 pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
     let reply = {
-        let roles = ctx.data().roles.lock().unwrap();
-        let uniques = ctx.data().unique_roles.lock().unwrap();
-        let mut role_prices = roles
+        let roles = { ctx.data().roles.lock().unwrap().clone() };
+        let mut a = ctx
+            .serenity_context()
+            .http
+            .get_guild_roles(ctx.guild_id().unwrap())
+            .await?
             .iter()
-            .map(|(role_id, price)| {
+            .filter_map(|r| {
+                if roles.contains_key(&r.id) {
+                    Some((r.id, r.position))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<(serenity::model::id::RoleId, u16)>>();
+        a.sort_by_key(|r| r.1);
+        a.reverse();
+        let uniques = ctx.data().unique_roles.lock().unwrap();
+        let mut role_prices = a
+            .iter()
+            .map(|(role_id, _)| {
                 format!(
-                    "> <@&{}> - {} <:jbuck:1228663982462865450>{}",
+                    "> <@&{}> - {} <:jbuck:1228663982462865450>{}{}",
                     role_id,
-                    price.0,
+                    roles.get(role_id).unwrap().0,
                     if uniques.contains(role_id) {
                         " (Unique)"
                     } else {
                         ""
+                    },
+                    if roles.get(role_id).unwrap().1.is_some() {
+                        format!(" (Requires <@&{}>)", roles.get(role_id).unwrap().1.unwrap())
+                    } else {
+                        "".to_string()
                     }
                 )
             })
