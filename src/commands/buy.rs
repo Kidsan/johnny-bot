@@ -13,6 +13,12 @@ use poise::CreateReply;
 ///
 #[poise::command(slash_command)]
 pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
+    let crown_holder = {
+        ctx.data()
+            .db
+            .get_unique_role_holder(ctx.data().crown_role_id)
+            .await?
+    };
     let reply = {
         let roles = { ctx.data().roles.lock().unwrap().clone() };
         let mut a = ctx
@@ -40,9 +46,17 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
                     role_id,
                     roles.get(role_id).unwrap().0,
                     if uniques.contains(role_id) {
-                        " (Unique)"
+                        if role_id.to_string().parse::<i64>().unwrap() == ctx.data().crown_role_id {
+                            if let Some(crown_holder) = &crown_holder {
+                                format!(" (Unique - Current holder: <@{}>)", crown_holder.user_id)
+                            } else {
+                                " (Unique)".to_string()
+                            }
+                        } else {
+                            " (Unique)".to_string()
+                        }
                     } else {
-                        ""
+                        "".to_string()
                     },
                     if roles.get(role_id).unwrap().1.is_some() {
                         format!(" (Requires <@&{}>)", roles.get(role_id).unwrap().1.unwrap())
