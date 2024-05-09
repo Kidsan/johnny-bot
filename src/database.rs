@@ -135,6 +135,9 @@ impl BalanceDatabase for Database {
 
     #[tracing::instrument(level = "debug")]
     async fn award_balances(&self, user_ids: Vec<String>, award: i32) -> Result<(), Error> {
+        if user_ids.is_empty() {
+            return Ok(());
+        }
         let a = user_ids.join(", ");
 
         sqlx::query(
@@ -152,6 +155,9 @@ impl BalanceDatabase for Database {
 
     #[tracing::instrument(level = "info")]
     async fn subtract_balances(&self, user_ids: Vec<String>, amount: i32) -> Result<(), Error> {
+        if user_ids.is_empty() {
+            return Ok(());
+        }
         let a = user_ids.join(", ");
         sqlx::query(
             format!(
