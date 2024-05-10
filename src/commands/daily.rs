@@ -54,25 +54,43 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
         if has {
             let mp = { ctx.data().rng.lock().unwrap().gen_range(1.5..=2.0) };
             let bonus = ((amount as f32 + interest as f32) * mp) as i32;
-            tracing::info!(
-                "mp: {}, bonus: {}, bonus-amount: {}",
-                mp,
-                bonus,
-                bonus - amount - interest
-            );
             v = bonus - amount - interest
+        }
+        v
+    };
+
+    let crown_interest = {
+        let has = if let Some(u) = ctx
+            .data()
+            .db
+            .get_unique_role_holder(ctx.data().crown_role_id)
+            .await?
+        {
+            u.user_id == user_id
+        } else {
+            false
+        };
+
+        let mut v = 0;
+        if has {
+            let mp = { ctx.data().rng.lock().unwrap().gen_range(1.5..=2.0) };
+            let bonus = ((amount as f32 + interest as f32 + n as f32) * mp) as i32;
+            v = bonus - amount - interest - n;
         }
         v
     };
 
     ctx.data()
         .db
-        .award_balances(vec![user_id.clone()], amount + interest + n)
+        .award_balances(
+            vec![user_id.clone()],
+            amount + interest + n + crown_interest,
+        )
         .await?;
     ctx.data().db.did_daily(user_id).await?;
     let reply = {
         let msg = format!(
-            "You got **{}** <:jbuck:1228663982462865450>!{}{}",
+            "You got **{}** <:jbuck:1228663982462865450>!{}{}{}",
             amount,
             if interest > 0 {
                 format!("\n**+{}** <:jbuck:1228663982462865450> interest!", interest)
@@ -81,6 +99,14 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
             },
             if n > 0 {
                 format!("\n+**{}** <:jbuck:1228663982462865450> booster bonus!", n)
+            } else {
+                "".to_string()
+            },
+            if crown_interest > 0 {
+                format!(
+                    "\n+**{}** <:jbuck:1228663982462865450> crown holder bonus!",
+                    crown_interest
+                )
             } else {
                 "".to_string()
             }
