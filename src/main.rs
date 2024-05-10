@@ -1,4 +1,6 @@
 use crate::database::BalanceDatabase;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 mod commands;
 mod database;
 mod eventhandler;
@@ -12,6 +14,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+use tracing_loki::url::Url;
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -75,6 +78,17 @@ async fn main() {
         Ok(id) => id.parse().unwrap(),
         Err(_) => "1237724109756956753".to_string().parse().unwrap(),
     };
+
+    let loki_host = var("LOKI_HOST").unwrap_or("".to_string());
+
+    if !loki_host.is_empty() {
+        let (layer, task) = tracing_loki::builder()
+            .build_url(Url::parse(&loki_host).unwrap())
+            .unwrap();
+
+        tracing_subscriber::registry().with(layer).init();
+        tokio::spawn(task);
+    }
 
     let my_subscriber = tracing_subscriber::FmtSubscriber::builder()
         .with_max_level(tracing::Level::INFO)
