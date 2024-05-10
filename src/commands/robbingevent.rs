@@ -207,6 +207,8 @@ pub async fn wrapped_robbing_event(
         votes.insert(player.0.clone(), vec![]);
     }
 
+    let mut r#override = None;
+
     while let Some(mci) = ComponentInteractionCollector::new(ctx)
         .channel_id(ctx.channel_id())
         .message_id(id.id)
@@ -243,6 +245,19 @@ pub async fn wrapped_robbing_event(
             continue;
         }
 
+        // vote always goes to crown holder
+        if let Some(user) = ctx
+            .data()
+            .db
+            .get_unique_role_holder(ctx.data().crown_role_id)
+            .await?
+        {
+            dbg!(&user.user_id, &voter_id.to_string());
+            if user.user_id == voter_id.to_string() {
+                r#override = Some(choice.clone());
+            }
+        }
+
         already_voted.insert(voter_id.to_string());
         if let Some(x) = votes.get_mut(&choice) {
             x.push(voter_id.to_string());
@@ -251,6 +266,7 @@ pub async fn wrapped_robbing_event(
             votes.insert(choice.clone(), v);
         }
 
+        // ensures the voter has a balance
         let _ = ctx.data().db.get_balance(voter_id.to_string()).await?;
 
         mci.create_response(
@@ -296,17 +312,20 @@ pub async fn wrapped_robbing_event(
 
     id.edit(ctx, reply).await?;
 
-    // get the highest voted player
-    // let (player, _) = votes.iter().max_by_key(|x| x.1.len()).unwrap();
-    let (player, robbers) = match votes
-        .iter()
-        .filter(|x| !x.1.is_empty())
-        .collect::<Vec<_>>()
-        .choose(&mut rand::thread_rng())
-    {
-        Some(x) => (x.0.clone(), x.1.clone()),
-        None => ("".to_string(), vec![]),
+    let (player, robbers) = if let Some(ref u) = r#override {
+        (u.clone(), votes.get(u).unwrap().clone())
+    } else {
+        match votes
+            .iter()
+            .filter(|x| !x.1.is_empty())
+            .collect::<Vec<_>>()
+            .choose(&mut rand::thread_rng())
+        {
+            Some(x) => (x.0.clone(), x.1.clone()),
+            None => ("".to_string(), vec![]),
+        }
     };
+
     if robbers.is_empty() {
         let message = {
             CreateMessage::default()
@@ -355,22 +374,15 @@ pub async fn wrapped_robbing_event(
         .subtract_balances(vec![player.to_string()], stolen)
         .await?;
 
-    let text = match robbers.len() == 1 {
-        false => format!("> ### <:jbuck:1228663982462865450> Awoo, we just robbed {} <:jbuck:1228663982462865450> from <@{}>!\n> I hope you are proud {}.\n> **You each get {} <:jbuck:1228663982462865450>!**", stolen,
-                    player,
-                    robber_list,
-                    each
-                )
-                .to_string(),
-        true => format!(
-                    "> ### <:jbuck:1228663982462865450> Awoo, we just robbed {} <:jbuck:1228663982462865450> from <@{}>!\n> I hope you are proud {}.\n> **You get {} <:jbuck:1228663982462865450>!**",
-                    stolen,
-                    player,
-                    robber_list,
-                    each
-                )
-                .to_string(),
-    };
+    let text = format!("> ### <:jbuck:1228663982462865450> {}\n> I hope you are proud {}.\n> **You {}get {} <:jbuck:1228663982462865450>!**",
+        if let Some(u) = r#override {
+            format!("The crown chose <@{}>, we just robbed {} <:jbuck:1228663982462865450> from them!", u,stolen)
+        } else {
+            format!("Awoo, we just robbed {} <:jbuck:1228663982462865450> from <@{}>!", stolen, player)
+        },
+        robber_list,
+        if robbers.len() == 1 { "" } else { "each " },
+        each);
 
     let message = {
         CreateMessage::default()
