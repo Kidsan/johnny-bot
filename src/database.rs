@@ -312,7 +312,7 @@ impl BalanceDatabase for Database {
     }
 
     async fn bought_robbery(&self, user_id: String) -> Result<(), Error> {
-        sqlx::query("UPDATE bought_robberies SET last_bought = 1 WHERE id = $2")
+        sqlx::query("UPDATE bought_robberies SET last_bought = $1 WHERE id = $2")
             .bind(chrono::Utc::now().timestamp())
             .bind(user_id)
             .execute(&self.connection)
