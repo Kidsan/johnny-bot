@@ -57,7 +57,7 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    // env_logger::init();
 
     let game_length = match var("GAME_LENGTH") {
         Ok(length) => length.parse::<u64>().unwrap(),
@@ -80,21 +80,27 @@ async fn main() {
     };
 
     let loki_host = var("LOKI_HOST").unwrap_or("".to_string());
+    let auth = match var("LOKI_API_KEY") {
+        Ok(auth) => format!("Basic {}", auth),
+        Err(_) => "".to_string(),
+    };
 
     if !loki_host.is_empty() {
         let (layer, task) = tracing_loki::builder()
+            .http_header("Authorization", auth)
+            .unwrap()
             .build_url(Url::parse(&loki_host).unwrap())
             .unwrap();
 
         tracing_subscriber::registry().with(layer).init();
         tokio::spawn(task);
+    } else {
+        let my_subscriber = tracing_subscriber::FmtSubscriber::builder()
+            .with_max_level(tracing::Level::INFO)
+            .finish();
+        tracing::subscriber::set_global_default(my_subscriber)
+            .expect("setting tracing default failed");
     }
-
-    let my_subscriber = tracing_subscriber::FmtSubscriber::builder()
-        .with_max_level(tracing::Level::INFO)
-        .finish();
-
-    tracing::subscriber::set_global_default(my_subscriber).expect("setting tracing default failed");
 
     let mut commands = vec![
         commands::help::help(),
@@ -124,7 +130,7 @@ async fn main() {
     ];
 
     if var("MOUNT_ALL").is_ok() {
-        println!("Mounting all commands");
+        tracing::warn!("Mounting all commands");
         commands.push(commands::blackjack::blackjack());
     };
 
@@ -183,13 +189,13 @@ async fn main() {
         // This code is run before every command
         pre_command: |ctx| {
             Box::pin(async move {
-                println!("Executing command {}...", ctx.command().qualified_name);
+                tracing::info!("Executing command {}...", ctx.command().qualified_name);
             })
         },
         // This code is run after a command if it was successful (returned Ok)
         post_command: |ctx| {
             Box::pin(async move {
-                println!("Executed command {}!", ctx.command().qualified_name);
+                tracing::info!("Executed command {}!", ctx.command().qualified_name);
             })
         },
         // Every command invocation must pass this check to continue execution
@@ -253,7 +259,7 @@ async fn main() {
     let framework = poise::Framework::builder()
         .setup(move |_ctx, _ready, _framework| {
             Box::pin(async move {
-                println!("Logged in as {}", _ready.user.name);
+                tracing::info!("Logged in as {}", _ready.user.name);
                 Ok(Data {
                     games: Mutex::new(HashMap::new()),
                     coingames: Mutex::new(HashMap::new()),
@@ -301,15 +307,15 @@ async fn wait_until_shutdown() {
     let mut sigterm = signal(SignalKind::terminate()).unwrap();
     tokio::select! {
         v = sigint.recv() => {
-            println!("Received A SIGINT, shutting down...");
+            tracing::info!("Received A SIGINT, shutting down...");
             v.unwrap()
         },
         v = sigterm.recv() => {
-            println!("Received SIGTERM, shutting down...");
+            tracing::info!("Received SIGTERM, shutting down...");
             v.unwrap()
         }
         v = sighup.recv() => {
-            println!("Received SIGHUP, shutting down...");
+            tracing::info!("Received SIGHUP, shutting down...");
             v.unwrap()
         }
     }
