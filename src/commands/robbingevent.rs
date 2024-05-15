@@ -207,8 +207,6 @@ pub async fn wrapped_robbing_event(
         votes.insert(player.0.clone(), vec![]);
     }
 
-    let mut r#override = None;
-
     while let Some(mci) = ComponentInteractionCollector::new(ctx)
         .channel_id(ctx.channel_id())
         .message_id(id.id)
@@ -243,19 +241,6 @@ pub async fn wrapped_robbing_event(
             )
             .await?;
             continue;
-        }
-
-        // vote always goes to crown holder
-        if let Some(user) = ctx
-            .data()
-            .db
-            .get_unique_role_holder(ctx.data().crown_role_id)
-            .await?
-        {
-            dbg!(&user.user_id, &voter_id.to_string());
-            if user.user_id == voter_id.to_string() {
-                r#override = Some(choice.clone());
-            }
         }
 
         already_voted.insert(voter_id.to_string());
@@ -312,7 +297,23 @@ pub async fn wrapped_robbing_event(
 
     id.edit(ctx, reply).await?;
 
-    let (player, robbers) = if let Some(ref u) = r#override {
+    let mut crowns_vote = None;
+
+    if let Some(user) = ctx
+        .data()
+        .db
+        .get_unique_role_holder(ctx.data().crown_role_id)
+        .await?
+    {
+        let crown_holder_id = user.user_id;
+        for (player, votes) in votes.iter() {
+            if votes.contains(&crown_holder_id) {
+                crowns_vote = Some(player.clone());
+            }
+        }
+    }
+
+    let (player, robbers) = if let Some(ref u) = crowns_vote {
         (u.clone(), votes.get(u).unwrap().clone())
     } else {
         match votes
@@ -375,7 +376,7 @@ pub async fn wrapped_robbing_event(
         .await?;
 
     let text = format!("> ### <:jbuck:1228663982462865450> {}\n> I hope you are proud {}.\n> **You {}get {} <:jbuck:1228663982462865450>!**",
-        if let Some(u) = r#override {
+        if let Some(u) = crowns_vote {
             format!("The crown chose <@{}>, we just robbed {} <:jbuck:1228663982462865450> from them!", u,stolen)
         } else {
             format!("Awoo, we just robbed {} <:jbuck:1228663982462865450> from <@{}>!", stolen, player)

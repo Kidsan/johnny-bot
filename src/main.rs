@@ -81,14 +81,14 @@ async fn main() {
 
     let loki_host = var("LOKI_HOST").unwrap_or("".to_string());
 
-    if !loki_host.is_empty() {
-        let (layer, task) = tracing_loki::builder()
-            .build_url(Url::parse(&loki_host).unwrap())
-            .unwrap();
-
-        tracing_subscriber::registry().with(layer).init();
-        tokio::spawn(task);
-    }
+    // if !loki_host.is_empty() {
+    //     let (layer, task) = tracing_loki::builder()
+    //         .build_url(Url::parse(&loki_host).unwrap())
+    //         .unwrap();
+    //
+    //     tracing_subscriber::registry().with(layer).init();
+    //     tokio::spawn(task);
+    // }
 
     let my_subscriber = tracing_subscriber::FmtSubscriber::builder()
         .with_max_level(tracing::Level::INFO)
@@ -218,6 +218,7 @@ async fn main() {
                     "buyrobbery",
                     "rpsgamble",
                     "buy",
+                    "role", // subcommand of buy role but its seen as just "role"
                 ]
                 .contains(&ctx.command().name.as_str())
                     && ctx
