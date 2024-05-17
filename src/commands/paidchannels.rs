@@ -1,4 +1,4 @@
-use crate::{database::BalanceDatabase, Context, Error};
+use crate::{database::ChannelDatabase, Context, Error};
 use poise::CreateReply;
 
 ///

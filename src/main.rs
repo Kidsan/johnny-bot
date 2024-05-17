@@ -1,6 +1,7 @@
-use crate::database::BalanceDatabase;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
+use crate::database::ChannelDatabase;
+use crate::database::RoleDatabase;
+// use tracing_subscriber::layer::SubscriberExt;
+// use tracing_subscriber::util::SubscriberInitExt;
 mod commands;
 mod database;
 mod eventhandler;
@@ -14,7 +15,7 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use tracing_loki::url::Url;
+// use tracing_loki::url::Url;
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -24,7 +25,6 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 #[derive(Debug)]
 pub struct Data {
     games: Mutex<HashMap<String, game::Game>>,
-    coingames: Mutex<HashMap<String, game::CoinGame>>,
     db: database::Database,
     game_length: u64,
     side_chance: i32,
@@ -79,7 +79,7 @@ async fn main() {
         Err(_) => "1237724109756956753".to_string().parse().unwrap(),
     };
 
-    let loki_host = var("LOKI_HOST").unwrap_or("".to_string());
+    let _loki_host = var("LOKI_HOST").unwrap_or("".to_string());
 
     // if !loki_host.is_empty() {
     //     let (layer, task) = tracing_loki::builder()
@@ -257,7 +257,6 @@ async fn main() {
                 println!("Logged in as {}", _ready.user.name);
                 Ok(Data {
                     games: Mutex::new(HashMap::new()),
-                    coingames: Mutex::new(HashMap::new()),
                     db,
                     side_chance,
                     game_length,

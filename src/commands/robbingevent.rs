@@ -1,4 +1,6 @@
-use crate::{database::BalanceDatabase, Context, Error};
+use crate::{
+    database::BalanceDatabase, database::RobberyDatabase, database::RoleDatabase, Context, Error,
+};
 use poise::serenity_prelude;
 use rand::{seq::SliceRandom, Rng};
 use serenity::all::{

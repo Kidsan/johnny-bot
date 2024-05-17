@@ -43,6 +43,7 @@ pub struct UserID {
     pub user_id: String,
 }
 
+#[allow(async_fn_in_trait)]
 pub trait BalanceDatabase {
     async fn get_balance(&self, user_id: String) -> Result<i32, Error>;
     async fn set_balance(&self, user_id: String, balance: i32) -> Result<(), Error>;
@@ -57,11 +58,22 @@ pub trait BalanceDatabase {
     async fn get_leader(&self) -> Result<String, Error>;
     async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error>;
     async fn get_dailies_today(&self) -> Result<i32, Error>;
+    // async fn get_last_bought_robbery(&self, user_id: String) -> Result<DateTime<Utc>, Error>;
+    // async fn bought_robbery(&self, user_id: String) -> Result<(), Error>;
+}
+
+pub trait RobberyDatabase {
     async fn get_last_bought_robbery(&self, user_id: String) -> Result<DateTime<Utc>, Error>;
     async fn bought_robbery(&self, user_id: String) -> Result<(), Error>;
+}
+
+pub trait ChannelDatabase {
     async fn get_paid_channels(&self) -> Result<Vec<(i64, i32)>, Error>;
     async fn set_channel_price(&self, channel_id: i64, price: i32) -> Result<(), Error>;
     async fn remove_paid_channel(&self, channel_id: i64) -> Result<(), Error>;
+}
+
+pub trait RoleDatabase {
     async fn get_purchasable_roles(&self) -> Result<Vec<PurchaseableRole>, Error>;
     async fn increment_role_price(&self, role_id: String) -> Result<(), Error>;
     async fn set_role_price(
@@ -94,6 +106,143 @@ impl Database {
         let pool = sqlx::sqlite::SqlitePool::connect_with(options).await?;
         sqlx::migrate!().run(&pool).await?;
         Ok(Self { connection: pool })
+    }
+}
+
+impl RobberyDatabase for Database {
+    async fn get_last_bought_robbery(&self, user_id: String) -> Result<DateTime<Utc>, Error> {
+        let user = user_id.clone();
+        let last_daily = sqlx::query_as::<_, BoughtRobbery>(
+            "SELECT last_bought FROM bought_robberies WHERE id = $1",
+        )
+        .bind(user)
+        .fetch_one(&self.connection)
+        .await;
+
+        let res = match last_daily {
+            Ok(last_daily) => DateTime::<Utc>::from_timestamp(last_daily.last_bought, 0).unwrap(),
+            Err(sqlx::Error::RowNotFound) => {
+                let user = user_id;
+                let now = (chrono::Utc::now() - chrono::Duration::days(7)).timestamp();
+                dbg!(chrono::Utc::now().timestamp(), now);
+                sqlx::query("INSERT INTO bought_robberies (id, last_bought) VALUES ($1, $2)")
+                    .bind(user)
+                    .bind(now)
+                    .execute(&self.connection)
+                    .await?;
+                DateTime::from_timestamp(now, 0).unwrap()
+            }
+            Err(e) => return Err(e.into()),
+        };
+        Ok(res)
+    }
+
+    async fn bought_robbery(&self, user_id: String) -> Result<(), Error> {
+        sqlx::query("UPDATE bought_robberies SET last_bought = $1 WHERE id = $2")
+            .bind(chrono::Utc::now().timestamp())
+            .bind(user_id)
+            .execute(&self.connection)
+            .await?;
+        Ok(())
+    }
+}
+
+impl ChannelDatabase for Database {
+    async fn get_paid_channels(&self) -> Result<Vec<(i64, i32)>, Error> {
+        Ok(sqlx::query_as("SELECT id, price FROM paid_channels")
+            .fetch_all(&self.connection)
+            .await?)
+    }
+
+    async fn set_channel_price(&self, channel_id: i64, price: i32) -> Result<(), Error> {
+        sqlx::query("INSERT INTO paid_channels (id, price) VALUES ($1, $2) ON CONFLICT(id) DO UPDATE SET price = $2")
+            .bind(channel_id)
+            .bind(price)
+            .execute(&self.connection)
+            .await?;
+        Ok(())
+    }
+
+    async fn remove_paid_channel(&self, channel_id: i64) -> Result<(), Error> {
+        sqlx::query("DELETE FROM paid_channels WHERE id = $1")
+            .bind(channel_id)
+            .execute(&self.connection)
+            .await?;
+        Ok(())
+    }
+}
+
+impl RoleDatabase for Database {
+    async fn get_purchasable_roles(&self) -> Result<Vec<PurchaseableRole>, Error> {
+        Ok(sqlx::query_as(
+            "SELECT role_id, price, only_one, required_role_id, increment FROM purchaseable_roles",
+        )
+        .fetch_all(&self.connection)
+        .await?)
+    }
+
+    async fn set_role_price(
+        &self,
+        role_id: i64,
+        price: i32,
+        increment: Option<i32>,
+        required_role: Option<i64>,
+        only_one: Option<bool>,
+    ) -> Result<(), Error> {
+        if price == 0 {
+            sqlx::query("DELETE FROM purchaseable_roles WHERE role_id = $1")
+                .bind(role_id)
+                .execute(&self.connection)
+                .await?;
+            return Ok(());
+        }
+        sqlx::query("INSERT INTO purchaseable_roles (role_id, price, increment, required_role_id, only_one) VALUES ($1, $2, $3, $4, $5) ON CONFLICT(role_id) DO UPDATE SET price = $2, increment = $3, required_role_id = $4, only_one = $5")
+            .bind(role_id)
+            .bind(price)
+            .bind(increment)
+            .bind(required_role)
+            .bind(only_one)
+            .execute(&self.connection)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn toggle_role_unique(&self, role_id: i64, only_one: bool) -> Result<(), Error> {
+        sqlx::query("INSERT INTO purchaseable_roles (role_id, only_one) VALUES ($1, $2) ON CONFLICT(role_id) DO UPDATE SET only_one = $2")
+            .bind(role_id)
+            .bind(only_one)
+            .execute(&self.connection)
+            .await?;
+        Ok(())
+    }
+
+    async fn increment_role_price(&self, role_id: String) -> Result<(), Error> {
+        sqlx::query(
+            "UPDATE purchaseable_roles SET price = price+COALESCE(increment,0) WHERE role_id = $1",
+        )
+        .bind(role_id)
+        .execute(&self.connection)
+        .await?;
+        Ok(())
+    }
+
+    async fn get_unique_role_holder(&self, role_id: i64) -> Result<Option<UserID>, Error> {
+        Ok(
+            sqlx::query_as::<_, UserID>("SELECT user_id FROM role_holders WHERE role_id = $1")
+                .bind(role_id)
+                .fetch_optional(&self.connection)
+                .await?,
+        )
+    }
+
+    async fn set_unique_role_holder(&self, role_id: i64, user_id: &str) -> Result<(), Error> {
+        sqlx::query("INSERT INTO role_holders (role_id, user_id) VALUES ($1, $2) ON CONFLICT(role_id) DO UPDATE SET user_id = $2")
+            .bind(role_id)
+            .bind(user_id)
+            .execute(&self.connection)
+            .await?;
+        Ok(())
     }
 }
 
@@ -282,136 +431,5 @@ impl BalanceDatabase for Database {
         .fetch_one(&self.connection)
         .await?
         .total as i32)
-    }
-
-    async fn get_last_bought_robbery(&self, user_id: String) -> Result<DateTime<Utc>, Error> {
-        let user = user_id.clone();
-        let last_daily = sqlx::query_as::<_, BoughtRobbery>(
-            "SELECT last_bought FROM bought_robberies WHERE id = $1",
-        )
-        .bind(user)
-        .fetch_one(&self.connection)
-        .await;
-
-        let res = match last_daily {
-            Ok(last_daily) => DateTime::<Utc>::from_timestamp(last_daily.last_bought, 0).unwrap(),
-            Err(sqlx::Error::RowNotFound) => {
-                let user = user_id;
-                let now = (chrono::Utc::now() - chrono::Duration::days(7)).timestamp();
-                dbg!(chrono::Utc::now().timestamp(), now);
-                sqlx::query("INSERT INTO bought_robberies (id, last_bought) VALUES ($1, $2)")
-                    .bind(user)
-                    .bind(now)
-                    .execute(&self.connection)
-                    .await?;
-                DateTime::from_timestamp(now, 0).unwrap()
-            }
-            Err(e) => return Err(e.into()),
-        };
-        Ok(res)
-    }
-
-    async fn bought_robbery(&self, user_id: String) -> Result<(), Error> {
-        sqlx::query("UPDATE bought_robberies SET last_bought = $1 WHERE id = $2")
-            .bind(chrono::Utc::now().timestamp())
-            .bind(user_id)
-            .execute(&self.connection)
-            .await?;
-        Ok(())
-    }
-
-    async fn get_paid_channels(&self) -> Result<Vec<(i64, i32)>, Error> {
-        Ok(sqlx::query_as("SELECT id, price FROM paid_channels")
-            .fetch_all(&self.connection)
-            .await?)
-    }
-
-    async fn set_channel_price(&self, channel_id: i64, price: i32) -> Result<(), Error> {
-        sqlx::query("INSERT INTO paid_channels (id, price) VALUES ($1, $2) ON CONFLICT(id) DO UPDATE SET price = $2")
-            .bind(channel_id)
-            .bind(price)
-            .execute(&self.connection)
-            .await?;
-        Ok(())
-    }
-
-    async fn remove_paid_channel(&self, channel_id: i64) -> Result<(), Error> {
-        sqlx::query("DELETE FROM paid_channels WHERE id = $1")
-            .bind(channel_id)
-            .execute(&self.connection)
-            .await?;
-        Ok(())
-    }
-
-    async fn get_purchasable_roles(&self) -> Result<Vec<PurchaseableRole>, Error> {
-        Ok(sqlx::query_as(
-            "SELECT role_id, price, only_one, required_role_id, increment FROM purchaseable_roles",
-        )
-        .fetch_all(&self.connection)
-        .await?)
-    }
-
-    async fn set_role_price(
-        &self,
-        role_id: i64,
-        price: i32,
-        increment: Option<i32>,
-        required_role: Option<i64>,
-        only_one: Option<bool>,
-    ) -> Result<(), Error> {
-        if price == 0 {
-            sqlx::query("DELETE FROM purchaseable_roles WHERE role_id = $1")
-                .bind(role_id)
-                .execute(&self.connection)
-                .await?;
-            return Ok(());
-        }
-        sqlx::query("INSERT INTO purchaseable_roles (role_id, price, increment, required_role_id, only_one) VALUES ($1, $2, $3, $4, $5) ON CONFLICT(role_id) DO UPDATE SET price = $2, increment = $3, required_role_id = $4, only_one = $5")
-            .bind(role_id)
-            .bind(price)
-            .bind(increment)
-            .bind(required_role)
-            .bind(only_one)
-            .execute(&self.connection)
-            .await?;
-
-        Ok(())
-    }
-
-    async fn toggle_role_unique(&self, role_id: i64, only_one: bool) -> Result<(), Error> {
-        sqlx::query("INSERT INTO purchaseable_roles (role_id, only_one) VALUES ($1, $2) ON CONFLICT(role_id) DO UPDATE SET only_one = $2")
-            .bind(role_id)
-            .bind(only_one)
-            .execute(&self.connection)
-            .await?;
-        Ok(())
-    }
-
-    async fn increment_role_price(&self, role_id: String) -> Result<(), Error> {
-        sqlx::query(
-            "UPDATE purchaseable_roles SET price = price+COALESCE(increment,0) WHERE role_id = $1",
-        )
-        .bind(role_id)
-        .execute(&self.connection)
-        .await?;
-        Ok(())
-    }
-
-    async fn get_unique_role_holder(&self, role_id: i64) -> Result<Option<UserID>, Error> {
-        Ok(
-            sqlx::query_as::<_, UserID>("SELECT user_id FROM role_holders WHERE role_id = $1")
-                .bind(role_id)
-                .fetch_optional(&self.connection)
-                .await?,
-        )
-    }
-
-    async fn set_unique_role_holder(&self, role_id: i64, user_id: &str) -> Result<(), Error> {
-        sqlx::query("INSERT INTO role_holders (role_id, user_id) VALUES ($1, $2) ON CONFLICT(role_id) DO UPDATE SET user_id = $2")
-            .bind(role_id)
-            .bind(user_id)
-            .execute(&self.connection)
-            .await?;
-        Ok(())
     }
 }

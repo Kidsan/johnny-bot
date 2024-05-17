@@ -1,4 +1,4 @@
-use crate::{database::BalanceDatabase, Context, Error};
+use crate::{database::BalanceDatabase, database::RoleDatabase, Context, Error};
 use poise::CreateReply;
 use rand::Rng;
 

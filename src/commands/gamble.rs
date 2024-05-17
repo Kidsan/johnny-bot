@@ -1,8 +1,9 @@
-use crate::commands::coingamble::new_player_count_button;
-use crate::commands::coingamble::new_pot_counter_button;
+pub(crate) use crate::commands::coingamble::new_pot_counter_button;
 use std::time::{self, SystemTime, UNIX_EPOCH};
 
-use crate::{database::BalanceDatabase, Context, Error};
+use crate::{
+    commands::coingamble::new_player_count_button, database::BalanceDatabase, Context, Error,
+};
 use poise::{serenity_prelude as serenity, CreateReply};
 ///
 /// Start a gamble
