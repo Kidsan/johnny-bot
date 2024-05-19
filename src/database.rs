@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
 use sqlx::Pool;
+
+#[cfg(not(test))]
 use tokio::fs;
 
 use crate::Error;
@@ -58,8 +60,6 @@ pub trait BalanceDatabase {
     async fn get_leader(&self) -> Result<String, Error>;
     async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error>;
     async fn get_dailies_today(&self) -> Result<i32, Error>;
-    // async fn get_last_bought_robbery(&self, user_id: String) -> Result<DateTime<Utc>, Error>;
-    // async fn bought_robbery(&self, user_id: String) -> Result<(), Error>;
 }
 
 pub trait RobberyDatabase {
@@ -96,6 +96,7 @@ pub struct Database {
 
 impl Database {
     #[tracing::instrument(level = "info")]
+    #[cfg(not(test))]
     pub async fn new() -> Result<Self, Error> {
         fs::create_dir_all("./data").await?;
         let options = sqlx::sqlite::SqliteConnectOptions::new()
@@ -105,6 +106,20 @@ impl Database {
 
         let pool = sqlx::sqlite::SqlitePool::connect_with(options).await?;
         sqlx::migrate!().run(&pool).await?;
+        Ok(Self { connection: pool })
+    }
+    #[tracing::instrument(level = "info")]
+    #[cfg(test)]
+    pub async fn new() -> Result<Self, Error> {
+        let pool = sqlx::sqlite::SqlitePool::connect("sqlite::memory:").await?;
+        match sqlx::migrate!().run(&pool).await {
+            Ok(_) => {
+                dbg!("Migrations ran successfully");
+            }
+            Err(e) => {
+                dbg!(e);
+            }
+        }
         Ok(Self { connection: pool })
     }
 }
@@ -287,7 +302,11 @@ impl BalanceDatabase for Database {
         if user_ids.is_empty() {
             return Ok(());
         }
-        let a = user_ids.join(", ");
+        let a = user_ids
+            .iter()
+            .map(|x| format!("'{}'", x))
+            .collect::<Vec<String>>()
+            .join(", ");
 
         sqlx::query(
             format!(
@@ -307,7 +326,11 @@ impl BalanceDatabase for Database {
         if user_ids.is_empty() {
             return Ok(());
         }
-        let a = user_ids.join(", ");
+        let a = user_ids
+            .iter()
+            .map(|x| format!("'{}'", x))
+            .collect::<Vec<String>>()
+            .join(", ");
         sqlx::query(
             format!(
                 "UPDATE balances SET balance = balance - $1 WHERE id IN ({})",
@@ -431,5 +454,93 @@ impl BalanceDatabase for Database {
         .fetch_one(&self.connection)
         .await?
         .total as i32)
+    }
+}
+
+pub struct TestDb {}
+impl BalanceDatabase for TestDb {
+    async fn get_balance(&self, _user_id: String) -> Result<i32, Error> {
+        Ok(100)
+    }
+    async fn subtract_balances(&self, _user_ids: Vec<String>, _amount: i32) -> Result<(), Error> {
+        Ok(())
+    }
+    async fn award_balances(&self, _user_ids: Vec<String>, _amount: i32) -> Result<(), Error> {
+        Ok(())
+    }
+    async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error> {
+        Ok(vec![])
+    }
+
+    async fn set_balance(&self, _user_id: String, _balance: i32) -> Result<(), crate::Error> {
+        todo!()
+    }
+
+    async fn get_last_daily(
+        &self,
+        _user_id: String,
+    ) -> Result<chrono::prelude::DateTime<chrono::prelude::Utc>, crate::Error> {
+        todo!()
+    }
+
+    async fn did_daily(&self, _user_id: String) -> Result<(), crate::Error> {
+        todo!()
+    }
+
+    async fn get_total(&self) -> Result<i32, crate::Error> {
+        todo!()
+    }
+
+    async fn get_avg_balance(&self) -> Result<f32, crate::Error> {
+        todo!()
+    }
+
+    async fn get_zero_balance(&self) -> Result<i32, crate::Error> {
+        todo!()
+    }
+
+    async fn get_leader(&self) -> Result<String, crate::Error> {
+        todo!()
+    }
+
+    async fn bury_balance(&self, _user_id: String, _amount: i32) -> Result<(), crate::Error> {
+        todo!()
+    }
+
+    async fn get_dailies_today(&self) -> Result<i32, crate::Error> {
+        todo!()
+    }
+}
+
+impl RoleDatabase for TestDb {
+    async fn get_purchasable_roles(&self) -> Result<Vec<PurchaseableRole>, Error> {
+        todo!()
+    }
+
+    async fn increment_role_price(&self, _role_id: String) -> Result<(), Error> {
+        todo!()
+    }
+
+    async fn set_role_price(
+        &self,
+        _role_id: i64,
+        _price: i32,
+        _increment: Option<i32>,
+        _required_role: Option<i64>,
+        _only_one: Option<bool>,
+    ) -> Result<(), Error> {
+        todo!()
+    }
+
+    async fn toggle_role_unique(&self, _role_id: i64, _only_one: bool) -> Result<(), Error> {
+        todo!()
+    }
+
+    async fn get_unique_role_holder(&self, _role_id: i64) -> Result<Option<UserID>, Error> {
+        Ok(None)
+    }
+
+    async fn set_unique_role_holder(&self, _role_id: i64, _user_id: &str) -> Result<(), Error> {
+        todo!()
     }
 }

@@ -42,19 +42,19 @@ pub enum GameError {
     PlayerCantAfford,
 }
 
-#[derive(Clone, Debug)]
-pub enum PossibleResults {
+#[derive(Clone, Debug, PartialEq)]
+pub enum CoinSides {
     Heads,
     Tails,
     Side,
 }
 
-impl PossibleResults {
+impl CoinSides {
     pub fn to_uppercase(&self) -> String {
         match self {
-            PossibleResults::Heads => "HEADS".to_owned(),
-            PossibleResults::Tails => "TAILS".to_owned(),
-            PossibleResults::Side => "SIDE".to_owned(),
+            CoinSides::Heads => "HEADS".to_owned(),
+            CoinSides::Tails => "TAILS".to_owned(),
+            CoinSides::Side => "SIDE".to_owned(),
         }
     }
 }
@@ -72,7 +72,7 @@ pub struct CoinGame {
 }
 
 pub struct CoinGameResult {
-    pub result: PossibleResults,
+    pub result: CoinSides,
     pub winners: Vec<String>,
     pub prize: i32,
     pub prize_with_multiplier: i32,
@@ -154,19 +154,19 @@ impl CoinGame {
         }
         let result = {
             if rand::thread_rng().gen_range(1..=100) <= self.side_chance {
-                PossibleResults::Side
+                CoinSides::Side
             } else {
                 let num = rand::thread_rng().gen_range(0..=1);
                 if num == 0 {
-                    PossibleResults::Heads
+                    CoinSides::Heads
                 } else {
-                    PossibleResults::Tails
+                    CoinSides::Tails
                 }
             }
         };
 
         match result {
-            PossibleResults::Side => {
+            CoinSides::Side => {
                 let leaderboard: Vec<String> = db
                     .get_leaderboard()
                     .await
@@ -202,8 +202,8 @@ impl CoinGame {
             }
             _ => {
                 let winners = match result {
-                    PossibleResults::Heads => self.heads.clone(),
-                    PossibleResults::Tails => self.tails.clone(),
+                    CoinSides::Heads => self.heads.clone(),
+                    CoinSides::Tails => self.tails.clone(),
                     _ => vec![],
                 };
                 let chance_of_bonus = self.players.len();
@@ -247,102 +247,6 @@ impl CoinGame {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Error;
-
-    struct TestDb {}
-    impl BalanceDatabase for TestDb {
-        async fn get_balance(&self, _user_id: String) -> Result<i32, Error> {
-            Ok(100)
-        }
-        async fn subtract_balances(
-            &self,
-            _user_ids: Vec<String>,
-            _amount: i32,
-        ) -> Result<(), Error> {
-            Ok(())
-        }
-        async fn award_balances(&self, _user_ids: Vec<String>, _amount: i32) -> Result<(), Error> {
-            Ok(())
-        }
-        async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error> {
-            Ok(vec![])
-        }
-
-        async fn set_balance(&self, _user_id: String, _balance: i32) -> Result<(), crate::Error> {
-            todo!()
-        }
-
-        async fn get_last_daily(
-            &self,
-            _user_id: String,
-        ) -> Result<chrono::prelude::DateTime<chrono::prelude::Utc>, crate::Error> {
-            todo!()
-        }
-
-        async fn did_daily(&self, _user_id: String) -> Result<(), crate::Error> {
-            todo!()
-        }
-
-        async fn get_total(&self) -> Result<i32, crate::Error> {
-            todo!()
-        }
-
-        async fn get_avg_balance(&self) -> Result<f32, crate::Error> {
-            todo!()
-        }
-
-        async fn get_zero_balance(&self) -> Result<i32, crate::Error> {
-            todo!()
-        }
-
-        async fn get_leader(&self) -> Result<String, crate::Error> {
-            todo!()
-        }
-
-        async fn bury_balance(&self, _user_id: String, _amount: i32) -> Result<(), crate::Error> {
-            todo!()
-        }
-
-        async fn get_dailies_today(&self) -> Result<i32, crate::Error> {
-            todo!()
-        }
-    }
-
-    impl RoleDatabase for TestDb {
-        async fn get_purchasable_roles(&self) -> Result<Vec<database::PurchaseableRole>, Error> {
-            todo!()
-        }
-
-        async fn increment_role_price(&self, _role_id: String) -> Result<(), Error> {
-            todo!()
-        }
-
-        async fn set_role_price(
-            &self,
-            _role_id: i64,
-            _price: i32,
-            _increment: Option<i32>,
-            _required_role: Option<i64>,
-            _only_one: Option<bool>,
-        ) -> Result<(), Error> {
-            todo!()
-        }
-
-        async fn toggle_role_unique(&self, _role_id: i64, _only_one: bool) -> Result<(), Error> {
-            todo!()
-        }
-
-        async fn get_unique_role_holder(
-            &self,
-            _role_id: i64,
-        ) -> Result<Option<database::UserID>, Error> {
-            Ok(None)
-        }
-
-        async fn set_unique_role_holder(&self, _role_id: i64, _user_id: &str) -> Result<(), Error> {
-            todo!()
-        }
-    }
 
     #[tokio::test]
     async fn test_coin_game_get_winner() {
@@ -360,7 +264,7 @@ mod tests {
         let bot_id = "bot".to_owned();
         let crown_role_id = 1;
 
-        let db = TestDb {};
+        let db = database::TestDb {};
         let mut heads = 0;
         let mut tails = 0;
         let mut side = 0;
@@ -372,9 +276,9 @@ mod tests {
                 .await
                 .result
             {
-                PossibleResults::Heads => heads += 1,
-                PossibleResults::Tails => tails += 1,
-                PossibleResults::Side => side += 1,
+                CoinSides::Heads => heads += 1,
+                CoinSides::Tails => tails += 1,
+                CoinSides::Side => side += 1,
             }
         }
         assert_eq!(side, 0);
@@ -406,7 +310,7 @@ mod tests {
         let bot_id = "bot".to_owned();
         let crown_role_id = 1;
 
-        let db = TestDb {};
+        let db = database::TestDb {};
         let mut side = 0;
         let num_games = 100;
 
@@ -416,9 +320,9 @@ mod tests {
                 .await
                 .result
             {
-                PossibleResults::Heads => {}
-                PossibleResults::Tails => {}
-                PossibleResults::Side => side += 1,
+                CoinSides::Heads => {}
+                CoinSides::Tails => {}
+                CoinSides::Side => side += 1,
             }
         }
 
@@ -429,9 +333,34 @@ mod tests {
     async fn test_coin_game_get_winner_adds_bot() {
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec!["player1".to_owned(), "player2".to_owned()],
+            players: vec!["player1".to_owned()],
             heads: vec!["player1".to_owned()],
             tails: vec![],
+            amount: 100,
+            pot: 100,
+            deadline: time::Instant::now(),
+            side_chance: 0,
+        };
+
+        let bot_id = "bot".to_owned();
+        let crown_role_id = 1;
+
+        let db = database::TestDb {};
+        let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
+        assert!(game.tails.contains(&bot_id));
+        assert_eq!(game.pot, 200);
+        if let CoinSides::Tails = result.result {
+            assert_eq!(result.winners, vec![bot_id]);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_coin_game_get_winners_award() {
+        let mut game = CoinGame {
+            id: "1".to_owned(),
+            players: vec!["player1".to_owned(), "player2".to_owned()],
+            heads: vec!["player1".to_owned()],
+            tails: vec!["player2".to_owned()],
             amount: 100,
             pot: 200,
             deadline: time::Instant::now(),
@@ -441,12 +370,101 @@ mod tests {
         let bot_id = "bot".to_owned();
         let crown_role_id = 1;
 
-        let db = TestDb {};
-        let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
-        assert!(game.tails.contains(&bot_id));
-        if let PossibleResults::Tails = result.result {
-            assert_eq!(result.winners, vec![bot_id]);
+        let db = database::Database::new().await.unwrap();
+        for p in &game.players {
+            // sets balance to 50
+            db.get_balance(p.to_string()).await.unwrap();
         }
+
+        let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
+        if let CoinSides::Tails = result.result {
+            assert_eq!(result.winners, game.tails);
+            let p2_balance = db.get_balance("player2".to_string()).await.unwrap();
+            assert_eq!(p2_balance, 250);
+        }
+        if let CoinSides::Heads = result.result {
+            assert_eq!(result.winners, game.heads);
+            let p1_balance = db.get_balance("player1".to_string()).await.unwrap();
+            assert_eq!(p1_balance, 250);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_coin_game_get_winners_side_award() {
+        let mut game = CoinGame {
+            id: "1".to_owned(),
+            players: vec!["player1".to_owned(), "player2".to_owned()],
+            heads: vec!["player1".to_owned()],
+            tails: vec!["player2".to_owned()],
+            amount: 100,
+            pot: 200,
+            deadline: time::Instant::now(),
+            side_chance: 100,
+        };
+
+        let bot_id = "bot".to_owned();
+        let crown_role_id = 1;
+
+        let db = database::Database::new().await.unwrap();
+        for p in &game.players {
+            // sets balance to 50
+            db.get_balance(p.to_string()).await.unwrap();
+        }
+
+        let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
+        assert_eq!(result.result, CoinSides::Side);
+        assert_eq!(result.winners.len(), 1);
+        let winner = &result.winners[0];
+        let balance = db.get_balance(winner.to_string()).await.unwrap();
+        assert_eq!(balance, 250);
+        if winner == "player1" {
+            let balance = db.get_balance("player2".to_string()).await.unwrap();
+            assert_eq!(balance, 50);
+        } else {
+            let balance = db.get_balance("player1".to_string()).await.unwrap();
+            assert_eq!(balance, 50);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_coin_game_get_winners_remainder() {
+        let mut game = CoinGame {
+            id: "1".to_owned(),
+            players: vec![
+                "player1".to_owned(),
+                "player2".to_owned(),
+                "player3".to_owned(),
+                "player4".to_owned(),
+            ],
+            heads: vec!["player1".to_owned(), "player2".to_owned()],
+            tails: vec!["player3".to_owned(), "player4".to_owned()],
+            amount: 1,
+            pot: 11,
+            deadline: time::Instant::now(),
+            side_chance: 0,
+        };
+
+        let bot_id = "bot".to_owned();
+        let crown_role_id = 1;
+
+        let db = database::Database::new().await.unwrap();
+        for p in &game.players {
+            // sets balance to 50
+            db.get_balance(p.to_string()).await.unwrap();
+        }
+        db.get_balance("player5".to_string()).await.unwrap();
+        db.set_unique_role_holder(crown_role_id, "player5")
+            .await
+            .unwrap();
+
+        let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
+        assert_eq!(result.winners.len(), 2);
+        for winner in &result.winners {
+            let balance = db.get_balance(winner.to_string()).await.unwrap();
+            assert_eq!(balance, 55);
+        }
+        let crown_balance = db.get_balance("player5".to_string()).await.unwrap();
+        assert_eq!(crown_balance, 51);
     }
 }
 

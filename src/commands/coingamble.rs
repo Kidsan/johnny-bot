@@ -2,7 +2,7 @@ use std::time::{self, SystemTime, UNIX_EPOCH};
 
 use crate::{
     database::BalanceDatabase,
-    game::{CoinGame, GameError, PossibleResults},
+    game::{CoinGame, CoinSides, GameError},
     texts::landedside::LANDEDSIDE,
     Context, Error,
 };
@@ -193,7 +193,7 @@ pub async fn coingamble(
     // );
 
     let msg = match coin_flip_result.result {
-        PossibleResults::Side => match coin_flip_result.prize {
+        CoinSides::Side => match coin_flip_result.prize {
             0 => format!(
                 "{} {}",
                 get_landed_on_side_text(&mut ctx.data().rng.lock().unwrap()),
@@ -226,7 +226,7 @@ pub async fn coingamble(
                 picked_tails_users = "Nobody!".to_string();
             }
             match coin_flip_result.result {
-                PossibleResults::Heads => {
+                CoinSides::Heads => {
                     picked_heads_users = format!(
                         "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} <:jbuck:1228663982462865450>!",
                         picked_heads_users, coin_flip_result.prize
@@ -246,7 +246,7 @@ pub async fn coingamble(
                         picked_tails_users
                     );
                 }
-                PossibleResults::Tails => {
+                CoinSides::Tails => {
                     picked_heads_users = format!(
                         "> {}\n> <:dogeCrying:1160530365413330974> So sad.",
                         picked_heads_users
