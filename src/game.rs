@@ -167,17 +167,17 @@ impl CoinGame {
 
         match result {
             PossibleResults::Side => {
-                let winners: Vec<String> = db
+                let leaderboard: Vec<String> = db
                     .get_leaderboard()
                     .await
                     .unwrap()
                     .iter()
                     .map(|(u, _b)| u.to_owned())
                     .collect();
-                if winners.is_empty() {
+                if leaderboard.is_empty() {
                     return CoinGameResult {
                         result,
-                        winners,
+                        winners: leaderboard,
                         prize: 0,
                         prize_with_multiplier: 0,
                         leader: None,
@@ -185,12 +185,15 @@ impl CoinGame {
                         remainder: None,
                     };
                 };
-                let each = self.pot / winners.len() as i32;
-                db.award_balances(winners.clone(), each).await.unwrap();
+
+                let winner = leaderboard.choose(&mut rand::thread_rng()).unwrap().clone();
+                db.award_balances(vec![winner.clone()], self.pot)
+                    .await
+                    .unwrap();
                 CoinGameResult {
                     result,
-                    winners,
-                    prize: each,
+                    winners: vec![winner],
+                    prize: self.pot,
                     prize_with_multiplier: 0,
                     leader: None,
                     johnnys_multiplier: None,
@@ -420,6 +423,30 @@ mod tests {
         }
 
         assert!((5..=15).contains(&side), "invalid side amount: {}", side);
+    }
+
+    #[tokio::test]
+    async fn test_coin_game_get_winner_adds_bot() {
+        let mut game = CoinGame {
+            id: "1".to_owned(),
+            players: vec!["player1".to_owned(), "player2".to_owned()],
+            heads: vec!["player1".to_owned()],
+            tails: vec![],
+            amount: 100,
+            pot: 200,
+            deadline: time::Instant::now(),
+            side_chance: 0,
+        };
+
+        let bot_id = "bot".to_owned();
+        let crown_role_id = 1;
+
+        let db = TestDb {};
+        let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
+        assert!(game.tails.contains(&bot_id));
+        if let PossibleResults::Tails = result.result {
+            assert_eq!(result.winners, vec![bot_id]);
+        }
     }
 }
 

@@ -200,17 +200,8 @@ pub async fn coingamble(
                 get_troll_emoji(&mut ctx.data().rng.lock().unwrap())
             ),
             _ => {
-                let leaders: Vec<String> = db
-                    .get_leaderboard()
-                    .await?
-                    .iter()
-                    .map(|(u, _b)| u.to_owned())
-                    .collect();
-                ctx.data()
-                    .db
-                    .award_balances(leaders, coin_flip_result.prize)
-                    .await?;
-                format!("### Woah, a side coin!\n No way to call a winner here, let's split it with everyone on the leaderboard to be fair <:dogeTroll:1160530414490886264> (+ {} <:jbuck:1228663982462865450> to everyone in the top 10)", coin_flip_result.prize)
+                format!("### Woah, a side coin!\n No way to call a winner here <:dogeTroll:1160530414490886264>\n+ {} <:jbuck:1228663982462865450> to <@{}> for being on the leaderboard",
+                    coin_flip_result.prize, coin_flip_result.winners[0])
             }
         },
         _ => {
