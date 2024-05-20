@@ -122,6 +122,11 @@ impl Database {
         }
         Ok(Self { connection: pool })
     }
+
+    pub async fn close(self) -> Result<(), Error> {
+        self.connection.close().await;
+        Ok(())
+    }
 }
 
 impl RobberyDatabase for Database {

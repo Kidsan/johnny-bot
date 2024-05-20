@@ -153,15 +153,14 @@ impl CoinGame {
             self.pot += self.pot;
         }
         let result = {
-            if rand::thread_rng().gen_range(1..=100) <= self.side_chance {
+            let mut rng = rand::thread_rng();
+            if rng.gen_ratio(self.side_chance.try_into().unwrap(), 100) {
                 CoinSides::Side
             } else {
-                let num = rand::thread_rng().gen_range(0..=1);
-                if num == 0 {
-                    CoinSides::Heads
-                } else {
-                    CoinSides::Tails
-                }
+                [CoinSides::Heads, CoinSides::Tails]
+                    .choose(&mut rng)
+                    .unwrap()
+                    .to_owned()
             }
         };
 
@@ -387,6 +386,7 @@ mod tests {
             let p1_balance = db.get_balance("player1".to_string()).await.unwrap();
             assert_eq!(p1_balance, 250);
         }
+        db.close().await.unwrap();
     }
 
     #[tokio::test]
@@ -424,20 +424,28 @@ mod tests {
             let balance = db.get_balance("player1".to_string()).await.unwrap();
             assert_eq!(balance, 50);
         }
+        db.close().await.unwrap();
+    }
+
+    fn new_user_id() -> String {
+        rand::thread_rng()
+            .sample_iter(&rand::distributions::Alphanumeric)
+            .take(17)
+            .map(char::from)
+            .collect()
     }
 
     #[tokio::test]
     async fn test_coin_game_get_winners_remainder() {
+        let p1 = new_user_id();
+        let p2 = new_user_id();
+        let p3 = new_user_id();
+        let p4 = new_user_id();
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec![
-                "player1".to_owned(),
-                "player2".to_owned(),
-                "player3".to_owned(),
-                "player4".to_owned(),
-            ],
-            heads: vec!["player1".to_owned(), "player2".to_owned()],
-            tails: vec!["player3".to_owned(), "player4".to_owned()],
+            players: vec![p1.clone(), p2.clone(), p3.clone(), p4.clone()],
+            heads: vec![p1, p2],
+            tails: vec![p3, p4],
             amount: 1,
             pot: 11,
             deadline: time::Instant::now(),
@@ -452,8 +460,9 @@ mod tests {
             // sets balance to 50
             db.get_balance(p.to_string()).await.unwrap();
         }
-        db.get_balance("player5".to_string()).await.unwrap();
-        db.set_unique_role_holder(crown_role_id, "player5")
+        let p5 = new_user_id();
+        db.get_balance(p5.clone()).await.unwrap();
+        db.set_unique_role_holder(crown_role_id, &p5.clone())
             .await
             .unwrap();
 
@@ -463,8 +472,9 @@ mod tests {
             let balance = db.get_balance(winner.to_string()).await.unwrap();
             assert_eq!(balance, 55);
         }
-        let crown_balance = db.get_balance("player5".to_string()).await.unwrap();
+        let crown_balance = db.get_balance(p5.clone()).await.unwrap();
         assert_eq!(crown_balance, 51);
+        db.close().await.unwrap();
     }
 }
 
