@@ -74,6 +74,7 @@ pub trait ChannelDatabase {
 }
 
 pub trait RoleDatabase {
+    async fn price_decayed(&self, role_id: i64) -> Result<(), Error>;
     async fn get_purchasable_roles(&self) -> Result<Vec<PurchaseableRole>, Error>;
     async fn increment_role_price(&self, role_id: String) -> Result<(), Error>;
     async fn set_role_price(
@@ -87,11 +88,34 @@ pub trait RoleDatabase {
     async fn toggle_role_unique(&self, role_id: i64, only_one: bool) -> Result<(), Error>;
     async fn get_unique_role_holder(&self, role_id: i64) -> Result<Option<UserID>, Error>;
     async fn set_unique_role_holder(&self, role_id: i64, user_id: &str) -> Result<(), Error>;
+    async fn get_price_decay_config(&self) -> Result<Vec<RolePriceDecay>, Error>;
+    async fn set_price_decay_config(
+        &self,
+        role_id: i64,
+        amount: i32,
+        interval: i32,
+        minimum: i32,
+    ) -> Result<(), Error>;
+    async fn decay_role_price(
+        &self,
+        role_id: i64,
+        price: i32,
+        minimum: i32,
+    ) -> Result<PurchaseableRole, Error>;
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct RolePriceDecay {
+    pub role_id: i64,
+    pub amount: i32,
+    pub interval: i32,
+    pub minimum: i32,
+    pub last_decay: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug)]
 pub struct Database {
-    connection: Pool<sqlx::Sqlite>,
+    pub connection: Pool<sqlx::Sqlite>,
 }
 
 impl Database {
@@ -102,6 +126,7 @@ impl Database {
         let options = sqlx::sqlite::SqliteConnectOptions::new()
             .filename("./data/johnny.db")
             .optimize_on_close(true, None)
+            .shared_cache(false)
             .create_if_missing(true);
 
         let pool = sqlx::sqlite::SqlitePool::connect_with(options).await?;
@@ -262,6 +287,57 @@ impl RoleDatabase for Database {
             .bind(user_id)
             .execute(&self.connection)
             .await?;
+        Ok(())
+    }
+
+    async fn get_price_decay_config(&self) -> Result<Vec<RolePriceDecay>, Error> {
+        Ok(sqlx::query_as::<_, RolePriceDecay>(
+            "SELECT role_id, amount, interval, last_decay, minimum FROM role_price_decay",
+        )
+        .fetch_all(&self.connection)
+        .await?)
+    }
+
+    async fn decay_role_price(
+        &self,
+        role_id: i64,
+        amount: i32,
+        minimum: i32,
+    ) -> Result<PurchaseableRole, Error> {
+        Ok(sqlx::query_as::<_, PurchaseableRole>(
+            "UPDATE purchaseable_roles SET price = MAX(price - $2, $3) WHERE role_id = $1 RETURNING role_id, price, only_one, required_role_id, increment",
+        )
+        .bind(role_id)
+        .bind(amount)
+        .bind(minimum)
+        .fetch_one(&self.connection)
+        .await?)
+    }
+
+    async fn set_price_decay_config(
+        &self,
+        role_id: i64,
+        amount: i32,
+        interval: i32,
+        minimum: i32,
+    ) -> Result<(), Error> {
+        sqlx::query("INSERT INTO role_price_decay (role_id, amount, interval, minimum) VALUES ($1, $2, $3, $4) ON CONFLICT(role_id) DO UPDATE SET amount = $2, interval = $3, minimum = $4")
+            .bind(role_id)
+            .bind(amount)
+            .bind(interval)
+            .bind(minimum)
+            .execute(&self.connection)
+            .await?;
+        Ok(())
+    }
+
+    async fn price_decayed(&self, role_id: i64) -> Result<(), Error> {
+        sqlx::query(
+            "Update role_price_decay SET last_decay = CURRENT_TIMESTAMP WHERE role_id = $1",
+        )
+        .bind(role_id)
+        .execute(&self.connection)
+        .await?;
         Ok(())
     }
 }
@@ -546,6 +622,33 @@ impl RoleDatabase for TestDb {
     }
 
     async fn set_unique_role_holder(&self, _role_id: i64, _user_id: &str) -> Result<(), Error> {
+        todo!()
+    }
+
+    async fn get_price_decay_config(&self) -> Result<Vec<RolePriceDecay>, Error> {
+        todo!()
+    }
+
+    async fn set_price_decay_config(
+        &self,
+        role_id: i64,
+        amount: i32,
+        interval: i32,
+        minimum: i32,
+    ) -> Result<(), Error> {
+        todo!()
+    }
+
+    async fn decay_role_price(
+        &self,
+        role_id: i64,
+        price: i32,
+        _minimum: i32,
+    ) -> Result<PurchaseableRole, Error> {
+        todo!()
+    }
+
+    async fn price_decayed(&self, role_id: i64) -> Result<(), Error> {
         todo!()
     }
 }

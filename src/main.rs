@@ -6,9 +6,12 @@ mod commands;
 mod database;
 mod eventhandler;
 mod game;
+mod johnny;
 mod texts;
 
 use poise::{serenity_prelude as serenity, CreateReply};
+use std::sync::mpsc;
+use std::sync::RwLock;
 use std::{
     collections::{HashMap, HashSet},
     env::var,
@@ -33,7 +36,7 @@ pub struct Data {
     bot_id: String,
     blackjack_active: Mutex<bool>,
     paid_channels: Mutex<HashMap<serenity::ChannelId, i32>>,
-    roles: Mutex<HashMap<serenity::RoleId, (i32, Option<serenity::RoleId>)>>,
+    roles: Arc<RwLock<HashMap<serenity::RoleId, (i32, Option<serenity::RoleId>)>>>,
     unique_roles: Mutex<HashSet<serenity::RoleId>>,
     crown_role_id: i64,
 }
@@ -121,6 +124,7 @@ async fn main() {
         commands::buy::buy(),
         commands::buy::shop(),
         commands::buy::setroleprice(),
+        commands::buy::decay(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
@@ -129,6 +133,7 @@ async fn main() {
     };
 
     let db: database::Database = database::Database::new().await.unwrap();
+    let db2 = database::Database::new().await.unwrap();
 
     let paid_channels = db.get_paid_channels().await.unwrap();
     let paid_channels_map: HashMap<_, _> = paid_channels
@@ -156,11 +161,31 @@ async fn main() {
         })
         .collect::<HashMap<_, _>>();
 
+    let rc = Arc::new(RwLock::new(roles.clone()));
+
     let unique_roles = paid_roles
         .iter()
         .filter(|role| role.only_one)
         .map(|role| serenity::RoleId::new(role.role_id.parse::<u64>().unwrap()))
         .collect::<HashSet<_>>();
+
+    let (tx, rx) = mpsc::channel();
+    let (send, rcv) = mpsc::channel();
+    let johnny = johnny::Johnny::new(db2, send);
+    let rc_clone = Arc::clone(&rc);
+    tokio::spawn(async move {
+        johnny.start(rx).await;
+    });
+    tokio::spawn(async move {
+        for (role_id, price) in rcv.iter() {
+            dbg!(&role_id, &price);
+            let parsed = serenity::RoleId::new(role_id.try_into().unwrap());
+            // let r = roles.get_mut(&parsed).unwrap();
+            // r.0 = price;
+            let mut r = rc_clone.write().unwrap();
+            r.get_mut(&parsed).unwrap().0 = price;
+        }
+    });
 
     // FrameworkOptions contains all of poise's configuration option in one struct
     // Every option can be omitted to use its default value
@@ -265,7 +290,7 @@ async fn main() {
                     bot_id,
                     blackjack_active: Mutex::new(false),
                     paid_channels: Mutex::new(paid_channels_map),
-                    roles: Mutex::new(roles),
+                    roles: rc,
                     unique_roles: Mutex::new(unique_roles),
                     crown_role_id,
                 })
@@ -289,7 +314,9 @@ async fn main() {
         client.unwrap().start().await.unwrap();
     });
     wait_until_shutdown().await;
+    let _ = tx.send(());
     shard_manager.shutdown_all().await;
+    // j_handle.abort();
 }
 
 #[cfg(unix)]

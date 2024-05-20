@@ -20,7 +20,7 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
             .await?
     };
     let reply = {
-        let roles = { ctx.data().roles.lock().unwrap().clone() };
+        let roles = { ctx.data().roles.read().unwrap().clone() };
         let mut a = ctx
             .serenity_context()
             .http
@@ -129,7 +129,7 @@ pub async fn setroleprice(
     };
     ctx.data()
         .roles
-        .lock()
+        .write()
         .unwrap()
         .insert(role.id, (price, id));
 
@@ -146,7 +146,7 @@ pub async fn setroleprice(
     }
 
     if price == 0 {
-        ctx.data().roles.lock().unwrap().remove(&role.id);
+        ctx.data().roles.write().unwrap().remove(&role.id);
         let reply = {
             CreateReply::default()
                 .content(format!("You have removed the role {} from the shop!", role))
@@ -171,7 +171,7 @@ pub async fn incrementroleprice(ctx: Context<'_>, role_id: String) -> Result<(),
     ctx.data().db.increment_role_price(role_id).await?;
     let prices = ctx.data().db.get_purchasable_roles().await?;
     {
-        let mut roles = ctx.data().roles.lock().unwrap();
+        let mut roles = ctx.data().roles.write().unwrap();
         for price in prices {
             roles.insert(
                 poise::serenity_prelude::RoleId::new(price.role_id.parse().unwrap()),
@@ -203,7 +203,7 @@ pub async fn complete_roles<'a>(
     ctx: Context<'a>,
     _partial: &'a str,
 ) -> impl Iterator<Item = poise::serenity_prelude::AutocompleteChoice> + 'a {
-    let for_sale = ctx.data().roles.lock().unwrap().clone();
+    let for_sale = ctx.data().roles.read().unwrap().clone();
     let roles = ctx
         .serenity_context()
         .http
@@ -237,7 +237,7 @@ pub async fn role(
     #[autocomplete = "complete_roles"]
     role: poise::serenity_prelude::Role,
 ) -> Result<(), Error> {
-    if !ctx.data().roles.lock().unwrap().contains_key(&role.id) {
+    if !ctx.data().roles.read().unwrap().contains_key(&role.id) {
         let reply = {
             CreateReply::default()
                 .content("That role is not for sale!")
@@ -268,7 +268,7 @@ pub async fn role(
         .get_balance(ctx.author().id.to_string())
         .await?;
 
-    let price = { ctx.data().roles.lock().unwrap()[&role.id] };
+    let price = { ctx.data().roles.read().unwrap()[&role.id] };
 
     if let Some(required_role) = price.1 {
         if !ctx
@@ -348,5 +348,64 @@ pub async fn role(
     };
     ctx.send(reply).await?;
 
+    Ok(())
+}
+
+///
+/// Decay the price of a role
+///
+/// Enter `/decay @role [amount] [interval (hours)]`
+/// ```
+/// // decay the price of the role @JohnnyBot by 1 every 2 hours
+/// /decay @JohnnyBot 1 2
+/// ```
+#[poise::command(
+    slash_command,
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR",
+    hide_in_help
+)]
+pub async fn decay(
+    ctx: Context<'_>,
+    #[description = "role to decay"]
+    #[autocomplete = "complete_roles"]
+    role: poise::serenity_prelude::Role,
+    #[min = 0]
+    #[description = "The amount to decay the price by"]
+    amount: i32,
+    #[min = 1]
+    #[description = "Interval in hours to perform the decay"]
+    interval: i32,
+    #[min = 1]
+    #[description = "minimum allowed price for this role"]
+    minimum: i32,
+) -> Result<(), Error> {
+    match ctx
+        .data()
+        .db
+        .set_price_decay_config(role.id.into(), amount, interval, minimum)
+        .await
+    {
+        Ok(_) => {
+            let reply = {
+                CreateReply::default()
+                    .content(format!(
+                        "You have set the decay for the role {} to -{} every {} hours!",
+                        role, amount, interval
+                    ))
+                    .ephemeral(true)
+            };
+            ctx.send(reply).await?
+        }
+        Err(e) => {
+            dbg!(e);
+            let reply = {
+                CreateReply::default()
+                    .content("There was an error setting the decay!\nTalk to Kidsan.")
+                    .ephemeral(true)
+            };
+            ctx.send(reply).await?
+        }
+    };
     Ok(())
 }

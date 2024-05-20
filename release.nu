@@ -11,4 +11,5 @@ ssh newjohnnybot $"docker pull ($base):latest"
 let proceed = (input --numchar 1 "Proceed? [y/n]") | str downcase
 if $proceed == "y" {
   ssh newjohnnybot "cd bot && docker rm -f bot-johnny-1 && docker compose up -d"
+  ssh newjohnnybot "docker logs -f bot-johnny-1"
 }
