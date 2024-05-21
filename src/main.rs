@@ -169,23 +169,23 @@ async fn main() {
         .map(|role| serenity::RoleId::new(role.role_id.parse::<u64>().unwrap()))
         .collect::<HashSet<_>>();
 
-    let (tx, rx) = mpsc::channel();
-    let (send, rcv) = mpsc::channel();
-    let johnny = johnny::Johnny::new(db2, send);
-    let rc_clone = Arc::clone(&rc);
-    tokio::spawn(async move {
-        johnny.start(rx).await;
-    });
-    tokio::spawn(async move {
-        for (role_id, price) in rcv.iter() {
-            dbg!(&role_id, &price);
-            let parsed = serenity::RoleId::new(role_id.try_into().unwrap());
-            // let r = roles.get_mut(&parsed).unwrap();
-            // r.0 = price;
-            let mut r = rc_clone.write().unwrap();
-            r.get_mut(&parsed).unwrap().0 = price;
-        }
-    });
+    // let (tx, rx) = mpsc::channel();
+    // let (send, rcv) = mpsc::channel();
+    // let johnny = johnny::Johnny::new(db2, send);
+    // let rc_clone = Arc::clone(&rc);
+    // tokio::spawn(async move {
+    //     johnny.start(rx).await;
+    // });
+    // tokio::spawn(async move {
+    //     for (role_id, price) in rcv.iter() {
+    //         dbg!(&role_id, &price);
+    //         let parsed = serenity::RoleId::new(role_id.try_into().unwrap());
+    //         // let r = roles.get_mut(&parsed).unwrap();
+    //         // r.0 = price;
+    //         let mut r = rc_clone.write().unwrap();
+    //         r.get_mut(&parsed).unwrap().0 = price;
+    //     }
+    // });
 
     // FrameworkOptions contains all of poise's configuration option in one struct
     // Every option can be omitted to use its default value
@@ -314,9 +314,8 @@ async fn main() {
         client.unwrap().start().await.unwrap();
     });
     wait_until_shutdown().await;
-    let _ = tx.send(());
+    // let _ = tx.send(());
     shard_manager.shutdown_all().await;
-    // j_handle.abort();
 }
 
 #[cfg(unix)]
