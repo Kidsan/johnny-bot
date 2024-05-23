@@ -1,5 +1,3 @@
-use std::sync::mpsc;
-
 use chrono::TimeDelta;
 
 use crate::{database, RoleDatabase};

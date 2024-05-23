@@ -263,7 +263,7 @@ mod tests {
         let bot_id = "bot".to_owned();
         let crown_role_id = 1;
 
-        let db = database::TestDb {};
+        let db = database::Database::new().await.unwrap();
         let mut heads = 0;
         let mut tails = 0;
         let mut side = 0;
@@ -309,7 +309,7 @@ mod tests {
         let bot_id = "bot".to_owned();
         let crown_role_id = 1;
 
-        let db = database::TestDb {};
+        let db = database::Database::new().await.unwrap();
         let mut side = 0;
         let num_games = 100;
 
@@ -344,7 +344,7 @@ mod tests {
         let bot_id = "bot".to_owned();
         let crown_role_id = 1;
 
-        let db = database::TestDb {};
+        let db = database::Database::new().await.unwrap();
         let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
         assert!(game.tails.contains(&bot_id));
         assert_eq!(game.pot, 200);
