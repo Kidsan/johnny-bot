@@ -292,7 +292,7 @@ impl RoleDatabase for Database {
 
     async fn get_price_decay_config(&self) -> Result<Vec<RolePriceDecay>, Error> {
         Ok(sqlx::query_as::<_, RolePriceDecay>(
-            "SELECT role_id, amount, interval, last_decay, minimum FROM role_price_decay",
+            "SELECT role_id, amount, interval, last_decay, minimum FROM role_price_decay WHERE amount > 0",
         )
         .fetch_all(&self.connection)
         .await?)
@@ -537,4 +537,3 @@ impl BalanceDatabase for Database {
         .total as i32)
     }
 }
-

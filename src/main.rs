@@ -128,6 +128,7 @@ async fn main() {
         commands::buy::shop(),
         commands::buy::setroleprice(),
         commands::buy::decay(),
+        commands::buy::list_decays(),
     ];
 
     if var("MOUNT_ALL").is_ok() {

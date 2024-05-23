@@ -409,3 +409,40 @@ pub async fn decay(
     };
     Ok(())
 }
+
+///
+/// List the price decay config
+///
+#[poise::command(
+    slash_command,
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR",
+    hide_in_help
+)]
+pub async fn list_decays(ctx: Context<'_>) -> Result<(), Error> {
+    let config = ctx
+        .data()
+        .db
+        .get_price_decay_config()
+        .await?
+        .iter()
+        .map(|a| {
+            format!(
+                "> <@&{}> - {} every {} hours (minimum: {}, last: <t:{}:R>)",
+                a.role_id,
+                a.amount,
+                a.interval,
+                a.minimum,
+                a.last_decay.naive_utc().and_utc().timestamp()
+            )
+        })
+        .collect::<Vec<String>>()
+        .join("\n");
+    let reply = {
+        CreateReply::default()
+            .content(format!("### Price Decay Config ###\n\n{}", config))
+            .ephemeral(true)
+    };
+    ctx.send(reply).await?;
+    Ok(())
+}
