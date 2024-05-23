@@ -30,13 +30,11 @@ impl Johnny {
             }
 
             if time_passed % 300 == 0 {
-                {
-                    self.decay().await;
-                }
+                self.decay().await;
                 time_passed = 0;
             }
-            std::thread::sleep(std::time::Duration::from_secs(1));
-            time_passed += 1;
+            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+            time_passed += 5;
         }
     }
 

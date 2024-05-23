@@ -12,6 +12,7 @@ mod texts;
 use poise::{serenity_prelude as serenity, CreateReply};
 use std::sync::mpsc;
 use std::sync::RwLock;
+use std::thread;
 use std::{
     collections::{HashMap, HashSet},
     env::var,
@@ -23,6 +24,8 @@ use std::{
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
+
+type RolePrice = (i32, Option<serenity::RoleId>);
 
 // Custom user data passed to all command functions
 #[derive(Debug)]
@@ -36,7 +39,7 @@ pub struct Data {
     bot_id: String,
     blackjack_active: Mutex<bool>,
     paid_channels: Mutex<HashMap<serenity::ChannelId, i32>>,
-    roles: Arc<RwLock<HashMap<serenity::RoleId, (i32, Option<serenity::RoleId>)>>>,
+    roles: Arc<RwLock<HashMap<serenity::RoleId, RolePrice>>>,
     unique_roles: Mutex<HashSet<serenity::RoleId>>,
     crown_role_id: i64,
 }
@@ -169,23 +172,21 @@ async fn main() {
         .map(|role| serenity::RoleId::new(role.role_id.parse::<u64>().unwrap()))
         .collect::<HashSet<_>>();
 
-    // let (tx, rx) = mpsc::channel();
-    // let (send, rcv) = mpsc::channel();
-    // let johnny = johnny::Johnny::new(db2, send);
-    // let rc_clone = Arc::clone(&rc);
-    // tokio::spawn(async move {
-    //     johnny.start(rx).await;
-    // });
-    // tokio::spawn(async move {
-    //     for (role_id, price) in rcv.iter() {
-    //         dbg!(&role_id, &price);
-    //         let parsed = serenity::RoleId::new(role_id.try_into().unwrap());
-    //         // let r = roles.get_mut(&parsed).unwrap();
-    //         // r.0 = price;
-    //         let mut r = rc_clone.write().unwrap();
-    //         r.get_mut(&parsed).unwrap().0 = price;
-    //     }
-    // });
+    let (tx, rx) = mpsc::channel();
+    let (send, rcv) = mpsc::channel();
+    let johnny = johnny::Johnny::new(db2, send);
+    let rc_clone = Arc::clone(&rc);
+    tokio::spawn(async move {
+        johnny.start(rx).await;
+    });
+    thread::spawn(move || {
+        for (role_id, price) in rcv.iter() {
+            dbg!(&role_id, &price);
+            let parsed = serenity::RoleId::new(role_id.try_into().unwrap());
+            let mut r = rc_clone.write().unwrap();
+            r.get_mut(&parsed).unwrap().0 = price;
+        }
+    });
 
     // FrameworkOptions contains all of poise's configuration option in one struct
     // Every option can be omitted to use its default value
@@ -314,7 +315,7 @@ async fn main() {
         client.unwrap().start().await.unwrap();
     });
     wait_until_shutdown().await;
-    // let _ = tx.send(());
+    let _ = tx.send(());
     shard_manager.shutdown_all().await;
 }
 
