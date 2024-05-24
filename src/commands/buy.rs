@@ -446,3 +446,59 @@ pub async fn list_decays(ctx: Context<'_>) -> Result<(), Error> {
     ctx.send(reply).await?;
     Ok(())
 }
+
+///
+/// List the price config
+///
+#[poise::command(
+    slash_command,
+    category = "Admin",
+    default_member_permissions = "ADMINISTRATOR",
+    hide_in_help
+)]
+pub async fn list_prices(ctx: Context<'_>) -> Result<(), Error> {
+    let config = ctx.data().db.get_purchasable_roles().await?;
+    let embed = poise::serenity_prelude::CreateEmbed::new()
+        .title("Price Config")
+        .fields(vec![
+            (
+                "Role",
+                config
+                    .iter()
+                    .map(|a| format!("<@&{}>", a.role_id.clone()))
+                    .collect::<Vec<String>>()
+                    .join("\n"),
+                true,
+            ),
+            (
+                "Increment",
+                config
+                    .iter()
+                    .map(|a| a.increment.unwrap_or(0))
+                    .map(|a| a.to_string())
+                    .collect::<Vec<String>>()
+                    .join("\n"),
+                true,
+            ),
+            (
+                "Prerequisite",
+                config
+                    .iter()
+                    .map(|a| {
+                        let b = a.required_role_id.clone().unwrap_or("None".to_string());
+                        if b == "None" {
+                            b
+                        } else {
+                            format!("<@&{}>", b)
+                        }
+                    })
+                    .collect::<Vec<String>>()
+                    .join("\n"),
+                true,
+            ),
+        ]);
+    let reply = { CreateReply::default().ephemeral(true).embed(embed) };
+    ctx.send(reply).await?;
+
+    Ok(())
+}
