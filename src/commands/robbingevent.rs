@@ -356,10 +356,13 @@ pub async fn wrapped_robbing_event(
 
     let each = stolen / robbers.len() as i32;
 
+    let mut victim_name = named_players.get(&player).unwrap().clone();
+    victim_name = format!("@{}", victim_name);
+
     if each == 0 {
         let message = {
             CreateMessage::default()
-                .content(format!("> ### <:jbuck:1228663982462865450> Awoo, we just tried to rob <@{}> but they are too poor!\n> I hope you are proud {}.", player, robber_list).to_string())
+                .content(format!("> ### <:jbuck:1228663982462865450> Awoo, we just tried to rob {} but they are too poor!\n> I hope you are proud {}.", victim_name, robber_list).to_string())
                 .allowed_mentions(CreateAllowedMentions::new().empty_users())
                 .reference_message(&id)
         };
@@ -378,10 +381,10 @@ pub async fn wrapped_robbing_event(
         .await?;
 
     let text = format!("> ### <:jbuck:1228663982462865450> {}\n> I hope you are proud {}.\n> **You {}get {} <:jbuck:1228663982462865450>!**",
-        if let Some(u) = crowns_vote {
-            format!("The crown chose <@{}>, we just robbed {} <:jbuck:1228663982462865450> from them!", u,stolen)
+        if let Some(_u) = crowns_vote {
+            format!("The crown chose {}, we just robbed {} <:jbuck:1228663982462865450> from them!", victim_name,stolen)
         } else {
-            format!("Awoo, we just robbed {} <:jbuck:1228663982462865450> from <@{}>!", stolen, player)
+            format!("Awoo, we just robbed {} <:jbuck:1228663982462865450> from {}!", stolen, victim_name)
         },
         robber_list,
         if robbers.len() == 1 { "" } else { "each " },
