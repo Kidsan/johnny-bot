@@ -1,4 +1,4 @@
-use crate::{database::BalanceDatabase, Context, Error};
+use crate::{commands::robbingevent::get_discord_name, database::BalanceDatabase, Context, Error};
 use poise::{serenity_prelude::CreateAllowedMentions, CreateReply};
 
 ///
@@ -11,9 +11,19 @@ use poise::{serenity_prelude::CreateAllowedMentions, CreateReply};
 #[poise::command(slash_command)]
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let balances = ctx.data().db.get_leaderboard().await?;
+
+    let named_players = {
+        let mut map = std::collections::HashMap::new();
+        for (player, _) in balances.clone() {
+            let name = get_discord_name(ctx, &player).await;
+            map.insert(player.clone(), format!("@{}", name));
+        }
+        map
+    };
+
     let top = balances
         .iter()
-        .map(|(k, v)| (format!("<@!{}>", k), v))
+        .map(|(k, v)| (named_players.get(k).unwrap(), v))
         .enumerate()
         .map(|(i, (k, v))| {
             if i == 0 {

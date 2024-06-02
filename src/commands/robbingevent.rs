@@ -405,7 +405,7 @@ fn new_vote_for_user_button(user: &String, name: &String) -> CreateButton {
         .style(poise::serenity_prelude::ButtonStyle::Primary)
 }
 
-async fn get_discord_name(ctx: Context<'_>, user: &str) -> String {
+pub async fn get_discord_name(ctx: Context<'_>, user: &str) -> String {
     let user = poise::serenity_prelude::UserId::new(user.parse().unwrap())
         .to_user(ctx)
         .await
