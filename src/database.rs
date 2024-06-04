@@ -41,8 +41,9 @@ pub struct PurchaseableRole {
 }
 
 #[derive(Debug, sqlx::FromRow)]
-pub struct UserID {
+pub struct RoleHolder {
     pub user_id: String,
+    pub purchased: sqlx::types::chrono::DateTime<Utc>,
 }
 
 #[allow(async_fn_in_trait)]
@@ -60,6 +61,8 @@ pub trait BalanceDatabase {
     async fn get_leader(&self) -> Result<String, Error>;
     async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error>;
     async fn get_dailies_today(&self) -> Result<i32, Error>;
+    async fn get_crown_leaderboard(&self) -> Result<Vec<(i64, f32)>, Error>;
+    async fn update_crown_timer(&self, user_id: i64, hours: f32) -> Result<(), Error>;
 }
 
 pub trait RobberyDatabase {
@@ -86,7 +89,7 @@ pub trait RoleDatabase {
         only_one: Option<bool>,
     ) -> Result<(), Error>;
     async fn toggle_role_unique(&self, role_id: i64, only_one: bool) -> Result<(), Error>;
-    async fn get_unique_role_holder(&self, role_id: i64) -> Result<Option<UserID>, Error>;
+    async fn get_unique_role_holder(&self, role_id: i64) -> Result<Option<RoleHolder>, Error>;
     async fn set_unique_role_holder(&self, role_id: i64, user_id: &str) -> Result<(), Error>;
     async fn get_price_decay_config(&self) -> Result<Vec<RolePriceDecay>, Error>;
     async fn set_price_decay_config(
@@ -272,17 +275,17 @@ impl RoleDatabase for Database {
         Ok(())
     }
 
-    async fn get_unique_role_holder(&self, role_id: i64) -> Result<Option<UserID>, Error> {
-        Ok(
-            sqlx::query_as::<_, UserID>("SELECT user_id FROM role_holders WHERE role_id = $1")
-                .bind(role_id)
-                .fetch_optional(&self.connection)
-                .await?,
+    async fn get_unique_role_holder(&self, role_id: i64) -> Result<Option<RoleHolder>, Error> {
+        Ok(sqlx::query_as::<_, RoleHolder>(
+            "SELECT user_id, purchased FROM role_holders WHERE role_id = $1",
         )
+        .bind(role_id)
+        .fetch_optional(&self.connection)
+        .await?)
     }
 
     async fn set_unique_role_holder(&self, role_id: i64, user_id: &str) -> Result<(), Error> {
-        sqlx::query("INSERT INTO role_holders (role_id, user_id) VALUES ($1, $2) ON CONFLICT(role_id) DO UPDATE SET user_id = $2")
+        sqlx::query("INSERT INTO role_holders (role_id, user_id, purchased) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT(role_id) DO UPDATE SET user_id = $2, purchased = CURRENT_TIMESTAMP")
             .bind(role_id)
             .bind(user_id)
             .execute(&self.connection)
@@ -535,5 +538,23 @@ impl BalanceDatabase for Database {
         .fetch_one(&self.connection)
         .await?
         .total as i32)
+    }
+
+    async fn get_crown_leaderboard(&self) -> Result<Vec<(i64, f32)>, Error> {
+        Ok(sqlx::query_as(
+            "SELECT id, hours_held FROM crown_holder_times ORDER BY hours_held DESC LIMIT 10",
+        )
+        .fetch_all(&self.connection)
+        .await?)
+    }
+
+    async fn update_crown_timer(&self, user_id: i64, hours: f32) -> Result<(), Error> {
+        sqlx::query("INSERT INTO crown_holder_times (id, hours_held) VALUES ($1, $2) ON CONFLICT(id) DO UPDATE SET hours_held = hours_held + $1")
+            .bind(user_id)
+            .bind(hours)
+            .execute(&self.connection)
+            .await?;
+
+        Ok(())
     }
 }

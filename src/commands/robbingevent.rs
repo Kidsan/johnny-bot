@@ -356,8 +356,7 @@ pub async fn wrapped_robbing_event(
 
     let each = stolen / robbers.len() as i32;
 
-    let mut victim_name = named_players.get(&player).unwrap().clone();
-    victim_name = format!("@{}", victim_name);
+    let victim_name = named_players.get(&player).unwrap().clone();
 
     if each == 0 {
         let message = {

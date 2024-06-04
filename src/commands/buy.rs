@@ -320,6 +320,9 @@ pub async fn role(
 
     if ctx.data().unique_roles.lock().unwrap().contains(&role.id) {
         if let Some(user) = ctx.data().db.get_unique_role_holder(role.id.into()).await? {
+            let now = chrono::Utc::now();
+            let bought = user.purchased;
+            let time_since_purchase = now - bought;
             ctx.serenity_context()
                 .http
                 .remove_member_role(
@@ -329,10 +332,21 @@ pub async fn role(
                     Some(format!("{} bought it", ctx.author().id).as_str()),
                 )
                 .await?;
+
+            let v: f32 = time_since_purchase.num_minutes() as f32 / 60.0;
+            ctx.data()
+                .db
+                .update_crown_timer(user.user_id.parse().unwrap(), v)
+                .await?;
         };
         ctx.data()
             .db
             .set_unique_role_holder(role.id.into(), ctx.author().id.to_string().as_str())
+            .await?;
+
+        ctx.data()
+            .db
+            .update_crown_timer(ctx.author().id.into(), 0.0)
             .await?;
     }
 

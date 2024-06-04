@@ -1,4 +1,8 @@
-use crate::{commands::robbingevent::get_discord_name, database::BalanceDatabase, Context, Error};
+use crate::{
+    commands::robbingevent::get_discord_name,
+    database::{BalanceDatabase, RoleDatabase},
+    Context, Error,
+};
 use poise::{serenity_prelude::CreateAllowedMentions, CreateReply};
 
 ///
@@ -16,7 +20,7 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
         let mut map = std::collections::HashMap::new();
         for (player, _) in balances.clone() {
             let name = get_discord_name(ctx, &player).await;
-            map.insert(player.clone(), format!("@{}", name));
+            map.insert(player.clone(), name);
         }
         map
     };
@@ -45,6 +49,97 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
                 balances.len(),
                 top
             ))
+            .allowed_mentions(CreateAllowedMentions::new().empty_users())
+    };
+
+    ctx.send(reply).await?;
+    Ok(())
+}
+
+///
+/// View Crown Leaderboard
+///
+/// Enter `/crownleaderboard` to view
+/// ```
+/// /crownleaderboard
+/// ```
+#[poise::command(slash_command)]
+pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
+    let balances = ctx.data().db.get_crown_leaderboard().await?;
+
+    let crown_holder = ctx
+        .data()
+        .db
+        .get_unique_role_holder(ctx.data().crown_role_id)
+        .await?;
+
+    let named_players = {
+        let mut map = std::collections::HashMap::new();
+        for (player, _) in balances.clone() {
+            let name = get_discord_name(ctx, &player.to_string()).await;
+            map.insert(player, name);
+        }
+        map
+    };
+
+    let mut top = balances
+        .iter()
+        .map(|(k, v)| {
+            if let Some(crown) = &crown_holder {
+                if k.to_string() == crown.user_id {
+                    let now = chrono::Utc::now();
+                    let bought = crown.purchased;
+                    let time_since_purchase = now - bought;
+                    let a = v + time_since_purchase.num_minutes() as f32 / 60.0;
+                    return (k, a);
+                }
+            }
+            (k, *v)
+        })
+        .collect::<Vec<_>>();
+    top.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    let mut top_text = top
+        .iter()
+        .enumerate()
+        .map(|(i, (k, v))| {
+            let name = named_players.get(k).unwrap();
+            if let Some(crown) = &crown_holder {
+                if k.to_string() == crown.user_id {
+                    // let now = chrono::Utc::now();
+                    // let bought = crown.purchased;
+                    // let time_since_purchase = now - bought;
+                    // let a = v + time_since_purchase.num_minutes() as f32 / 60.0;
+                    return format!("> :clock{}: **{:.2} Hours** - **{}**", i + 1, v, name);
+                }
+            }
+            format!("> :clock{}: **{:.2} Hours** - {}", i + 1, v, name)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    if let Some(crown) = &crown_holder {
+        if top_text.is_empty() {
+            let now = chrono::Utc::now();
+            let bought = crown.purchased;
+            let time_since_purchase = now - bought;
+            let a = time_since_purchase.num_minutes() as f32 / 60.0;
+            top_text = format!(
+                "> :clock1: **{:.2} Hours** - **{}**",
+                a,
+                get_discord_name(ctx, &crown.user_id).await
+            );
+        }
+    }
+
+    if top_text.is_empty() {
+        ctx.say("Nobody has had the crown yet!").await?;
+        return Ok(());
+    }
+
+    let reply = {
+        CreateReply::default()
+            .content(format!("> ### Crown Time Leaderboard \n> \n{}\n", top_text))
             .allowed_mentions(CreateAllowedMentions::new().empty_users())
     };
 

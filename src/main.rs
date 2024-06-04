@@ -130,6 +130,7 @@ async fn main() {
         commands::buy::decay(),
         commands::buy::list_decays(),
         commands::buy::list_prices(),
+        commands::leaderboard::crownleaderboard(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
