@@ -104,14 +104,8 @@ pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
         .enumerate()
         .map(|(i, (k, v))| {
             let name = named_players.get(k).unwrap();
-            if let Some(crown) = &crown_holder {
-                if k.to_string() == crown.user_id {
-                    // let now = chrono::Utc::now();
-                    // let bought = crown.purchased;
-                    // let time_since_purchase = now - bought;
-                    // let a = v + time_since_purchase.num_minutes() as f32 / 60.0;
-                    return format!("> :clock{}: **{:.2} Hours** - **{}**", i + 1, v, name);
-                }
+            if i == 0 {
+                return format!("> :clock{}: **{:.2} Hours** - **{}**", i + 1, v, name);
             }
             format!("> :clock{}: **{:.2} Hours** - {}", i + 1, v, name)
         })
