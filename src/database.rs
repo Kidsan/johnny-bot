@@ -549,7 +549,7 @@ impl BalanceDatabase for Database {
     }
 
     async fn update_crown_timer(&self, user_id: i64, hours: f32) -> Result<(), Error> {
-        sqlx::query("INSERT INTO crown_holder_times (id, hours_held) VALUES ($1, $2) ON CONFLICT(id) DO UPDATE SET hours_held = hours_held + $1")
+        sqlx::query("INSERT INTO crown_holder_times (id, hours_held) VALUES ($1, $2) ON CONFLICT(id) DO UPDATE SET hours_held = hours_held + $2")
             .bind(user_id)
             .bind(hours)
             .execute(&self.connection)
