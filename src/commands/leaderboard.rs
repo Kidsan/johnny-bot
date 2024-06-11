@@ -99,13 +99,25 @@ pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
         .collect::<Vec<_>>();
     top.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
+    let crown_holder_name = {
+        if let Some(crown) = &crown_holder {
+            get_discord_name(ctx, &crown.user_id).await
+        } else {
+            "".to_string()
+        }
+    };
+
     let mut top_text = top
         .iter()
         .enumerate()
         .map(|(i, (k, v))| {
             let name = named_players.get(k).unwrap();
-            if i == 0 {
-                return format!("> :crown: **{:.2} Hours** - **{}**", v, name);
+            if let Some(crown) = &crown_holder {
+                if k.to_string() == crown.user_id {
+                    return format!("> :crown: **{:.2} Hours** - **{}**", v, crown_holder_name);
+                }
+            } else if i == 0 {
+                return format!("> :clock{}: **{:.2} Hours** - **{}**", i + 1, v, name);
             }
             format!("> :clock{}: **{:.2} Hours** - {}", i + 1, v, name)
         })
