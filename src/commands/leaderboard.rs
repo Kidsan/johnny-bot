@@ -105,7 +105,7 @@ pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
         .map(|(i, (k, v))| {
             let name = named_players.get(k).unwrap();
             if i == 0 {
-                return format!("> :clock{}: **{:.2} Hours** - **{}**", i + 1, v, name);
+                return format!("> :crown: **{:.2} Hours** - **{}**", v, name);
             }
             format!("> :clock{}: **{:.2} Hours** - {}", i + 1, v, name)
         })
