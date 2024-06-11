@@ -16,6 +16,8 @@ use poise::{serenity_prelude::CreateAllowedMentions, CreateReply};
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let balances = ctx.data().db.get_leaderboard().await?;
 
+    // TODO: first invocation of leaderboard fails due to empty cache
+    // fix by sending an ack and then a followup message with lb result
     let named_players = {
         let mut map = std::collections::HashMap::new();
         for (player, _) in balances.clone() {
@@ -113,7 +115,7 @@ pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
         .map(|(i, (k, v))| {
             let name = named_players.get(k).unwrap();
             let hours = v.trunc() as i32;
-            let minutes = (v.fract() * 60.0) as i32;
+            let minutes = (((v.fract() * 100.0).round() / 100.0) * 60.0) as i32;
             if let Some(crown) = &crown_holder {
                 if k.to_string() == crown.user_id {
                     return format!(
