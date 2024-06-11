@@ -112,14 +112,31 @@ pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
         .enumerate()
         .map(|(i, (k, v))| {
             let name = named_players.get(k).unwrap();
+            let hours = v.trunc() as i32;
+            let minutes = (v.fract() * 60.0) as i32;
             if let Some(crown) = &crown_holder {
                 if k.to_string() == crown.user_id {
-                    return format!("> :crown: **{:.2} Hours** - **{}**", v, crown_holder_name);
+                    return format!(
+                        "> :crown: **{:0>2}:{:0>2}** - **{}**",
+                        hours, minutes, crown_holder_name
+                    );
                 }
             } else if i == 0 {
-                return format!("> :clock{}: **{:.2} Hours** - **{}**", i + 1, v, name);
+                return format!(
+                    "> :clock{}: **{:0>2}:{:0>2}** - **{}**",
+                    i + 1,
+                    hours,
+                    minutes,
+                    name
+                );
             }
-            format!("> :clock{}: **{:.2} Hours** - {}", i + 1, v, name)
+            format!(
+                "> :clock{}: **{:0>2}:{:0>2}** - {}",
+                i + 1,
+                hours,
+                minutes,
+                name
+            )
         })
         .collect::<Vec<_>>()
         .join("\n");
