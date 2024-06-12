@@ -251,9 +251,12 @@ mod tests {
     async fn test_coin_game_get_winner() {
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec!["player1".to_owned(), "player2".to_owned()],
-            heads: vec!["player1".to_owned()],
-            tails: vec!["player2".to_owned()],
+            players: vec![
+                "8222483375454858662".to_owned(),
+                "5607624227456207587".to_owned(),
+            ],
+            heads: vec!["8222483375454858662".to_owned()],
+            tails: vec!["5607624227456207587".to_owned()],
             amount: 100,
             pot: 200,
             deadline: time::Instant::now(),
@@ -295,11 +298,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_coin_game_get_winner_side_percent() {
+        let p1 = new_user_id();
+        let p2 = new_user_id();
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec!["player1".to_owned(), "player2".to_owned()],
-            heads: vec!["player1".to_owned()],
-            tails: vec!["player2".to_owned()],
+            players: vec![p1.clone(), p2.clone()],
+            heads: vec![p1.clone()],
+            tails: vec![p2.clone()],
             amount: 100,
             pot: 200,
             deadline: time::Instant::now(),
@@ -330,10 +335,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_coin_game_get_winner_adds_bot() {
+        let p1 = new_user_id();
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec!["player1".to_owned()],
-            heads: vec!["player1".to_owned()],
+            players: vec![p1.clone()],
+            heads: vec![p1],
             tails: vec![],
             amount: 100,
             pot: 100,
@@ -355,11 +361,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_coin_game_get_winners_award() {
+        let (p1, p2) = (new_user_id(), new_user_id());
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec!["player1".to_owned(), "player2".to_owned()],
-            heads: vec!["player1".to_owned()],
-            tails: vec!["player2".to_owned()],
+            players: vec![p1.clone(), p2.clone()],
+            heads: vec![p1.clone()],
+            tails: vec![p2.clone()],
             amount: 100,
             pot: 200,
             deadline: time::Instant::now(),
@@ -378,12 +385,12 @@ mod tests {
         let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
         if let CoinSides::Tails = result.result {
             assert_eq!(result.winners, game.tails);
-            let p2_balance = db.get_balance("player2".to_string()).await.unwrap();
+            let p2_balance = db.get_balance(p2.clone()).await.unwrap();
             assert_eq!(p2_balance, 250);
         }
         if let CoinSides::Heads = result.result {
             assert_eq!(result.winners, game.heads);
-            let p1_balance = db.get_balance("player1".to_string()).await.unwrap();
+            let p1_balance = db.get_balance(p1.clone()).await.unwrap();
             assert_eq!(p1_balance, 250);
         }
         db.close().await.unwrap();
@@ -391,11 +398,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_coin_game_get_winners_side_award() {
+        let (p1, p2) = (new_user_id(), new_user_id());
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec!["player1".to_owned(), "player2".to_owned()],
-            heads: vec!["player1".to_owned()],
-            tails: vec!["player2".to_owned()],
+            players: vec![p1.clone(), p2.clone()],
+            heads: vec![p1.clone()],
+            tails: vec![p2.clone()],
             amount: 100,
             pot: 200,
             deadline: time::Instant::now(),
@@ -417,11 +425,11 @@ mod tests {
         let winner = &result.winners[0];
         let balance = db.get_balance(winner.to_string()).await.unwrap();
         assert_eq!(balance, 250);
-        if winner == "player1" {
-            let balance = db.get_balance("player2".to_string()).await.unwrap();
+        if winner.eq_ignore_ascii_case(&p1) {
+            let balance = db.get_balance(p2.clone()).await.unwrap();
             assert_eq!(balance, 50);
         } else {
-            let balance = db.get_balance("player1".to_string()).await.unwrap();
+            let balance = db.get_balance(p1.clone()).await.unwrap();
             assert_eq!(balance, 50);
         }
         db.close().await.unwrap();
@@ -429,10 +437,8 @@ mod tests {
 
     fn new_user_id() -> String {
         rand::thread_rng()
-            .sample_iter(&rand::distributions::Alphanumeric)
-            .take(17)
-            .map(char::from)
-            .collect()
+            .gen_range::<i64, _>(0..1000000000000000000)
+            .to_string()
     }
 
     #[tokio::test]

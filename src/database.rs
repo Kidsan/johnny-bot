@@ -8,7 +8,7 @@ use crate::Error;
 
 #[derive(Debug, sqlx::FromRow)]
 struct Balance {
-    id: String,
+    id: i64,
     balance: i32,
 }
 #[derive(Debug, sqlx::FromRow)]
@@ -348,7 +348,7 @@ impl RoleDatabase for Database {
 impl BalanceDatabase for Database {
     #[tracing::instrument(level = "info")]
     async fn get_balance(&self, user_id: String) -> Result<i32, Error> {
-        let user = user_id.clone();
+        let user = user_id.clone().parse::<i64>().unwrap();
         let balance: Result<Balance, sqlx::Error> =
             sqlx::query_as("SELECT id, balance FROM balances WHERE id = $1")
                 .bind(user)
@@ -375,7 +375,7 @@ impl BalanceDatabase for Database {
     async fn set_balance(&self, user_id: String, balance: i32) -> Result<(), Error> {
         sqlx::query("UPDATE balances SET balance = $1 WHERE id = $2")
             .bind(balance)
-            .bind(user_id)
+            .bind(user_id.parse::<i64>().unwrap())
             .execute(&self.connection)
             .await?;
         Ok(())
@@ -388,7 +388,7 @@ impl BalanceDatabase for Database {
         }
         let a = user_ids
             .iter()
-            .map(|x| format!("'{}'", x))
+            .map(|x| format!("'{}'", x.parse::<i64>().unwrap()))
             .collect::<Vec<String>>()
             .join(", ");
 
@@ -430,11 +430,14 @@ impl BalanceDatabase for Database {
 
     #[tracing::instrument(level = "info")]
     async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error> {
-        Ok(
-            sqlx::query_as("SELECT id, balance FROM balances ORDER BY balance DESC LIMIT 10")
-                .fetch_all(&self.connection)
-                .await?,
+        Ok(sqlx::query_as::<_, Balance>(
+            "SELECT id, balance FROM balances ORDER BY balance DESC LIMIT 10",
         )
+        .fetch_all(&self.connection)
+        .await?
+        .iter()
+        .map(|x| (x.id.to_string(), x.balance))
+        .collect())
     }
 
     #[tracing::instrument(level = "info")]
@@ -511,7 +514,8 @@ impl BalanceDatabase for Database {
         )
         .fetch_one(&self.connection)
         .await?
-        .id)
+        .id
+        .to_string())
     }
 
     #[tracing::instrument(level = "info")]
