@@ -28,7 +28,9 @@ pub async fn gamble(
     let game_length = ctx.data().game_length;
     let game_starter = ctx.author().id.to_string();
     let db = &ctx.data().db;
-    let user_balance = db.get_balance(game_starter.clone()).await?;
+    let user_balance = db
+        .get_balance(ctx.author().id.get().try_into().unwrap())
+        .await?;
     if amount > user_balance {
         let reply = {
             CreateReply::default()
@@ -105,7 +107,9 @@ pub async fn gamble(
             }
         }
 
-        let player_balance = db.get_balance(player.clone()).await?;
+        let player_balance = db
+            .get_balance(mci.user.id.get().try_into().unwrap())
+            .await?;
 
         if amount > player_balance {
             mci.create_response(
@@ -158,7 +162,7 @@ pub async fn gamble(
     let button3 = new_pot_counter_button(game.pot);
     let prize = game.pot;
 
-    let winner_balance = db.get_balance(winner.clone()).await?;
+    let winner_balance = db.get_balance(winner.parse().unwrap()).await?;
     db.set_balance(winner.clone(), winner_balance + prize)
         .await?;
     let winner_id = winner.parse().unwrap();

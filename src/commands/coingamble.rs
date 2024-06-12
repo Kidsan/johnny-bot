@@ -31,7 +31,11 @@ pub async fn coingamble(
     let game_length = ctx.data().game_length;
     let db = &ctx.data().db;
     let game_starter = ctx.author().id.to_string();
-    let user_balance = ctx.data().db.get_balance(game_starter.clone()).await?;
+    let user_balance = ctx
+        .data()
+        .db
+        .get_balance(ctx.author().id.get().try_into().unwrap())
+        .await?;
     if amount > user_balance {
         let reply = {
             CreateReply::default()
@@ -119,7 +123,9 @@ pub async fn coingamble(
                 .await?;
             }
             Err(GameError::PlayerCantAfford) => {
-                let player_balance = db.get_balance(player.clone()).await?;
+                let player_balance = db
+                    .get_balance(mci.user.id.get().try_into().unwrap())
+                    .await?;
                 mci.create_response(
                     ctx,
                     serenity::CreateInteractionResponse::Message(

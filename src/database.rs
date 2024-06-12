@@ -48,7 +48,7 @@ pub struct RoleHolder {
 
 #[allow(async_fn_in_trait)]
 pub trait BalanceDatabase {
-    async fn get_balance(&self, user_id: String) -> Result<i32, Error>;
+    async fn get_balance(&self, user_id: i64) -> Result<i32, Error>;
     async fn set_balance(&self, user_id: String, balance: i32) -> Result<(), Error>;
     async fn award_balances(&self, user_ids: Vec<String>, award: i32) -> Result<(), Error>;
     async fn subtract_balances(&self, user_ids: Vec<String>, amount: i32) -> Result<(), Error>;
@@ -151,6 +151,7 @@ impl Database {
         Ok(Self { connection: pool })
     }
 
+    #[cfg(test)]
     pub async fn close(self) -> Result<(), Error> {
         self.connection.close().await;
         Ok(())
@@ -347,20 +348,18 @@ impl RoleDatabase for Database {
 
 impl BalanceDatabase for Database {
     #[tracing::instrument(level = "info")]
-    async fn get_balance(&self, user_id: String) -> Result<i32, Error> {
-        let user = user_id.clone().parse::<i64>().unwrap();
+    async fn get_balance(&self, user_id: i64) -> Result<i32, Error> {
         let balance: Result<Balance, sqlx::Error> =
             sqlx::query_as("SELECT id, balance FROM balances WHERE id = $1")
-                .bind(user)
+                .bind(user_id)
                 .fetch_one(&self.connection)
                 .await;
 
         let result = match balance {
             Ok(user_balance) => user_balance.balance,
             Err(sqlx::Error::RowNotFound) => {
-                let user = user_id;
                 let _ = sqlx::query("INSERT INTO balances (id, balance) VALUES ($1, $2)")
-                    .bind(user)
+                    .bind(user_id)
                     .bind(50)
                     .execute(&self.connection)
                     .await?;

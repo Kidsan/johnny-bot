@@ -18,7 +18,12 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
     }
     let user_id = ctx.author().id.to_string();
     let amount = { ctx.data().rng.lock().unwrap().gen_range(5..=10) };
-    let balance = { ctx.data().db.get_balance(user_id.clone()).await? };
+    let balance = {
+        ctx.data()
+            .db
+            .get_balance(ctx.author().id.get().try_into().unwrap())
+            .await?
+    };
     let interest = {
         let mp = { ctx.data().rng.lock().unwrap().gen_range(0.01..=0.03) };
         tracing::info!(

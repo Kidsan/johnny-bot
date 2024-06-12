@@ -265,7 +265,7 @@ pub async fn role(
     let balance = ctx
         .data()
         .db
-        .get_balance(ctx.author().id.to_string())
+        .get_balance(ctx.author().id.get().try_into().unwrap())
         .await?;
 
     let price = { ctx.data().roles.read().unwrap()[&role.id] };

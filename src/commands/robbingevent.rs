@@ -88,7 +88,7 @@ pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
     let user_balance = ctx
         .data()
         .db
-        .get_balance(ctx.author().id.to_string())
+        .get_balance(ctx.author().id.get().try_into().unwrap())
         .await?;
     if user_balance < 10 {
         let reply = {
@@ -254,7 +254,11 @@ pub async fn wrapped_robbing_event(
         }
 
         // ensures the voter has a balance
-        let _ = ctx.data().db.get_balance(voter_id.to_string()).await?;
+        let _ = ctx
+            .data()
+            .db
+            .get_balance(voter_id.get().try_into().unwrap())
+            .await?;
 
         mci.create_response(
             ctx,
@@ -351,7 +355,7 @@ pub async fn wrapped_robbing_event(
 
     let percentage_to_steal = ctx.data().rng.lock().unwrap().gen_range(5..=25);
 
-    let balance = ctx.data().db.get_balance(player.to_string()).await?;
+    let balance = ctx.data().db.get_balance(player.parse().unwrap()).await?;
     let stolen = balance * percentage_to_steal / 100;
 
     let each = stolen / robbers.len() as i32;

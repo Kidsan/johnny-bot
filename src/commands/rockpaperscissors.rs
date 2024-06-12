@@ -60,7 +60,7 @@ pub async fn rpsgamble(
     let balance = {
         ctx.data()
             .db
-            .get_balance(ctx.author().id.to_string())
+            .get_balance(ctx.author().id.get().try_into().unwrap())
             .await?
     };
     if amount > balance {
@@ -159,7 +159,12 @@ pub async fn rpsgamble(
             .await?;
             continue;
         }
-        let balance = { ctx.data().db.get_balance(user.id.to_string()).await? };
+        let balance = {
+            ctx.data()
+                .db
+                .get_balance(user.id.get().try_into().unwrap())
+                .await?
+        };
         if amount > balance {
             {
                 ctx.data()

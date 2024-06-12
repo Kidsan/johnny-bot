@@ -21,10 +21,14 @@ pub async fn checkbucks(
     ctx: Context<'_>,
     #[description = "Who to check"] user: serenity::User,
 ) -> Result<(), Error> {
-    let user_id = user.id.to_string();
     let response = match user.bot {
         true => 0,
-        false => ctx.data().db.get_balance(user_id).await?,
+        false => {
+            ctx.data()
+                .db
+                .get_balance(user.id.get().try_into().unwrap())
+                .await?
+        }
     };
     let reply = {
         CreateReply::default()

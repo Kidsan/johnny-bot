@@ -34,7 +34,11 @@ pub async fn award(
         return Err("You can't afford to do that".into());
     }
     let user_id = user.id.to_string();
-    let user_balance = ctx.data().db.get_balance(user_id.clone()).await?;
+    let user_balance = ctx
+        .data()
+        .db
+        .get_balance(user.id.get().try_into().unwrap())
+        .await?;
     ctx.data()
         .db
         .set_balance(user_id.clone(), user_balance + amount)

@@ -18,7 +18,7 @@ pub async fn bury(
     let balance = ctx
         .data()
         .db
-        .get_balance(ctx.author().id.to_string())
+        .get_balance(ctx.author().id.get().try_into().unwrap())
         .await?;
     if amount > balance {
         let reply = {

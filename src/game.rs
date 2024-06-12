@@ -120,7 +120,7 @@ impl CoinGame {
             return Err(GameError::PlayerAlreadyJoined);
         }
 
-        let player_balance = db.get_balance(player.clone()).await.unwrap();
+        let player_balance = db.get_balance(player.parse().unwrap()).await.unwrap();
         if player_balance < self.amount {
             return Err(GameError::PlayerCantAfford);
         }
@@ -379,18 +379,18 @@ mod tests {
         let db = database::Database::new().await.unwrap();
         for p in &game.players {
             // sets balance to 50
-            db.get_balance(p.to_string()).await.unwrap();
+            db.get_balance(p.parse().unwrap()).await.unwrap();
         }
 
         let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
         if let CoinSides::Tails = result.result {
             assert_eq!(result.winners, game.tails);
-            let p2_balance = db.get_balance(p2.clone()).await.unwrap();
+            let p2_balance = db.get_balance(p2.parse().unwrap()).await.unwrap();
             assert_eq!(p2_balance, 250);
         }
         if let CoinSides::Heads = result.result {
             assert_eq!(result.winners, game.heads);
-            let p1_balance = db.get_balance(p1.clone()).await.unwrap();
+            let p1_balance = db.get_balance(p1.parse().unwrap()).await.unwrap();
             assert_eq!(p1_balance, 250);
         }
         db.close().await.unwrap();
@@ -416,20 +416,20 @@ mod tests {
         let db = database::Database::new().await.unwrap();
         for p in &game.players {
             // sets balance to 50
-            db.get_balance(p.to_string()).await.unwrap();
+            db.get_balance(p.parse().unwrap()).await.unwrap();
         }
 
         let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
         assert_eq!(result.result, CoinSides::Side);
         assert_eq!(result.winners.len(), 1);
         let winner = &result.winners[0];
-        let balance = db.get_balance(winner.to_string()).await.unwrap();
+        let balance = db.get_balance(winner.parse().unwrap()).await.unwrap();
         assert_eq!(balance, 250);
         if winner.eq_ignore_ascii_case(&p1) {
-            let balance = db.get_balance(p2.clone()).await.unwrap();
+            let balance = db.get_balance(p2.parse().unwrap()).await.unwrap();
             assert_eq!(balance, 50);
         } else {
-            let balance = db.get_balance(p1.clone()).await.unwrap();
+            let balance = db.get_balance(p1.parse().unwrap()).await.unwrap();
             assert_eq!(balance, 50);
         }
         db.close().await.unwrap();
@@ -464,10 +464,10 @@ mod tests {
         let db = database::Database::new().await.unwrap();
         for p in &game.players {
             // sets balance to 50
-            db.get_balance(p.to_string()).await.unwrap();
+            db.get_balance(p.parse().unwrap()).await.unwrap();
         }
         let p5 = new_user_id();
-        db.get_balance(p5.clone()).await.unwrap();
+        db.get_balance(p5.parse().unwrap()).await.unwrap();
         db.set_unique_role_holder(crown_role_id, &p5.clone())
             .await
             .unwrap();
@@ -475,10 +475,10 @@ mod tests {
         let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
         assert_eq!(result.winners.len(), 2);
         for winner in &result.winners {
-            let balance = db.get_balance(winner.to_string()).await.unwrap();
+            let balance = db.get_balance(winner.parse().unwrap()).await.unwrap();
             assert_eq!(balance, 55);
         }
-        let crown_balance = db.get_balance(p5.clone()).await.unwrap();
+        let crown_balance = db.get_balance(p5.parse().unwrap()).await.unwrap();
         assert_eq!(crown_balance, 51);
         db.close().await.unwrap();
     }

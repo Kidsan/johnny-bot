@@ -39,10 +39,14 @@ pub async fn transfer(
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
-        return Err("You can't afford to do that".into());
+        return Err("You can't do that".into());
     }
     let user_id = source.id.to_string();
-    let user_balance = ctx.data().db.get_balance(user_id.clone()).await?;
+    let user_balance = ctx
+        .data()
+        .db
+        .get_balance(source.id.get().try_into().unwrap())
+        .await?;
     if user_balance < amount {
         let reply = {
             CreateReply::default()
@@ -56,14 +60,13 @@ pub async fn transfer(
         return Err("can't afford to do that".into());
     }
     let recipient_id = recipient.id.to_string();
-    let recipient_balance = ctx.data().db.get_balance(recipient_id.clone()).await?;
     ctx.data()
         .db
-        .set_balance(user_id.clone(), user_balance - amount)
+        .subtract_balances(vec![user_id.clone()], amount)
         .await?;
     ctx.data()
         .db
-        .set_balance(recipient_id.clone(), recipient_balance + amount)
+        .award_balances(vec![recipient_id.clone()], amount)
         .await?;
 
     let reply = {

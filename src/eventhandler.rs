@@ -28,7 +28,7 @@ pub async fn event_handler(
 
             let balance: i32 = data
                 .db
-                .get_balance(new_message.author.id.to_string())
+                .get_balance(new_message.author.id.get().try_into().unwrap())
                 .await?;
 
             if balance < price {
