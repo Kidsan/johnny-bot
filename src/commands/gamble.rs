@@ -43,7 +43,7 @@ pub async fn gamble(
         ctx.send(reply).await?;
         return Err("You can't afford to do that".into());
     }
-    db.set_balance(game_starter.clone(), user_balance - amount)
+    db.subtract_balances(vec![game_starter.clone()], amount)
         .await?;
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
@@ -126,8 +126,7 @@ pub async fn gamble(
             .await?;
             continue;
         }
-        db.set_balance(player.clone(), player_balance - amount)
-            .await?;
+        db.subtract_balances(vec![player.clone()], amount).await?;
 
         let button2;
         let button3;
@@ -162,9 +161,9 @@ pub async fn gamble(
     let button3 = new_pot_counter_button(game.pot);
     let prize = game.pot;
 
-    let winner_balance = db.get_balance(winner.parse().unwrap()).await?;
-    db.set_balance(winner.clone(), winner_balance + prize)
-        .await?;
+    let winner_id = winner.parse().unwrap();
+
+    db.award_balances(vec![winner_id], prize).await?;
     let winner_id = winner.parse().unwrap();
     a.edit(
         ctx,

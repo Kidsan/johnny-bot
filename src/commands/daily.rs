@@ -16,7 +16,7 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
         Ok(_) => {}
         Err(e) => return Err(e),
     }
-    let user_id = ctx.author().id.to_string();
+    let user_id: i64 = ctx.author().id.get().try_into().unwrap();
     let amount = { ctx.data().rng.lock().unwrap().gen_range(5..=10) };
     let balance = {
         ctx.data()
@@ -71,7 +71,7 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
             .get_unique_role_holder(ctx.data().crown_role_id)
             .await?
         {
-            u.user_id == user_id
+            u.user_id.parse::<i64>().unwrap() == user_id
         } else {
             false
         };
@@ -87,12 +87,9 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
 
     ctx.data()
         .db
-        .award_balances(
-            vec![user_id.clone()],
-            amount + interest + n + crown_interest,
-        )
+        .award_balances(vec![user_id], amount + interest + n + crown_interest)
         .await?;
-    ctx.data().db.did_daily(user_id).await?;
+    ctx.data().db.did_daily(user_id.to_string()).await?;
     let reply = {
         let msg = format!(
             "You got **{}** <:jbuck:1228663982462865450>!{}{}{}",

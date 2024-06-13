@@ -283,7 +283,10 @@ pub async fn blackjack(
         true => game.lock().unwrap().pot / winners.len() as i32,
         false => 0,
     };
-    ctx.data().db.award_balances(winners.clone(), prize).await?;
+    ctx.data()
+        .db
+        .award_balances(winners.iter().map(|x| x.parse().unwrap()).collect(), prize)
+        .await?;
     let losers = g
         .players
         .iter()

@@ -33,16 +33,8 @@ pub async fn award(
         ctx.send(reply).await?;
         return Err("You can't afford to do that".into());
     }
-    let user_id = user.id.to_string();
-    let user_balance = ctx
-        .data()
-        .db
-        .get_balance(user.id.get().try_into().unwrap())
-        .await?;
-    ctx.data()
-        .db
-        .set_balance(user_id.clone(), user_balance + amount)
-        .await?;
+    let user_id = user.id.get().try_into().unwrap();
+    ctx.data().db.award_balances(vec![user_id], amount).await?;
 
     // if show_caller is true, send as a reply
     let msg = match reason {

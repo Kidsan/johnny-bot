@@ -49,8 +49,7 @@ pub struct RoleHolder {
 #[allow(async_fn_in_trait)]
 pub trait BalanceDatabase {
     async fn get_balance(&self, user_id: i64) -> Result<i32, Error>;
-    async fn set_balance(&self, user_id: String, balance: i32) -> Result<(), Error>;
-    async fn award_balances(&self, user_ids: Vec<String>, award: i32) -> Result<(), Error>;
+    async fn award_balances(&self, user_ids: Vec<i64>, award: i32) -> Result<(), Error>;
     async fn subtract_balances(&self, user_ids: Vec<String>, amount: i32) -> Result<(), Error>;
     async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error>;
     async fn get_last_daily(&self, user_id: String) -> Result<DateTime<Utc>, Error>;
@@ -370,24 +369,14 @@ impl BalanceDatabase for Database {
         Ok(result)
     }
 
-    #[tracing::instrument(level = "info")]
-    async fn set_balance(&self, user_id: String, balance: i32) -> Result<(), Error> {
-        sqlx::query("UPDATE balances SET balance = $1 WHERE id = $2")
-            .bind(balance)
-            .bind(user_id.parse::<i64>().unwrap())
-            .execute(&self.connection)
-            .await?;
-        Ok(())
-    }
-
     #[tracing::instrument(level = "debug")]
-    async fn award_balances(&self, user_ids: Vec<String>, award: i32) -> Result<(), Error> {
+    async fn award_balances(&self, user_ids: Vec<i64>, award: i32) -> Result<(), Error> {
         if user_ids.is_empty() {
             return Ok(());
         }
         let a = user_ids
             .iter()
-            .map(|x| format!("'{}'", x.parse::<i64>().unwrap()))
+            .map(|x| format!("'{}'", x))
             .collect::<Vec<String>>()
             .join(", ");
 

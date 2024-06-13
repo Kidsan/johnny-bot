@@ -377,7 +377,10 @@ pub async fn wrapped_robbing_event(
         return Ok(());
     }
 
-    ctx.data().db.award_balances(robbers.to_vec(), each).await?;
+    ctx.data()
+        .db
+        .award_balances(robbers.iter().map(|z| z.parse().unwrap()).collect(), each)
+        .await?;
     ctx.data()
         .db
         .subtract_balances(vec![player.to_string()], stolen)

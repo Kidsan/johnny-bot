@@ -66,7 +66,7 @@ pub async fn transfer(
         .await?;
     ctx.data()
         .db
-        .award_balances(vec![recipient_id.clone()], amount)
+        .award_balances(vec![recipient_id.parse().unwrap()], amount)
         .await?;
 
     let reply = {

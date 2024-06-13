@@ -45,12 +45,7 @@ pub async fn give(
         .db
         .get_balance(ctx.author().id.get().try_into().unwrap())
         .await?;
-    let recipient_id = recipient.id.to_string();
-    let recipient_balance = ctx
-        .data()
-        .db
-        .get_balance(recipient.id.get().try_into().unwrap())
-        .await?;
+    let recipient_id: i64 = recipient.id.get().try_into().unwrap();
     if sender_balance < amount {
         let reply = {
             CreateReply::default()
@@ -68,10 +63,8 @@ pub async fn give(
     // round tax up to the nearest integer
     let tax = tax.ceil() as i32;
 
-    db.set_balance(sender.clone(), sender_balance - amount)
-        .await?;
-    db.set_balance(recipient_id.clone(), recipient_balance + (amount - tax))
-        .await?;
+    db.subtract_balances(vec![sender.clone()], amount).await?;
+    db.award_balances(vec![recipient_id], amount - tax).await?;
 
     let tax_msg = if let Some(user) = award_role_holder(ctx, tax).await? {
         format!(

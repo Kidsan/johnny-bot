@@ -169,7 +169,7 @@ pub async fn rpsgamble(
             {
                 ctx.data()
                     .db
-                    .award_balances(vec![ctx.author().id.to_string()], amount)
+                    .award_balances(vec![ctx.author().id.get().try_into().unwrap()], amount)
                     .await?;
             }
             let content = message.content.clone();
@@ -214,7 +214,7 @@ pub async fn rpsgamble(
         None => {
             ctx.data()
                 .db
-                .award_balances(vec![ctx.author().id.to_string()], amount)
+                .award_balances(vec![ctx.author().id.get().try_into().unwrap()], amount)
                 .await?;
             let content = message.content.clone();
 
@@ -250,7 +250,7 @@ pub async fn rpsgamble(
         0 => {
             ctx.data()
                 .db
-                .award_balances(vec![ctx.author().id.to_string()], amount)
+                .award_balances(vec![ctx.author().id.get().try_into().unwrap()], amount)
                 .await?;
             format!(
                 "{} and {} both chose {}\nit is a tie!{}",
@@ -267,7 +267,7 @@ pub async fn rpsgamble(
         1 => {
             ctx.data()
                 .db
-                .award_balances(vec![ctx.author().id.to_string()], prize)
+                .award_balances(vec![ctx.author().id.get().try_into().unwrap()], prize)
                 .await?;
             ctx.data()
                 .db
@@ -306,7 +306,7 @@ pub async fn rpsgamble(
         2 => {
             ctx.data()
                 .db
-                .award_balances(vec![user.id.to_string()], prize)
+                .award_balances(vec![user.id.get().try_into().unwrap()], prize)
                 .await?;
             let tax_msg = if let Some(crowned) = award_role_holder(ctx, tax).await? {
                 format!(
@@ -388,7 +388,7 @@ pub async fn award_role_holder(ctx: Context<'_>, amount: i32) -> Result<Option<S
     {
         ctx.data()
             .db
-            .award_balances(vec![user.user_id.clone()], amount)
+            .award_balances(vec![user.user_id.parse().unwrap()], amount)
             .await?;
         Ok(Some(user.user_id))
     } else {
