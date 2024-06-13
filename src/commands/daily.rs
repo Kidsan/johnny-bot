@@ -89,7 +89,7 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
         .db
         .award_balances(vec![user_id], amount + interest + n + crown_interest)
         .await?;
-    ctx.data().db.did_daily(user_id.to_string()).await?;
+    ctx.data().db.did_daily(user_id).await?;
     let reply = {
         let msg = format!(
             "You got **{}** <:jbuck:1228663982462865450>!{}{}{}",
@@ -130,7 +130,7 @@ async fn daily_cooldown(ctx: Context<'_>) -> Result<(), Error> {
     let last_daily = ctx
         .data()
         .db
-        .get_last_daily(ctx.author().id.to_string())
+        .get_last_daily(ctx.author().id.get() as i64)
         .await?;
     if last_daily.naive_utc() > today {
         let ts = tomorrow.and_utc().timestamp();

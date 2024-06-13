@@ -50,23 +50,22 @@ pub struct RoleHolder {
 pub trait BalanceDatabase {
     async fn get_balance(&self, user_id: i64) -> Result<i32, Error>;
     async fn award_balances(&self, user_ids: Vec<i64>, award: i32) -> Result<(), Error>;
-    async fn subtract_balances(&self, user_ids: Vec<String>, amount: i32) -> Result<(), Error>;
-    async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error>;
-    async fn get_last_daily(&self, user_id: String) -> Result<DateTime<Utc>, Error>;
-    async fn did_daily(&self, user_id: String) -> Result<(), Error>;
+    async fn subtract_balances(&self, user_ids: Vec<i64>, amount: i32) -> Result<(), Error>;
+    async fn get_leaderboard(&self) -> Result<Vec<(i64, i32)>, Error>;
+    async fn get_last_daily(&self, user_id: i64) -> Result<DateTime<Utc>, Error>;
+    async fn did_daily(&self, user_id: i64) -> Result<(), Error>;
     async fn get_total(&self) -> Result<i32, Error>;
     async fn get_avg_balance(&self) -> Result<f32, Error>;
     async fn get_zero_balance(&self) -> Result<i32, Error>;
-    async fn get_leader(&self) -> Result<String, Error>;
-    async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error>;
+    async fn bury_balance(&self, user_id: i64, amount: i32) -> Result<(), Error>;
     async fn get_dailies_today(&self) -> Result<i32, Error>;
     async fn get_crown_leaderboard(&self) -> Result<Vec<(i64, f32)>, Error>;
     async fn update_crown_timer(&self, user_id: i64, hours: f32) -> Result<(), Error>;
 }
 
 pub trait RobberyDatabase {
-    async fn get_last_bought_robbery(&self, user_id: String) -> Result<DateTime<Utc>, Error>;
-    async fn bought_robbery(&self, user_id: String) -> Result<(), Error>;
+    async fn get_last_bought_robbery(&self, user_id: i64) -> Result<DateTime<Utc>, Error>;
+    async fn bought_robbery(&self, user_id: i64) -> Result<(), Error>;
 }
 
 pub trait ChannelDatabase {
@@ -158,19 +157,19 @@ impl Database {
 }
 
 impl RobberyDatabase for Database {
-    async fn get_last_bought_robbery(&self, user_id: String) -> Result<DateTime<Utc>, Error> {
-        let user = user_id.clone();
+    async fn get_last_bought_robbery(&self, user_id: i64) -> Result<DateTime<Utc>, Error> {
+        let user = user_id;
         let last_daily = sqlx::query_as::<_, BoughtRobbery>(
             "SELECT last_bought FROM bought_robberies WHERE id = $1",
         )
-        .bind(user)
+        .bind(user.to_string())
         .fetch_one(&self.connection)
         .await;
 
         let res = match last_daily {
             Ok(last_daily) => DateTime::<Utc>::from_timestamp(last_daily.last_bought, 0).unwrap(),
             Err(sqlx::Error::RowNotFound) => {
-                let user = user_id;
+                let user = user_id.to_string();
                 let now = (chrono::Utc::now() - chrono::Duration::days(7)).timestamp();
                 dbg!(chrono::Utc::now().timestamp(), now);
                 sqlx::query("INSERT INTO bought_robberies (id, last_bought) VALUES ($1, $2)")
@@ -185,10 +184,10 @@ impl RobberyDatabase for Database {
         Ok(res)
     }
 
-    async fn bought_robbery(&self, user_id: String) -> Result<(), Error> {
+    async fn bought_robbery(&self, user_id: i64) -> Result<(), Error> {
         sqlx::query("UPDATE bought_robberies SET last_bought = $1 WHERE id = $2")
             .bind(chrono::Utc::now().timestamp())
-            .bind(user_id)
+            .bind(user_id.to_string())
             .execute(&self.connection)
             .await?;
         Ok(())
@@ -394,7 +393,7 @@ impl BalanceDatabase for Database {
     }
 
     #[tracing::instrument(level = "info")]
-    async fn subtract_balances(&self, user_ids: Vec<String>, amount: i32) -> Result<(), Error> {
+    async fn subtract_balances(&self, user_ids: Vec<i64>, amount: i32) -> Result<(), Error> {
         if user_ids.is_empty() {
             return Ok(());
         }
@@ -417,23 +416,20 @@ impl BalanceDatabase for Database {
     }
 
     #[tracing::instrument(level = "info")]
-    async fn get_leaderboard(&self) -> Result<Vec<(String, i32)>, Error> {
-        Ok(sqlx::query_as::<_, Balance>(
-            "SELECT id, balance FROM balances ORDER BY balance DESC LIMIT 10",
+    async fn get_leaderboard(&self) -> Result<Vec<(i64, i32)>, Error> {
+        Ok(
+            sqlx::query_as("SELECT id, balance FROM balances ORDER BY balance DESC LIMIT 10")
+                .fetch_all(&self.connection)
+                .await?,
         )
-        .fetch_all(&self.connection)
-        .await?
-        .iter()
-        .map(|x| (x.id.to_string(), x.balance))
-        .collect())
     }
 
     #[tracing::instrument(level = "info")]
-    async fn get_last_daily(&self, user_id: String) -> Result<DateTime<Utc>, Error> {
-        let user = user_id.clone();
+    async fn get_last_daily(&self, user_id: i64) -> Result<DateTime<Utc>, Error> {
+        let user = user_id;
         let last_daily: Result<Daily, sqlx::Error> =
             sqlx::query_as("SELECT id, last_daily FROM dailies WHERE id = $1")
-                .bind(user)
+                .bind(user.to_string())
                 .fetch_one(&self.connection)
                 .await;
 
@@ -456,10 +452,10 @@ impl BalanceDatabase for Database {
     }
 
     #[tracing::instrument(level = "info")]
-    async fn did_daily(&self, user_id: String) -> Result<(), Error> {
+    async fn did_daily(&self, user_id: i64) -> Result<(), Error> {
         sqlx::query("UPDATE dailies SET last_daily = $1 WHERE id = $2")
             .bind(chrono::Utc::now().timestamp())
-            .bind(user_id)
+            .bind(user_id.to_string())
             .execute(&self.connection)
             .await?;
         Ok(())
@@ -496,20 +492,9 @@ impl BalanceDatabase for Database {
     }
 
     #[tracing::instrument(level = "info")]
-    async fn get_leader(&self) -> Result<String, Error> {
-        Ok(sqlx::query_as::<_, Balance>(
-            "SELECT id, balance FROM balances ORDER BY balance DESC LIMIT 1",
-        )
-        .fetch_one(&self.connection)
-        .await?
-        .id
-        .to_string())
-    }
-
-    #[tracing::instrument(level = "info")]
-    async fn bury_balance(&self, user_id: String, amount: i32) -> Result<(), Error> {
+    async fn bury_balance(&self, user_id: i64, amount: i32) -> Result<(), Error> {
         sqlx::query("INSERT INTO buried_balances (id, amount) VALUES ($1, $2) ON CONFLICT(id) DO UPDATE SET amount = amount + $1")
-            .bind(user_id)
+            .bind(user_id.to_string())
             .bind(amount)
             .execute(&self.connection)
             .await?;

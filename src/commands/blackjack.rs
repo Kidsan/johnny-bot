@@ -112,7 +112,13 @@ pub async fn blackjack(
         .await
     {
         let player = mci.user.id.to_string();
-        if ctx.data().locked_balances.lock().unwrap().contains(&player) {
+        if ctx
+            .data()
+            .locked_balances
+            .lock()
+            .unwrap()
+            .contains(&(mci.user.id.get() as i64))
+        {
             mci.create_response(
                 ctx,
                 serenity::CreateInteractionResponse::Message(
@@ -156,7 +162,8 @@ pub async fn blackjack(
                 continue;
             }
             game.lock().unwrap().player_joined(player.clone());
-            db.subtract_balances(vec![player.clone()], amount).await?;
+            db.subtract_balances(vec![player.parse().unwrap()], amount)
+                .await?;
             game.lock().unwrap().pot += amount;
         }
 

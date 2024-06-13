@@ -45,7 +45,7 @@ pub async fn fine(
     }
     ctx.data()
         .db
-        .subtract_balances(vec![user_id.clone()], amount)
+        .subtract_balances(vec![user_id.parse().unwrap()], amount)
         .await?;
 
     let msg = match reason {

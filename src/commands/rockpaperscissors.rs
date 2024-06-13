@@ -79,7 +79,7 @@ pub async fn rpsgamble(
     {
         ctx.data()
             .db
-            .subtract_balances(vec![ctx.author().id.to_string()], amount)
+            .subtract_balances(vec![ctx.author().id.get() as i64], amount)
             .await?;
     }
 
@@ -271,7 +271,7 @@ pub async fn rpsgamble(
                 .await?;
             ctx.data()
                 .db
-                .subtract_balances(vec![user.id.to_string()], amount)
+                .subtract_balances(vec![user.id.get() as i64], amount)
                 .await?;
 
             let tax_msg = if let Some(crowned) = award_role_holder(ctx, tax).await? {

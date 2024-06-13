@@ -50,7 +50,7 @@ pub async fn remove_bucks(
     }
     ctx.data()
         .db
-        .subtract_balances(vec![user_id.clone()], amount)
+        .subtract_balances(vec![user_id.parse().unwrap()], amount)
         .await?;
 
     let reply =

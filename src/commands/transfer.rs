@@ -62,7 +62,7 @@ pub async fn transfer(
     let recipient_id = recipient.id.to_string();
     ctx.data()
         .db
-        .subtract_balances(vec![user_id.clone()], amount)
+        .subtract_balances(vec![user_id.parse().unwrap()], amount)
         .await?;
     ctx.data()
         .db

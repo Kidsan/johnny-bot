@@ -48,7 +48,7 @@ pub async fn event_handler(
             }
 
             data.db
-                .subtract_balances(vec![new_message.author.id.to_string()], price)
+                .subtract_balances(vec![new_message.author.id.get() as i64], price)
                 .await?;
 
             new_message

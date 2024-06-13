@@ -63,7 +63,8 @@ pub async fn give(
     // round tax up to the nearest integer
     let tax = tax.ceil() as i32;
 
-    db.subtract_balances(vec![sender.clone()], amount).await?;
+    db.subtract_balances(vec![sender.parse().unwrap()], amount)
+        .await?;
     db.award_balances(vec![recipient_id], amount - tax).await?;
 
     let tax_msg = if let Some(user) = award_role_holder(ctx, tax).await? {

@@ -48,7 +48,7 @@ pub async fn coingamble(
         ctx.send(reply).await?;
         return Err("can't afford to do that".into());
     }
-    db.subtract_balances(vec![game_starter.clone()], amount)
+    db.subtract_balances(vec![game_starter.parse().unwrap()], amount)
         .await?;
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
@@ -92,7 +92,13 @@ pub async fn coingamble(
         .await
     {
         let player = mci.user.id.to_string();
-        if ctx.data().locked_balances.lock().unwrap().contains(&player) {
+        if ctx
+            .data()
+            .locked_balances
+            .lock()
+            .unwrap()
+            .contains(&(mci.user.id.get() as i64))
+        {
             mci.create_response(
                 ctx,
                 serenity::CreateInteractionResponse::Message(

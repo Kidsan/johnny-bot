@@ -124,7 +124,7 @@ impl CoinGame {
         if player_balance < self.amount {
             return Err(GameError::PlayerCantAfford);
         }
-        db.subtract_balances(vec![player.clone()], self.amount)
+        db.subtract_balances(vec![player.parse().unwrap()], self.amount)
             .await
             .unwrap();
         self.players.push(player.clone());
@@ -171,7 +171,7 @@ impl CoinGame {
                     .await
                     .unwrap()
                     .iter()
-                    .map(|(u, _b)| u.to_owned())
+                    .map(|(u, _b)| u.to_string())
                     .collect();
                 if leaderboard.is_empty() {
                     return CoinGameResult {

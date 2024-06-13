@@ -34,11 +34,11 @@ pub async fn bury(
     }
     ctx.data()
         .db
-        .subtract_balances(vec![ctx.author().id.to_string()], amount)
+        .subtract_balances(vec![ctx.author().id.get() as i64], amount)
         .await?;
     ctx.data()
         .db
-        .bury_balance(ctx.author().id.to_string(), amount)
+        .bury_balance(ctx.author().id.get().try_into().unwrap(), amount)
         .await?;
     let reply = {
         CreateReply::default().content(format!(

@@ -104,7 +104,7 @@ pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
     }
     ctx.data()
         .db
-        .subtract_balances(vec![ctx.author().id.to_string()], 10)
+        .subtract_balances(vec![ctx.author().id.get() as i64], 10)
         .await?;
 
     let reply = {
@@ -116,7 +116,7 @@ pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
     wrapped_robbing_event(ctx, Some(ctx.author().clone())).await?;
     ctx.data()
         .db
-        .bought_robbery(ctx.author().id.to_string())
+        .bought_robbery(ctx.author().id.get() as i64)
         .await?;
     Ok(())
 }
@@ -146,7 +146,7 @@ pub async fn wrapped_robbing_event(
                 ctx.data().locked_balances.lock().unwrap().clear();
                 abort = true;
             }
-            locked.insert(player.0.clone());
+            locked.insert(player.0);
         }
     }
 
@@ -161,25 +161,25 @@ pub async fn wrapped_robbing_event(
     }
     let players = { ctx.data().locked_balances.lock().unwrap().clone() };
     for player in players {
-        let name = get_discord_name(ctx, &player).await;
-        named_players.insert(player.clone(), name);
+        let name = get_discord_name(ctx, player).await;
+        named_players.insert(player, name);
     }
 
     let components = vec![CreateActionRow::Buttons(vec![
         new_vote_for_user_button(
-            &chosen_players[0].0,
+            chosen_players[0].0,
             named_players.get(&chosen_players[0].0).unwrap(),
         ),
         new_vote_for_user_button(
-            &chosen_players[1].0,
+            chosen_players[1].0,
             named_players.get(&chosen_players[1].0).unwrap(),
         ),
         new_vote_for_user_button(
-            &chosen_players[2].0,
+            chosen_players[2].0,
             named_players.get(&chosen_players[2].0).unwrap(),
         ),
         new_vote_for_user_button(
-            &chosen_players[3].0,
+            chosen_players[3].0,
             named_players.get(&chosen_players[3].0).unwrap(),
         ),
     ])];
@@ -206,7 +206,7 @@ pub async fn wrapped_robbing_event(
     let mut already_voted: HashSet<String> = HashSet::new();
 
     for player in chosen_players.iter() {
-        votes.insert(player.0.clone(), vec![]);
+        votes.insert(player.0.to_string(), vec![]);
     }
 
     while let Some(mci) = ComponentInteractionCollector::new(ctx)
@@ -274,22 +274,22 @@ pub async fn wrapped_robbing_event(
 
     let components = vec![CreateActionRow::Buttons(vec![
         new_vote_for_user_button(
-            &chosen_players[0].0,
+            chosen_players[0].0,
             named_players.get(&chosen_players[0].0).unwrap(),
         )
         .disabled(true),
         new_vote_for_user_button(
-            &chosen_players[1].0,
+            chosen_players[1].0,
             named_players.get(&chosen_players[1].0).unwrap(),
         )
         .disabled(true),
         new_vote_for_user_button(
-            &chosen_players[2].0,
+            chosen_players[2].0,
             named_players.get(&chosen_players[2].0).unwrap(),
         )
         .disabled(true),
         new_vote_for_user_button(
-            &chosen_players[3].0,
+            chosen_players[3].0,
             named_players.get(&chosen_players[3].0).unwrap(),
         )
         .disabled(true),
@@ -360,7 +360,7 @@ pub async fn wrapped_robbing_event(
 
     let each = stolen / robbers.len() as i32;
 
-    let victim_name = named_players.get(&player).unwrap().clone();
+    let victim_name = named_players.get(&player.parse().unwrap()).unwrap().clone();
 
     if each == 0 {
         let message = {
@@ -383,7 +383,7 @@ pub async fn wrapped_robbing_event(
         .await?;
     ctx.data()
         .db
-        .subtract_balances(vec![player.to_string()], stolen)
+        .subtract_balances(vec![player.parse().unwrap()], stolen)
         .await?;
 
     let text = format!("> ### <:jbuck:1228663982462865450> {}\n> I hope you are proud {}.\n> **You {}get {} <:jbuck:1228663982462865450>!**",
@@ -408,14 +408,14 @@ pub async fn wrapped_robbing_event(
     Ok(())
 }
 
-fn new_vote_for_user_button(user: &String, name: &String) -> CreateButton {
-    CreateButton::new(user)
+fn new_vote_for_user_button(user: i64, name: &String) -> CreateButton {
+    CreateButton::new(user.to_string())
         .label(name.to_string())
         .style(poise::serenity_prelude::ButtonStyle::Primary)
 }
 
-pub async fn get_discord_name(ctx: Context<'_>, user: &str) -> String {
-    let user = poise::serenity_prelude::UserId::new(user.parse().unwrap())
+pub async fn get_discord_name(ctx: Context<'_>, user: i64) -> String {
+    let user = poise::serenity_prelude::UserId::new(user as u64)
         .to_user(ctx)
         .await
         .unwrap();
@@ -433,7 +433,7 @@ async fn daily_cooldown(ctx: Context<'_>) -> Result<(), Error> {
     let last_daily = ctx
         .data()
         .db
-        .get_last_bought_robbery(ctx.author().id.to_string())
+        .get_last_bought_robbery(ctx.author().id.get() as i64)
         .await?;
 
     if last_daily.naive_utc() > today {

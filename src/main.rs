@@ -35,7 +35,7 @@ pub struct Data {
     game_length: u64,
     side_chance: i32,
     rng: Mutex<rand::rngs::StdRng>,
-    locked_balances: Mutex<HashSet<String>>,
+    locked_balances: Mutex<HashSet<i64>>,
     bot_id: String,
     blackjack_active: Mutex<bool>,
     paid_channels: Mutex<HashMap<serenity::ChannelId, i32>>,
@@ -255,7 +255,7 @@ async fn main() {
                         .locked_balances
                         .lock()
                         .unwrap()
-                        .contains(&ctx.author().id.to_string())
+                        .contains(&i64::from(ctx.author().id))
                 {
                     let reply = {
                         CreateReply::default()

@@ -43,7 +43,7 @@ pub async fn gamble(
         ctx.send(reply).await?;
         return Err("You can't afford to do that".into());
     }
-    db.subtract_balances(vec![game_starter.clone()], amount)
+    db.subtract_balances(vec![game_starter.parse().unwrap()], amount)
         .await?;
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
@@ -126,7 +126,8 @@ pub async fn gamble(
             .await?;
             continue;
         }
-        db.subtract_balances(vec![player.clone()], amount).await?;
+        db.subtract_balances(vec![player.parse().unwrap()], amount)
+            .await?;
 
         let button2;
         let button3;

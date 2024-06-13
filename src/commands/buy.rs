@@ -315,7 +315,7 @@ pub async fn role(
 
     ctx.data()
         .db
-        .subtract_balances(vec![ctx.author().id.to_string()], price.0)
+        .subtract_balances(vec![ctx.author().id.get() as i64], price.0)
         .await?;
 
     if ctx.data().unique_roles.lock().unwrap().contains(&role.id) {

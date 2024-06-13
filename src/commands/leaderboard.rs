@@ -21,8 +21,8 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let named_players = {
         let mut map = std::collections::HashMap::new();
         for (player, _) in balances.clone() {
-            let name = get_discord_name(ctx, &player).await;
-            map.insert(player.clone(), name);
+            let name = get_discord_name(ctx, player).await;
+            map.insert(player, name);
         }
         map
     };
@@ -78,7 +78,7 @@ pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
     let named_players = {
         let mut map = std::collections::HashMap::new();
         for (player, _) in balances.clone() {
-            let name = get_discord_name(ctx, &player.to_string()).await;
+            let name = get_discord_name(ctx, player).await;
             map.insert(player, name);
         }
         map
@@ -103,7 +103,7 @@ pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
 
     let crown_holder_name = {
         if let Some(crown) = &crown_holder {
-            get_discord_name(ctx, &crown.user_id).await
+            get_discord_name(ctx, crown.user_id.parse().unwrap()).await
         } else {
             "".to_string()
         }
@@ -152,7 +152,7 @@ pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
             top_text = format!(
                 "> :clock1: **{:.2} Hours** - **{}**",
                 a,
-                get_discord_name(ctx, &crown.user_id).await
+                get_discord_name(ctx, crown.user_id.parse().unwrap()).await
             );
         }
     }
