@@ -74,7 +74,7 @@ pub async fn gamble(
             crate::game::Game::new(
                 id.to_string(),
                 amount,
-                ctx.author().id.to_string(),
+                ctx.author().id.get() as i64,
                 time::Instant::now(),
             ),
         );
@@ -99,7 +99,7 @@ pub async fn gamble(
                 .get(&id.to_string())
                 .unwrap()
                 .players
-                .contains(&player)
+                .contains(&(mci.user.id.get() as i64))
             {
                 mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
                     .await?;
@@ -134,7 +134,7 @@ pub async fn gamble(
         {
             let mut games = ctx.data().games.lock().unwrap();
             let game = games.get_mut(&id.to_string()).unwrap();
-            game.player_joined(mci.user.id.to_string());
+            game.player_joined(mci.user.id.get() as i64);
             button2 = new_player_count_button(game.players.len() as i32);
             button3 = new_pot_counter_button(game.pot);
         }
@@ -157,21 +157,21 @@ pub async fn gamble(
         let mut games = ctx.data().games.lock().unwrap();
         games.remove(&id.to_string()).unwrap()
     };
-    let winner = game.get_winner(&mut ctx.data().rng.lock().unwrap()).clone();
+    let winner = game.get_winner(&mut ctx.data().rng.lock().unwrap());
     let button2 = new_player_count_button(game.players.len() as i32);
     let button3 = new_pot_counter_button(game.pot);
     let prize = game.pot;
 
-    let winner_id = winner.parse().unwrap();
+    // let winner_id = winner.parse().unwrap();
 
-    db.award_balances(vec![winner_id], prize).await?;
-    let winner_id = winner.parse().unwrap();
+    db.award_balances(vec![winner], prize).await?;
+    // let winner_id = winner.parse().unwrap();
     a.edit(
         ctx,
         CreateReply::default()
             .content(format!(
                 "Game is over, winner is: {}, they won: {} J-Buck(s)!",
-                serenity::UserId::new(winner_id).to_user(ctx).await?,
+                serenity::UserId::new(winner as u64).to_user(ctx).await?,
                 prize
             ))
             .components(vec![serenity::CreateActionRow::Buttons(vec![

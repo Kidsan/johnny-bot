@@ -39,7 +39,7 @@ pub async fn rpsgamble(
     #[description = "Who to challenge"] user: poise::serenity_prelude::User,
     #[description = "Your choice"] choice: RPSChoice,
 ) -> Result<(), Error> {
-    if user.bot && user.id.to_string() != ctx.data().bot_id {
+    if user.bot && user.id.get() as i64 != ctx.data().bot_id {
         let reply = {
             CreateReply::default()
                 .content("You can't play against a bot, they have no hands")
@@ -86,7 +86,7 @@ pub async fn rpsgamble(
     ctx.send(CreateReply::default().content("success").ephemeral(true))
         .await?;
 
-    let components = match user.id.to_string() == ctx.data().bot_id {
+    let components = match user.id.get() as i64 == ctx.data().bot_id {
         true => vec![],
         false => vec![serenity::CreateActionRow::Buttons(vec![
             new_rock_button(),
@@ -112,7 +112,7 @@ pub async fn rpsgamble(
 
     let mut message = ctx.channel_id().send_message(ctx, reply).await?;
 
-    if user.id.to_string() == ctx.data().bot_id {
+    if user.id.get() as i64 == ctx.data().bot_id {
         let reply = {
             CreateMessage::default()
                 .content(format!(

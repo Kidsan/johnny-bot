@@ -75,7 +75,7 @@ pub async fn coingamble(
 
     let mut coingame = CoinGame::new(
         id.to_string(),
-        game_starter.clone(),
+        ctx.author().id.get() as i64,
         choice.clone(),
         amount,
         time::Instant::now(),
@@ -91,7 +91,6 @@ pub async fn coingamble(
         ))
         .await
     {
-        let player = mci.user.id.to_string();
         if ctx
             .data()
             .locked_balances
@@ -113,7 +112,11 @@ pub async fn coingamble(
             continue;
         }
         match coingame
-            .player_joined(&ctx.data().db, player.clone(), &mci.data.custom_id)
+            .player_joined(
+                &ctx.data().db,
+                mci.user.id.get() as i64,
+                &mci.data.custom_id,
+            )
             .await
         {
             Ok(_) => {
@@ -192,11 +195,7 @@ pub async fn coingamble(
     a.edit(ctx, reply).await?;
 
     let coin_flip_result = coingame
-        .get_winner(
-            &ctx.data().db,
-            ctx.data().bot_id.clone(),
-            ctx.data().crown_role_id,
-        )
+        .get_winner(&ctx.data().db, ctx.data().bot_id, ctx.data().crown_role_id)
         .await;
     // tracing::event!(
     //     tracing::Level::INFO,

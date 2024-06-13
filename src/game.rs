@@ -9,14 +9,14 @@ use crate::{
 #[derive(Debug)]
 pub struct Game {
     pub id: String,
-    pub players: Vec<String>,
+    pub players: Vec<i64>,
     pub amount: i32,
     pub pot: i32,
     pub deadline: time::Instant,
 }
 
 impl Game {
-    pub fn new(id: String, amount: i32, started_by: String, deadline: time::Instant) -> Self {
+    pub fn new(id: String, amount: i32, started_by: i64, deadline: time::Instant) -> Self {
         Self {
             id,
             players: vec![started_by],
@@ -26,13 +26,13 @@ impl Game {
         }
     }
 
-    pub fn player_joined(&mut self, player: String) {
+    pub fn player_joined(&mut self, player: i64) {
         self.players.push(player);
         self.pot += self.amount;
     }
 
-    pub fn get_winner(&self, rng: &mut rand::rngs::StdRng) -> String {
-        self.players.choose(rng).unwrap().to_string()
+    pub fn get_winner(&self, rng: &mut rand::rngs::StdRng) -> i64 {
+        *self.players.choose(rng).unwrap()
     }
 }
 
@@ -62,9 +62,9 @@ impl CoinSides {
 #[derive(Debug)]
 pub struct CoinGame {
     pub id: String,
-    pub players: Vec<String>,
-    pub heads: Vec<String>,
-    pub tails: Vec<String>,
+    pub players: Vec<i64>,
+    pub heads: Vec<i64>,
+    pub tails: Vec<i64>,
     pub amount: i32,
     pub pot: i32,
     pub deadline: time::Instant,
@@ -73,18 +73,18 @@ pub struct CoinGame {
 
 pub struct CoinGameResult {
     pub result: CoinSides,
-    pub winners: Vec<String>,
+    pub winners: Vec<i64>,
     pub prize: i32,
     pub prize_with_multiplier: i32,
     pub johnnys_multiplier: Option<f32>,
-    pub leader: Option<String>,
+    pub leader: Option<i64>,
     pub remainder: Option<i32>,
 }
 
 impl CoinGame {
     pub fn new(
         id: String,
-        game_starter: String,
+        game_starter: i64,
         choice: HeadsOrTail,
         amount: i32,
         deadline: time::Instant,
@@ -92,7 +92,7 @@ impl CoinGame {
     ) -> Self {
         let mut heads = vec![];
         let mut tails = vec![];
-        let players = vec![game_starter.clone()];
+        let players = vec![game_starter];
 
         match choice {
             HeadsOrTail::Heads => heads.push(game_starter),
@@ -113,21 +113,21 @@ impl CoinGame {
     pub async fn player_joined(
         &mut self,
         db: &impl database::BalanceDatabase,
-        player: String,
+        player: i64,
         choice: &String,
     ) -> Result<(), GameError> {
         if self.players.contains(&player) {
             return Err(GameError::PlayerAlreadyJoined);
         }
 
-        let player_balance = db.get_balance(player.parse().unwrap()).await.unwrap();
+        let player_balance = db.get_balance(player).await.unwrap();
         if player_balance < self.amount {
             return Err(GameError::PlayerCantAfford);
         }
-        db.subtract_balances(vec![player.parse().unwrap()], self.amount)
+        db.subtract_balances(vec![player], self.amount)
             .await
             .unwrap();
-        self.players.push(player.clone());
+        self.players.push(player);
         if choice == "Heads" {
             self.heads.push(player);
         } else {
@@ -140,16 +140,16 @@ impl CoinGame {
     pub async fn get_winner<T: BalanceDatabase + RoleDatabase>(
         &mut self,
         db: &T,
-        bot_id: String,
+        bot_id: i64,
         crown_role_id: i64,
     ) -> CoinGameResult {
         if self.heads.is_empty() {
-            self.heads.push(bot_id.clone());
-            self.players.push(bot_id.clone());
+            self.heads.push(bot_id);
+            self.players.push(bot_id);
             self.pot += self.pot;
         } else if self.tails.is_empty() {
-            self.tails.push(bot_id.clone());
-            self.players.push(bot_id.clone());
+            self.tails.push(bot_id);
+            self.players.push(bot_id);
             self.pot += self.pot;
         }
         let result = {
@@ -166,12 +166,12 @@ impl CoinGame {
 
         match result {
             CoinSides::Side => {
-                let leaderboard: Vec<String> = db
+                let leaderboard: Vec<i64> = db
                     .get_leaderboard()
                     .await
                     .unwrap()
                     .iter()
-                    .map(|(u, _b)| u.to_string())
+                    .map(|(u, _b)| *u)
                     .collect();
                 if leaderboard.is_empty() {
                     return CoinGameResult {
@@ -185,10 +185,8 @@ impl CoinGame {
                     };
                 };
 
-                let winner = leaderboard.choose(&mut rand::thread_rng()).unwrap().clone();
-                db.award_balances(vec![winner.parse().unwrap()], self.pot)
-                    .await
-                    .unwrap();
+                let winner = *leaderboard.choose(&mut rand::thread_rng()).unwrap();
+                db.award_balances(vec![winner], self.pot).await.unwrap();
                 CoinGameResult {
                     result,
                     winners: vec![winner],
@@ -220,17 +218,14 @@ impl CoinGame {
                         db.award_balances(vec![user.user_id.parse().unwrap()], remainder)
                             .await
                             .unwrap();
-                        Some(user.user_id)
+                        Some(user.user_id.parse().unwrap())
                     } else {
                         None
                     };
                 if winners[0] != bot_id {
-                    db.award_balances(
-                        winners.iter().map(|x| x.parse().unwrap()).collect(),
-                        prize_with_multiplier,
-                    )
-                    .await
-                    .unwrap();
+                    db.award_balances(winners.to_vec(), prize_with_multiplier)
+                        .await
+                        .unwrap();
                 }
                 CoinGameResult {
                     result,
@@ -254,19 +249,16 @@ mod tests {
     async fn test_coin_game_get_winner() {
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec![
-                "8222483375454858662".to_owned(),
-                "5607624227456207587".to_owned(),
-            ],
-            heads: vec!["8222483375454858662".to_owned()],
-            tails: vec!["5607624227456207587".to_owned()],
+            players: vec![8222483375454858662, 5607624227456207587],
+            heads: vec![8222483375454858662],
+            tails: vec![5607624227456207587],
             amount: 100,
             pot: 200,
             deadline: time::Instant::now(),
             side_chance: 0,
         };
 
-        let bot_id = "bot".to_owned();
+        let bot_id = new_user_id();
         let crown_role_id = 1;
 
         let db = database::Database::new().await.unwrap();
@@ -276,11 +268,7 @@ mod tests {
         let num_games = 100;
 
         for _i in 0..num_games {
-            match game
-                .get_winner(&db, bot_id.clone(), crown_role_id)
-                .await
-                .result
-            {
+            match game.get_winner(&db, bot_id, crown_role_id).await.result {
                 CoinSides::Heads => heads += 1,
                 CoinSides::Tails => tails += 1,
                 CoinSides::Side => side += 1,
@@ -305,16 +293,16 @@ mod tests {
         let p2 = new_user_id();
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec![p1.clone(), p2.clone()],
-            heads: vec![p1.clone()],
-            tails: vec![p2.clone()],
+            players: vec![p1, p2],
+            heads: vec![p1],
+            tails: vec![p2],
             amount: 100,
             pot: 200,
             deadline: time::Instant::now(),
             side_chance: 10,
         };
 
-        let bot_id = "bot".to_owned();
+        let bot_id = new_user_id();
         let crown_role_id = 1;
 
         let db = database::Database::new().await.unwrap();
@@ -322,11 +310,7 @@ mod tests {
         let num_games = 100;
 
         for _i in 0..num_games {
-            match game
-                .get_winner(&db, bot_id.clone(), crown_role_id)
-                .await
-                .result
-            {
+            match game.get_winner(&db, bot_id, crown_role_id).await.result {
                 CoinSides::Heads => {}
                 CoinSides::Tails => {}
                 CoinSides::Side => side += 1,
@@ -341,7 +325,7 @@ mod tests {
         let p1 = new_user_id();
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec![p1.clone()],
+            players: vec![p1],
             heads: vec![p1],
             tails: vec![],
             amount: 100,
@@ -350,11 +334,11 @@ mod tests {
             side_chance: 0,
         };
 
-        let bot_id = "bot".to_owned();
+        let bot_id = new_user_id();
         let crown_role_id = 1;
 
         let db = database::Database::new().await.unwrap();
-        let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
+        let result = game.get_winner(&db, bot_id, crown_role_id).await;
         assert!(game.tails.contains(&bot_id));
         assert_eq!(game.pot, 200);
         if let CoinSides::Tails = result.result {
@@ -367,33 +351,33 @@ mod tests {
         let (p1, p2) = (new_user_id(), new_user_id());
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec![p1.clone(), p2.clone()],
-            heads: vec![p1.clone()],
-            tails: vec![p2.clone()],
+            players: vec![p1, p2],
+            heads: vec![p1],
+            tails: vec![p2],
             amount: 100,
             pot: 200,
             deadline: time::Instant::now(),
             side_chance: 0,
         };
 
-        let bot_id = "bot".to_owned();
+        let bot_id = new_user_id();
         let crown_role_id = 1;
 
         let db = database::Database::new().await.unwrap();
         for p in &game.players {
             // sets balance to 50
-            db.get_balance(p.parse().unwrap()).await.unwrap();
+            db.get_balance(*p).await.unwrap();
         }
 
-        let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
+        let result = game.get_winner(&db, bot_id, crown_role_id).await;
         if let CoinSides::Tails = result.result {
             assert_eq!(result.winners, game.tails);
-            let p2_balance = db.get_balance(p2.parse().unwrap()).await.unwrap();
+            let p2_balance = db.get_balance(p2).await.unwrap();
             assert_eq!(p2_balance, 250);
         }
         if let CoinSides::Heads = result.result {
             assert_eq!(result.winners, game.heads);
-            let p1_balance = db.get_balance(p1.parse().unwrap()).await.unwrap();
+            let p1_balance = db.get_balance(p1).await.unwrap();
             assert_eq!(p1_balance, 250);
         }
         db.close().await.unwrap();
@@ -404,44 +388,42 @@ mod tests {
         let (p1, p2) = (new_user_id(), new_user_id());
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec![p1.clone(), p2.clone()],
-            heads: vec![p1.clone()],
-            tails: vec![p2.clone()],
+            players: vec![p1, p2],
+            heads: vec![p1],
+            tails: vec![p2],
             amount: 100,
             pot: 200,
             deadline: time::Instant::now(),
             side_chance: 100,
         };
 
-        let bot_id = "bot".to_owned();
+        let bot_id = new_user_id();
         let crown_role_id = 1;
 
         let db = database::Database::new().await.unwrap();
         for p in &game.players {
             // sets balance to 50
-            db.get_balance(p.parse().unwrap()).await.unwrap();
+            db.get_balance(*p).await.unwrap();
         }
 
-        let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
+        let result = game.get_winner(&db, bot_id, crown_role_id).await;
         assert_eq!(result.result, CoinSides::Side);
         assert_eq!(result.winners.len(), 1);
         let winner = &result.winners[0];
-        let balance = db.get_balance(winner.parse().unwrap()).await.unwrap();
+        let balance = db.get_balance(*winner).await.unwrap();
         assert_eq!(balance, 250);
-        if winner.eq_ignore_ascii_case(&p1) {
-            let balance = db.get_balance(p2.parse().unwrap()).await.unwrap();
+        if *winner == p1 {
+            let balance = db.get_balance(p2).await.unwrap();
             assert_eq!(balance, 50);
         } else {
-            let balance = db.get_balance(p1.parse().unwrap()).await.unwrap();
+            let balance = db.get_balance(p1).await.unwrap();
             assert_eq!(balance, 50);
         }
         db.close().await.unwrap();
     }
 
-    fn new_user_id() -> String {
-        rand::thread_rng()
-            .gen_range::<i64, _>(0..1000000000000000000)
-            .to_string()
+    fn new_user_id() -> i64 {
+        rand::thread_rng().gen_range::<i64, _>(0..1000000000000000000)
     }
 
     #[tokio::test]
@@ -452,7 +434,7 @@ mod tests {
         let p4 = new_user_id();
         let mut game = CoinGame {
             id: "1".to_owned(),
-            players: vec![p1.clone(), p2.clone(), p3.clone(), p4.clone()],
+            players: vec![p1, p2, p3, p4],
             heads: vec![p1, p2],
             tails: vec![p3, p4],
             amount: 1,
@@ -461,27 +443,27 @@ mod tests {
             side_chance: 0,
         };
 
-        let bot_id = "bot".to_owned();
+        let bot_id = new_user_id();
         let crown_role_id = 1;
 
         let db = database::Database::new().await.unwrap();
         for p in &game.players {
             // sets balance to 50
-            db.get_balance(p.parse().unwrap()).await.unwrap();
+            db.get_balance(*p).await.unwrap();
         }
         let p5 = new_user_id();
-        db.get_balance(p5.parse().unwrap()).await.unwrap();
-        db.set_unique_role_holder(crown_role_id, &p5.clone())
+        db.get_balance(p5).await.unwrap();
+        db.set_unique_role_holder(crown_role_id, &p5.to_string())
             .await
             .unwrap();
 
-        let result = game.get_winner(&db, bot_id.clone(), crown_role_id).await;
+        let result = game.get_winner(&db, bot_id, crown_role_id).await;
         assert_eq!(result.winners.len(), 2);
         for winner in &result.winners {
-            let balance = db.get_balance(winner.parse().unwrap()).await.unwrap();
+            let balance = db.get_balance(*winner).await.unwrap();
             assert_eq!(balance, 55);
         }
-        let crown_balance = db.get_balance(p5.parse().unwrap()).await.unwrap();
+        let crown_balance = db.get_balance(p5).await.unwrap();
         assert_eq!(crown_balance, 51);
         db.close().await.unwrap();
     }
@@ -490,7 +472,7 @@ mod tests {
 #[derive(Debug, Clone)]
 pub struct Blackjack {
     pub id: String,
-    pub players: Vec<String>,
+    pub players: Vec<i64>,
     pub players_scores: Vec<i32>,
     pub pot: i32,
 }
@@ -504,30 +486,30 @@ impl Blackjack {
             pot: 0,
         }
     }
-    pub fn player_joined(&mut self, player: String) {
+    pub fn player_joined(&mut self, player: i64) {
         self.players.push(player);
         self.players_scores.push(0);
     }
 
-    pub fn get_winners(&self) -> Vec<String> {
+    pub fn get_winners(&self) -> Vec<i64> {
         let mut winners = vec![];
         let mut max_score = 0;
         for (i, score) in self.players_scores.iter().enumerate() {
             if score > &max_score && score <= &21 {
                 max_score = *score;
-                winners = vec![self.players[i].clone()];
+                winners = vec![self.players[i]];
             } else if score == &max_score && score <= &21 {
-                winners.push(self.players[i].clone());
+                winners.push(self.players[i]);
             }
         }
         winners
     }
 
-    pub fn get_leaderboard(&self) -> Vec<(String, i32)> {
+    pub fn get_leaderboard(&self) -> Vec<(i64, i32)> {
         self.players
             .iter()
             .zip(self.players_scores.iter())
-            .map(|(player, score)| (player.clone(), *score))
+            .map(|(player, score)| (*player, *score))
             .collect()
     }
 }

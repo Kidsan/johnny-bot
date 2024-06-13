@@ -36,7 +36,7 @@ pub struct Data {
     side_chance: i32,
     rng: Mutex<rand::rngs::StdRng>,
     locked_balances: Mutex<HashSet<i64>>,
-    bot_id: String,
+    bot_id: i64,
     blackjack_active: Mutex<bool>,
     paid_channels: Mutex<HashMap<serenity::ChannelId, i32>>,
     roles: Arc<RwLock<HashMap<serenity::RoleId, RolePrice>>>,
@@ -76,8 +76,8 @@ async fn main() {
     };
 
     let bot_id = match var("BOT_ID") {
-        Ok(id) => id,
-        Err(_) => "1049354446578143252".to_string(),
+        Ok(id) => id.parse().unwrap(),
+        Err(_) => 1049354446578143252,
     };
 
     let crown_role_id = match var("CROWN_ROLE_ID") {

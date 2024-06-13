@@ -8,7 +8,6 @@ use crate::Error;
 
 #[derive(Debug, sqlx::FromRow)]
 struct Balance {
-    id: i64,
     balance: i32,
 }
 #[derive(Debug, sqlx::FromRow)]
@@ -348,7 +347,7 @@ impl BalanceDatabase for Database {
     #[tracing::instrument(level = "info")]
     async fn get_balance(&self, user_id: i64) -> Result<i32, Error> {
         let balance: Result<Balance, sqlx::Error> =
-            sqlx::query_as("SELECT id, balance FROM balances WHERE id = $1")
+            sqlx::query_as("SELECT balance FROM balances WHERE id = $1")
                 .bind(user_id)
                 .fetch_one(&self.connection)
                 .await;

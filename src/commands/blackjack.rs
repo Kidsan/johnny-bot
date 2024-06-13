@@ -71,7 +71,6 @@ pub async fn blackjack(
                 start_time + time_to_play
             ))
             .components(
-
                 vec![serenity::CreateActionRow::Buttons(vec![
                     new_twodice_button(),
                     new_player_count_button(1),
@@ -88,7 +87,7 @@ pub async fn blackjack(
     let game = Mutex::new(Blackjack::new(id.to_string()));
     let bot_idx = {
         let mut g = game.lock().unwrap();
-        g.player_joined(ctx.data().bot_id.clone());
+        g.player_joined(ctx.data().bot_id);
         g.pot += amount * 2;
         g.players
             .iter()
@@ -111,7 +110,7 @@ pub async fn blackjack(
         ))
         .await
     {
-        let player = mci.user.id.to_string();
+        let player = mci.user.id.get() as i64;
         if ctx
             .data()
             .locked_balances
@@ -148,9 +147,7 @@ pub async fn blackjack(
             !game.players.contains(&player)
         };
         if new_player {
-            let player_balance = db
-                .get_balance(mci.user.id.get().try_into().unwrap())
-                .await?;
+            let player_balance = db.get_balance(player).await?;
             if player_balance < amount {
                 let reply = {
                     CreateReply::default()
@@ -161,9 +158,8 @@ pub async fn blackjack(
                 ctx.send(reply).await?;
                 continue;
             }
-            game.lock().unwrap().player_joined(player.clone());
-            db.subtract_balances(vec![player.parse().unwrap()], amount)
-                .await?;
+            game.lock().unwrap().player_joined(player);
+            db.subtract_balances(vec![player], amount).await?;
             game.lock().unwrap().pot += amount;
         }
 
@@ -290,16 +286,13 @@ pub async fn blackjack(
         true => game.lock().unwrap().pot / winners.len() as i32,
         false => 0,
     };
-    ctx.data()
-        .db
-        .award_balances(winners.iter().map(|x| x.parse().unwrap()).collect(), prize)
-        .await?;
+    ctx.data().db.award_balances(winners.clone(), prize).await?;
     let losers = g
         .players
         .iter()
-        .filter(|x| !winners.contains(x))
+        .filter(|x| !winners.contains(*x))
         .clone()
-        .collect::<Vec<&String>>();
+        .collect::<Vec<&i64>>();
 
     let reply = {
         CreateReply::default().content(format!(
