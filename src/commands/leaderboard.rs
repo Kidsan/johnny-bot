@@ -67,6 +67,7 @@ pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
 /// ```
 #[poise::command(slash_command)]
 pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
+    let _ = ctx.defer_or_broadcast().await; // leaderboard can take some time
     let balances = ctx.data().db.get_crown_leaderboard().await?;
 
     let crown_holder = ctx
