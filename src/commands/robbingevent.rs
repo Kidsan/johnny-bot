@@ -3,10 +3,13 @@ use crate::{
 };
 use poise::serenity_prelude;
 use rand::{seq::SliceRandom, Rng};
-use serenity::all::{
-    ActivityData, ComponentInteractionCollector, CreateActionRow, CreateAllowedMentions,
-    CreateButton, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage,
-    EditMessage,
+use serenity::{
+    all::{
+        ActivityData, ComponentInteractionCollector, CreateActionRow, CreateAllowedMentions,
+        CreateButton, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage,
+        EditMessage,
+    },
+    futures::future::join_all,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -386,7 +389,7 @@ pub async fn wrapped_robbing_event(
         .subtract_balances(vec![player.parse().unwrap()], stolen)
         .await?;
 
-    let text = format!("> ### <:jbuck:1228663982462865450> {}\n> I hope you are proud {}.\n> **You {}get {} <:jbuck:1228663982462865450>!**",
+    let mut text = format!("> ### <:jbuck:1228663982462865450> {}\n> I hope you are proud {}.\n> **You {}get {} <:jbuck:1228663982462865450>!**",
         if let Some(_u) = crowns_vote {
             format!("The crown chose {}, we just robbed {} <:jbuck:1228663982462865450> from them!", victim_name,stolen)
         } else {
@@ -395,6 +398,38 @@ pub async fn wrapped_robbing_event(
         robber_list,
         if robbers.len() == 1 { "" } else { "each " },
         each);
+
+    let names: Vec<_> = join_all(
+        votes
+            .iter()
+            .filter(|x| x.0 != &player && !x.1.is_empty())
+            .map(|a| async {
+                let name = get_discord_name(ctx, a.0.parse().unwrap()).await;
+                (a.0.to_owned(), name)
+            }),
+    )
+    .await;
+
+    let names_map: HashMap<String, String> = HashMap::from_iter(names.into_iter());
+
+    let formatted_other_votes = votes
+        .iter()
+        .filter(|x| x.0 != &player && !x.1.is_empty())
+        .map(|a| {
+            let person = names_map.get(a.0).unwrap();
+            let users =
+                a.1.iter()
+                    .map(|x| format!("<@{}>", x))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+            format!("> **{}**: {}", person, users)
+        })
+        .collect::<Vec<String>>()
+        .join("\n");
+
+    if !formatted_other_votes.is_empty() {
+        text = format!("{}\n> \n> Other votes:\n{}", text, formatted_other_votes);
+    }
 
     let message = {
         CreateMessage::default()
