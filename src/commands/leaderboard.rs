@@ -14,10 +14,10 @@ use poise::{serenity_prelude::CreateAllowedMentions, CreateReply};
 /// ```
 #[poise::command(slash_command)]
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
+    let _ = ctx.defer_or_broadcast().await; // leaderboard can take some time
+
     let balances = ctx.data().db.get_leaderboard().await?;
 
-    // TODO: first invocation of leaderboard fails due to empty cache
-    // fix by sending an ack and then a followup message with lb result
     let named_players = {
         let mut map = std::collections::HashMap::new();
         for (player, _) in balances.clone() {
