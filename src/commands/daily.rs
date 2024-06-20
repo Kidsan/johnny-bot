@@ -12,9 +12,33 @@ use rand::Rng;
 #[poise::command(slash_command)]
 #[tracing::instrument(level = "info")]
 pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
+    {
+        if ctx
+            .data()
+            .active_checks
+            .lock()
+            .unwrap()
+            .contains(&(ctx.author().id.get() as i64))
+        {
+            return Err("You are already doing this!".to_string().into());
+        }
+
+        ctx.data()
+            .active_checks
+            .lock()
+            .unwrap()
+            .insert(ctx.author().id.get() as i64);
+    }
     match daily_cooldown(ctx).await {
         Ok(_) => {}
-        Err(e) => return Err(e),
+        Err(e) => {
+            ctx.data()
+                .active_checks
+                .lock()
+                .unwrap()
+                .remove(&(ctx.author().id.get() as i64));
+            return Err(e);
+        }
     }
     let user_id: i64 = ctx.author().id.get().try_into().unwrap();
     let amount = { ctx.data().rng.lock().unwrap().gen_range(5..=10) };
@@ -90,6 +114,11 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
         .award_balances(vec![user_id], amount + interest + n + crown_interest)
         .await?;
     ctx.data().db.did_daily(user_id).await?;
+    ctx.data()
+        .active_checks
+        .lock()
+        .unwrap()
+        .remove(&(ctx.author().id.get() as i64));
     let reply = {
         let msg = format!(
             "You got **{}** <:jbuck:1228663982462865450>!{}{}{}",

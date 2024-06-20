@@ -84,10 +84,39 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
 /// ```
 #[poise::command(slash_command, check = "no_locked_balances", check = "enough_players")]
 pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
+    {
+        if ctx
+            .data()
+            .active_checks
+            .lock()
+            .unwrap()
+            .contains(&(ctx.author().id.get() as i64))
+        {
+            return Err("You are already doing this!".to_string().into());
+        }
+
+        ctx.data()
+            .active_checks
+            .lock()
+            .unwrap()
+            .insert(ctx.author().id.get() as i64);
+    }
     match daily_cooldown(ctx).await {
         Ok(_) => {}
-        Err(e) => return Err(e),
+        Err(e) => {
+            ctx.data()
+                .active_checks
+                .lock()
+                .unwrap()
+                .remove(&(ctx.author().id.get() as i64));
+            return Err(e);
+        }
     }
+    ctx.data()
+        .active_checks
+        .lock()
+        .unwrap()
+        .remove(&(ctx.author().id.get() as i64));
     let user_balance = ctx
         .data()
         .db

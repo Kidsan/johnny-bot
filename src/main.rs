@@ -42,6 +42,7 @@ pub struct Data {
     roles: Arc<RwLock<HashMap<serenity::RoleId, RolePrice>>>,
     unique_roles: Mutex<HashSet<serenity::RoleId>>,
     crown_role_id: i64,
+    active_checks: Mutex<HashSet<i64>>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -297,6 +298,7 @@ async fn main() {
                     roles: rc,
                     unique_roles: Mutex::new(unique_roles),
                     crown_role_id,
+                    active_checks: Mutex::new(HashSet::new()),
                 })
             })
         })
