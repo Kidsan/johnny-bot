@@ -41,7 +41,7 @@ pub struct PurchaseableRole {
 
 #[derive(Debug, sqlx::FromRow)]
 pub struct RoleHolder {
-    pub user_id: String,
+    pub user_id: i64,
     pub purchased: sqlx::types::chrono::DateTime<Utc>,
 }
 
@@ -87,7 +87,7 @@ pub trait RoleDatabase {
     ) -> Result<(), Error>;
     async fn toggle_role_unique(&self, role_id: i64, only_one: bool) -> Result<(), Error>;
     async fn get_unique_role_holder(&self, role_id: i64) -> Result<Option<RoleHolder>, Error>;
-    async fn set_unique_role_holder(&self, role_id: i64, user_id: &str) -> Result<(), Error>;
+    async fn set_unique_role_holder(&self, role_id: i64, user_id: i64) -> Result<(), Error>;
     async fn get_price_decay_config(&self) -> Result<Vec<RolePriceDecay>, Error>;
     async fn set_price_decay_config(
         &self,
@@ -282,7 +282,7 @@ impl RoleDatabase for Database {
         .await?)
     }
 
-    async fn set_unique_role_holder(&self, role_id: i64, user_id: &str) -> Result<(), Error> {
+    async fn set_unique_role_holder(&self, role_id: i64, user_id: i64) -> Result<(), Error> {
         sqlx::query("INSERT INTO role_holders (role_id, user_id, purchased) VALUES ($1, $2, CURRENT_TIMESTAMP) ON CONFLICT(role_id) DO UPDATE SET user_id = $2, purchased = CURRENT_TIMESTAMP")
             .bind(role_id)
             .bind(user_id)

@@ -95,7 +95,7 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
             .get_unique_role_holder(ctx.data().crown_role_id)
             .await?
         {
-            u.user_id.parse::<i64>().unwrap() == user_id
+            u.user_id == user_id
         } else {
             false
         };

@@ -345,7 +345,7 @@ pub async fn wrapped_robbing_event(
     {
         let crown_holder_id = user.user_id;
         for (player, votes) in votes.iter() {
-            if votes.contains(&crown_holder_id) {
+            if votes.contains(&crown_holder_id.to_string()) {
                 crowns_vote = Some(player.clone());
             }
         }

@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use crate::{database::BalanceDatabase, database::RoleDatabase, Context, Error};
 use poise::CreateReply;
 
@@ -327,21 +325,18 @@ pub async fn role(
                 .http
                 .remove_member_role(
                     ctx.guild_id().unwrap(),
-                    poise::serenity_prelude::UserId::from_str(&user.user_id)?,
+                    poise::serenity_prelude::UserId::new(user.user_id as u64),
                     role.id,
                     Some(format!("{} bought it", ctx.author().id).as_str()),
                 )
                 .await?;
 
             let v: f32 = time_since_purchase.num_minutes() as f32 / 60.0;
-            ctx.data()
-                .db
-                .update_crown_timer(user.user_id.parse().unwrap(), v)
-                .await?;
+            ctx.data().db.update_crown_timer(user.user_id, v).await?;
         };
         ctx.data()
             .db
-            .set_unique_role_holder(role.id.into(), ctx.author().id.to_string().as_str())
+            .set_unique_role_holder(role.id.into(), ctx.author().id.into())
             .await?;
 
         ctx.data()

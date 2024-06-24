@@ -89,7 +89,7 @@ pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
         .iter()
         .map(|(k, v)| {
             if let Some(crown) = &crown_holder {
-                if k.to_string() == crown.user_id {
+                if *k == crown.user_id {
                     let now = chrono::Utc::now();
                     let bought = crown.purchased;
                     let time_since_purchase = now - bought;
@@ -104,7 +104,7 @@ pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
 
     let crown_holder_name = {
         if let Some(crown) = &crown_holder {
-            get_discord_name(ctx, crown.user_id.parse().unwrap()).await
+            get_discord_name(ctx, crown.user_id).await
         } else {
             "".to_string()
         }
@@ -118,7 +118,7 @@ pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
             let hours = v.trunc() as i32;
             let minutes = (((v.fract() * 100.0).round() / 100.0) * 60.0) as i32;
             if let Some(crown) = &crown_holder {
-                if k.to_string() == crown.user_id {
+                if **k == crown.user_id {
                     return format!(
                         "> :crown: **{:0>2}:{:0>2}** - **{}**",
                         hours, minutes, crown_holder_name
@@ -153,7 +153,7 @@ pub async fn crownleaderboard(ctx: Context<'_>) -> Result<(), Error> {
             top_text = format!(
                 "> :clock1: **{:.2} Hours** - **{}**",
                 a,
-                get_discord_name(ctx, crown.user_id.parse().unwrap()).await
+                get_discord_name(ctx, crown.user_id).await
             );
         }
     }

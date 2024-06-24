@@ -379,7 +379,7 @@ fn new_scissors_button() -> serenity::CreateButton {
         .style(poise::serenity_prelude::ButtonStyle::Primary)
 }
 
-pub async fn award_role_holder(ctx: Context<'_>, amount: i32) -> Result<Option<String>, Error> {
+pub async fn award_role_holder(ctx: Context<'_>, amount: i32) -> Result<Option<i64>, Error> {
     if let Some(user) = ctx
         .data()
         .db
@@ -388,7 +388,7 @@ pub async fn award_role_holder(ctx: Context<'_>, amount: i32) -> Result<Option<S
     {
         ctx.data()
             .db
-            .award_balances(vec![user.user_id.parse().unwrap()], amount)
+            .award_balances(vec![user.user_id], amount)
             .await?;
         Ok(Some(user.user_id))
     } else {

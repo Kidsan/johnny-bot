@@ -215,10 +215,10 @@ impl CoinGame {
                 let prize_with_multiplier = prize + (prize as f32 * johnnys_multiplier) as i32;
                 let leader =
                     if let Some(user) = db.get_unique_role_holder(crown_role_id).await.unwrap() {
-                        db.award_balances(vec![user.user_id.parse().unwrap()], remainder)
+                        db.award_balances(vec![user.user_id], remainder)
                             .await
                             .unwrap();
-                        Some(user.user_id.parse().unwrap())
+                        Some(user.user_id)
                     } else {
                         None
                     };
@@ -453,9 +453,7 @@ mod tests {
         }
         let p5 = new_user_id();
         db.get_balance(p5).await.unwrap();
-        db.set_unique_role_holder(crown_role_id, &p5.to_string())
-            .await
-            .unwrap();
+        db.set_unique_role_holder(crown_role_id, p5).await.unwrap();
 
         let result = game.get_winner(&db, bot_id, crown_role_id).await;
         assert_eq!(result.winners.len(), 2);
