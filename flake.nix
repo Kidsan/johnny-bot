@@ -50,6 +50,7 @@
         devShell = with pkgs; mkShell {
           LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath [ pkgs.openssl ];
           buildInputs = [
+            python3
             doctl
             pkg-config
             (rust-bin.stable.latest.default.override {

@@ -31,11 +31,7 @@ pub async fn coingamble(
     let game_length = ctx.data().game_length;
     let db = &ctx.data().db;
     let game_starter = ctx.author().id.to_string();
-    let user_balance = ctx
-        .data()
-        .db
-        .get_balance(ctx.author().id.get().try_into().unwrap())
-        .await?;
+    let user_balance = ctx.data().db.get_balance(ctx.author().id.get()).await?;
     if amount > user_balance {
         let reply = {
             CreateReply::default()
@@ -75,7 +71,7 @@ pub async fn coingamble(
 
     let mut coingame = CoinGame::new(
         id.to_string(),
-        ctx.author().id.get() as i64,
+        ctx.author().id.get(),
         choice.clone(),
         amount,
         time::Instant::now(),
@@ -96,7 +92,7 @@ pub async fn coingamble(
             .locked_balances
             .lock()
             .unwrap()
-            .contains(&(mci.user.id.get() as i64))
+            .contains(&(mci.user.id.get()))
         {
             mci.create_response(
                 ctx,
@@ -112,11 +108,7 @@ pub async fn coingamble(
             continue;
         }
         match coingame
-            .player_joined(
-                &ctx.data().db,
-                mci.user.id.get() as i64,
-                &mci.data.custom_id,
-            )
+            .player_joined(&ctx.data().db, mci.user.id.get(), &mci.data.custom_id)
             .await
         {
             Ok(_) => {
@@ -132,9 +124,7 @@ pub async fn coingamble(
                 .await?;
             }
             Err(GameError::PlayerCantAfford) => {
-                let player_balance = db
-                    .get_balance(mci.user.id.get().try_into().unwrap())
-                    .await?;
+                let player_balance = db.get_balance(mci.user.id.get()).await?;
                 mci.create_response(
                     ctx,
                     serenity::CreateInteractionResponse::Message(

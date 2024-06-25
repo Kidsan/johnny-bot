@@ -40,12 +40,8 @@ pub async fn give(
     }
     let sender = ctx.author().id.to_string();
     let db = &ctx.data().db;
-    let sender_balance = ctx
-        .data()
-        .db
-        .get_balance(ctx.author().id.get().try_into().unwrap())
-        .await?;
-    let recipient_id: i64 = recipient.id.get().try_into().unwrap();
+    let sender_balance = ctx.data().db.get_balance(ctx.author().id.get()).await?;
+    let recipient_id = recipient.id.get();
     if sender_balance < amount {
         let reply = {
             CreateReply::default()

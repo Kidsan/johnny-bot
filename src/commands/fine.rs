@@ -26,11 +26,7 @@ pub async fn fine(
     #[description = "Reason for fine"] reason: Option<String>,
 ) -> Result<(), Error> {
     let user_id = user.id.to_string();
-    let user_balance = ctx
-        .data()
-        .db
-        .get_balance(user.id.get().try_into().unwrap())
-        .await?;
+    let user_balance = ctx.data().db.get_balance(user.id.get()).await?;
     if user_balance < amount {
         let reply = {
             CreateReply::default()

@@ -15,11 +15,7 @@ pub async fn bury(
     #[min = 1]
     amount: i32,
 ) -> Result<(), Error> {
-    let balance = ctx
-        .data()
-        .db
-        .get_balance(ctx.author().id.get().try_into().unwrap())
-        .await?;
+    let balance = ctx.data().db.get_balance(ctx.author().id.get()).await?;
     if amount > balance {
         let reply = {
             CreateReply::default()
@@ -34,11 +30,11 @@ pub async fn bury(
     }
     ctx.data()
         .db
-        .subtract_balances(vec![ctx.author().id.get() as i64], amount)
+        .subtract_balances(vec![ctx.author().id.get()], amount)
         .await?;
     ctx.data()
         .db
-        .bury_balance(ctx.author().id.get().try_into().unwrap(), amount)
+        .bury_balance(ctx.author().id.get(), amount)
         .await?;
     let reply = {
         CreateReply::default().content(format!(

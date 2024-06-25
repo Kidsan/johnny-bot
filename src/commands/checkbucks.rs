@@ -23,12 +23,7 @@ pub async fn checkbucks(
 ) -> Result<(), Error> {
     let response = match user.bot {
         true => 0,
-        false => {
-            ctx.data()
-                .db
-                .get_balance(user.id.get().try_into().unwrap())
-                .await?
-        }
+        false => ctx.data().db.get_balance(user.id.get()).await?,
     };
     let reply = {
         CreateReply::default()

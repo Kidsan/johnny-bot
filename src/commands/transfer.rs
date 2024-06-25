@@ -42,11 +42,7 @@ pub async fn transfer(
         return Err("You can't do that".into());
     }
     let user_id = source.id.to_string();
-    let user_balance = ctx
-        .data()
-        .db
-        .get_balance(source.id.get().try_into().unwrap())
-        .await?;
+    let user_balance = ctx.data().db.get_balance(source.id.get()).await?;
     if user_balance < amount {
         let reply = {
             CreateReply::default()

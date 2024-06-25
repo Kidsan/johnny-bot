@@ -5,11 +5,11 @@ use crate::{database, RoleDatabase};
 #[derive(Debug)]
 pub struct Johnny {
     db: database::Database,
-    pub t: std::sync::mpsc::Sender<(i64, i32)>,
+    pub t: std::sync::mpsc::Sender<(u64, i32)>,
 }
 
 impl Johnny {
-    pub fn new(db: database::Database, t: std::sync::mpsc::Sender<(i64, i32)>) -> Self {
+    pub fn new(db: database::Database, t: std::sync::mpsc::Sender<(u64, i32)>) -> Self {
         Self { db, t }
     }
     pub async fn start(&self, signal: std::sync::mpsc::Receiver<()>) {
@@ -51,14 +51,13 @@ impl Johnny {
         for config in data {
             let last = config.last_decay;
             if last.checked_add_signed(TimeDelta::hours(config.interval.into())) < Some(now) {
-                dbg!("Decaying price", &config.role_id, now, last, config.amount);
                 match self
                     .db
                     .decay_role_price(config.role_id, config.amount, config.minimum)
                     .await
                 {
                     Ok(r) => {
-                        self.t.send((r.role_id.parse().unwrap(), r.price)).unwrap();
+                        self.t.send((r.role_id, r.price)).unwrap();
                     }
                     Err(e) => {
                         dbg!(e);

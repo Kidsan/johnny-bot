@@ -90,7 +90,7 @@ pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
             .active_checks
             .lock()
             .unwrap()
-            .contains(&(ctx.author().id.get() as i64))
+            .contains(&(ctx.author().id.get()))
         {
             return Err("You are already doing this!".to_string().into());
         }
@@ -99,7 +99,7 @@ pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
             .active_checks
             .lock()
             .unwrap()
-            .insert(ctx.author().id.get() as i64);
+            .insert(ctx.author().id.get());
     }
     match daily_cooldown(ctx).await {
         Ok(_) => {}
@@ -108,7 +108,7 @@ pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
                 .active_checks
                 .lock()
                 .unwrap()
-                .remove(&(ctx.author().id.get() as i64));
+                .remove(&(ctx.author().id.get()));
             return Err(e);
         }
     }
@@ -116,12 +116,8 @@ pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
         .active_checks
         .lock()
         .unwrap()
-        .remove(&(ctx.author().id.get() as i64));
-    let user_balance = ctx
-        .data()
-        .db
-        .get_balance(ctx.author().id.get().try_into().unwrap())
-        .await?;
+        .remove(&(ctx.author().id.get()));
+    let user_balance = ctx.data().db.get_balance(ctx.author().id.get()).await?;
     if user_balance < 10 {
         let reply = {
             poise::CreateReply::default()
@@ -136,7 +132,7 @@ pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
     }
     ctx.data()
         .db
-        .subtract_balances(vec![ctx.author().id.get() as i64], 10)
+        .subtract_balances(vec![ctx.author().id.get()], 10)
         .await?;
 
     let reply = {
@@ -146,10 +142,7 @@ pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
     };
     ctx.send(reply).await?;
     wrapped_robbing_event(ctx, Some(ctx.author().clone())).await?;
-    ctx.data()
-        .db
-        .bought_robbery(ctx.author().id.get() as i64)
-        .await?;
+    ctx.data().db.bought_robbery(ctx.author().id.get()).await?;
     Ok(())
 }
 
@@ -286,11 +279,7 @@ pub async fn wrapped_robbing_event(
         }
 
         // ensures the voter has a balance
-        let _ = ctx
-            .data()
-            .db
-            .get_balance(voter_id.get().try_into().unwrap())
-            .await?;
+        let _ = ctx.data().db.get_balance(voter_id.get()).await?;
 
         mci.create_response(
             ctx,
@@ -472,14 +461,14 @@ pub async fn wrapped_robbing_event(
     Ok(())
 }
 
-fn new_vote_for_user_button(user: i64, name: &String) -> CreateButton {
+fn new_vote_for_user_button(user: u64, name: &String) -> CreateButton {
     CreateButton::new(user.to_string())
         .label(name.to_string())
         .style(poise::serenity_prelude::ButtonStyle::Primary)
 }
 
-pub async fn get_discord_name(ctx: Context<'_>, user: i64) -> String {
-    let user = poise::serenity_prelude::UserId::new(user as u64)
+pub async fn get_discord_name(ctx: Context<'_>, user: u64) -> String {
+    let user = poise::serenity_prelude::UserId::new(user)
         .to_user(ctx)
         .await
         .unwrap();
@@ -497,7 +486,7 @@ async fn daily_cooldown(ctx: Context<'_>) -> Result<(), Error> {
     let last_daily = ctx
         .data()
         .db
-        .get_last_bought_robbery(ctx.author().id.get() as i64)
+        .get_last_bought_robbery(ctx.author().id.get())
         .await?;
 
     if last_daily.naive_utc() > today {

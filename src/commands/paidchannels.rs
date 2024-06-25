@@ -20,22 +20,21 @@ pub async fn setchannelprice(
     #[min = 0]
     amount: i32,
 ) -> Result<(), Error> {
-    let c = ctx.channel_id();
-    let v: i64 = c.into();
+    let c = ctx.channel_id().get();
     if amount == 0 {
         ctx.data()
             .paid_channels
             .lock()
             .unwrap()
             .remove(&ctx.channel_id());
-        ctx.data().db.remove_paid_channel(v).await?;
+        ctx.data().db.remove_paid_channel(c).await?;
     } else {
         ctx.data()
             .paid_channels
             .lock()
             .unwrap()
             .insert(ctx.channel_id(), amount);
-        ctx.data().db.set_channel_price(v, amount).await?;
+        ctx.data().db.set_channel_price(c, amount).await?;
     }
     ctx.send(
         CreateReply::default()

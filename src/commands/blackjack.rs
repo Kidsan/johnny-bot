@@ -44,9 +44,7 @@ pub async fn blackjack(
     let game_length = ctx.data().game_length;
     let db = &ctx.data().db;
     // let game_starter = ctx.author().id.to_string();
-    let player_balance = db
-        .get_balance(ctx.author().id.get().try_into().unwrap())
-        .await?;
+    let player_balance = db.get_balance(ctx.author().id.get()).await?;
     if player_balance < amount {
         let reply = {
             CreateReply::default()
@@ -110,13 +108,13 @@ pub async fn blackjack(
         ))
         .await
     {
-        let player = mci.user.id.get() as i64;
+        let player = mci.user.id.get();
         if ctx
             .data()
             .locked_balances
             .lock()
             .unwrap()
-            .contains(&(mci.user.id.get() as i64))
+            .contains(&(mci.user.id.get()))
         {
             mci.create_response(
                 ctx,
@@ -292,7 +290,7 @@ pub async fn blackjack(
         .iter()
         .filter(|x| !winners.contains(*x))
         .clone()
-        .collect::<Vec<&i64>>();
+        .collect::<Vec<&u64>>();
 
     let reply = {
         CreateReply::default().content(format!(

@@ -28,9 +28,7 @@ pub async fn gamble(
     let game_length = ctx.data().game_length;
     let game_starter = ctx.author().id.to_string();
     let db = &ctx.data().db;
-    let user_balance = db
-        .get_balance(ctx.author().id.get().try_into().unwrap())
-        .await?;
+    let user_balance = db.get_balance(ctx.author().id.get()).await?;
     if amount > user_balance {
         let reply = {
             CreateReply::default()
@@ -74,7 +72,7 @@ pub async fn gamble(
             crate::game::Game::new(
                 id.to_string(),
                 amount,
-                ctx.author().id.get() as i64,
+                ctx.author().id.get(),
                 time::Instant::now(),
             ),
         );
@@ -99,7 +97,7 @@ pub async fn gamble(
                 .get(&id.to_string())
                 .unwrap()
                 .players
-                .contains(&(mci.user.id.get() as i64))
+                .contains(&(mci.user.id.get()))
             {
                 mci.create_response(ctx, serenity::CreateInteractionResponse::Acknowledge)
                     .await?;
@@ -107,9 +105,7 @@ pub async fn gamble(
             }
         }
 
-        let player_balance = db
-            .get_balance(mci.user.id.get().try_into().unwrap())
-            .await?;
+        let player_balance = db.get_balance(mci.user.id.get()).await?;
 
         if amount > player_balance {
             mci.create_response(
@@ -134,7 +130,7 @@ pub async fn gamble(
         {
             let mut games = ctx.data().games.lock().unwrap();
             let game = games.get_mut(&id.to_string()).unwrap();
-            game.player_joined(mci.user.id.get() as i64);
+            game.player_joined(mci.user.id.get());
             button2 = new_player_count_button(game.players.len() as i32);
             button3 = new_pot_counter_button(game.pot);
         }

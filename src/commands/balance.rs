@@ -10,11 +10,7 @@ use crate::{Context, Error};
 /// ```
 #[poise::command(slash_command)]
 pub async fn balance(ctx: Context<'_>) -> Result<(), Error> {
-    let response = ctx
-        .data()
-        .db
-        .get_balance(ctx.author().id.get().try_into().unwrap())
-        .await?;
+    let response = ctx.data().db.get_balance(ctx.author().id.get()).await?;
     let reply = {
         poise::CreateReply::default()
             .content(format!("{} has {} J-Buck(s)!", ctx.author(), response,))

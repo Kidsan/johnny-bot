@@ -35,14 +35,14 @@ pub struct Data {
     game_length: u64,
     side_chance: i32,
     rng: Mutex<rand::rngs::StdRng>,
-    locked_balances: Mutex<HashSet<i64>>,
-    bot_id: i64,
+    locked_balances: Mutex<HashSet<u64>>,
+    bot_id: u64,
     blackjack_active: Mutex<bool>,
     paid_channels: Mutex<HashMap<serenity::ChannelId, i32>>,
     roles: Arc<RwLock<HashMap<serenity::RoleId, RolePrice>>>,
     unique_roles: Mutex<HashSet<serenity::RoleId>>,
-    crown_role_id: i64,
-    active_checks: Mutex<HashSet<i64>>,
+    crown_role_id: u64,
+    active_checks: Mutex<HashSet<u64>>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -145,25 +145,17 @@ async fn main() {
     let paid_channels = db.get_paid_channels().await.unwrap();
     let paid_channels_map: HashMap<_, _> = paid_channels
         .iter()
-        .map(|(channel_id, amount)| {
-            (
-                serenity::ChannelId::new((*channel_id).try_into().unwrap()),
-                *amount,
-            )
-        })
+        .map(|(channel_id, amount)| (serenity::ChannelId::new(*channel_id), *amount))
         .collect();
 
     let paid_roles = db.get_purchasable_roles().await.unwrap();
     let roles = paid_roles
         .iter()
         .map(|role| {
-            let required_role = role.required_role_id.clone();
+            let required_role = role.required_role_id;
             (
-                serenity::RoleId::new(role.role_id.parse::<u64>().unwrap()),
-                (
-                    role.price,
-                    required_role.map(|role| serenity::RoleId::new(role.clone().parse().unwrap())),
-                ),
+                serenity::RoleId::new(role.role_id),
+                (role.price, required_role.map(serenity::RoleId::new)),
             )
         })
         .collect::<HashMap<_, _>>();
@@ -173,7 +165,7 @@ async fn main() {
     let unique_roles = paid_roles
         .iter()
         .filter(|role| role.only_one)
-        .map(|role| serenity::RoleId::new(role.role_id.parse::<u64>().unwrap()))
+        .map(|role| serenity::RoleId::new(role.role_id))
         .collect::<HashSet<_>>();
 
     let (tx, rx) = mpsc::channel();
@@ -186,7 +178,7 @@ async fn main() {
     thread::spawn(move || {
         for (role_id, price) in rcv.iter() {
             dbg!(&role_id, &price);
-            let parsed = serenity::RoleId::new(role_id.try_into().unwrap());
+            let parsed = serenity::RoleId::new(role_id);
             let mut r = rc_clone.write().unwrap();
             r.get_mut(&parsed).unwrap().0 = price;
         }
@@ -256,7 +248,7 @@ async fn main() {
                         .locked_balances
                         .lock()
                         .unwrap()
-                        .contains(&i64::from(ctx.author().id))
+                        .contains(&ctx.author().id.get())
                 {
                     let reply = {
                         CreateReply::default()

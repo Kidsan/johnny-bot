@@ -18,7 +18,7 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
             .active_checks
             .lock()
             .unwrap()
-            .contains(&(ctx.author().id.get() as i64))
+            .contains(&(ctx.author().id.get()))
         {
             return Err("You are already doing this!".to_string().into());
         }
@@ -27,7 +27,7 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
             .active_checks
             .lock()
             .unwrap()
-            .insert(ctx.author().id.get() as i64);
+            .insert(ctx.author().id.get());
     }
     match daily_cooldown(ctx).await {
         Ok(_) => {}
@@ -36,18 +36,13 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
                 .active_checks
                 .lock()
                 .unwrap()
-                .remove(&(ctx.author().id.get() as i64));
+                .remove(&(ctx.author().id.get()));
             return Err(e);
         }
     }
-    let user_id: i64 = ctx.author().id.get().try_into().unwrap();
+    let user_id = ctx.author().id.get();
     let amount = { ctx.data().rng.lock().unwrap().gen_range(5..=10) };
-    let balance = {
-        ctx.data()
-            .db
-            .get_balance(ctx.author().id.get().try_into().unwrap())
-            .await?
-    };
+    let balance = { ctx.data().db.get_balance(ctx.author().id.get()).await? };
     let interest = {
         let mp = { ctx.data().rng.lock().unwrap().gen_range(0.01..=0.03) };
         tracing::info!(
@@ -118,7 +113,7 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
         .active_checks
         .lock()
         .unwrap()
-        .remove(&(ctx.author().id.get() as i64));
+        .remove(&(ctx.author().id.get()));
     let reply = {
         let msg = format!(
             "You got **{}** <:jbuck:1228663982462865450>!{}{}{}",
@@ -149,31 +144,27 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 async fn daily_cooldown(ctx: Context<'_>) -> Result<(), Error> {
-    let today = chrono::Utc::now()
-        .date_naive()
-        .and_hms_opt(0, 0, 0)
-        .unwrap();
+    if let Some(last_daily) = ctx.data().db.get_last_daily(ctx.author().id.get()).await? {
+        let today = chrono::Utc::now()
+            .date_naive()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
 
-    let tomorrow = today + chrono::Duration::days(1);
+        let tomorrow = today + chrono::Duration::days(1);
+        if last_daily.naive_utc() > today {
+            let ts = tomorrow.and_utc().timestamp();
 
-    let last_daily = ctx
-        .data()
-        .db
-        .get_last_daily(ctx.author().id.get() as i64)
-        .await?;
-    if last_daily.naive_utc() > today {
-        let ts = tomorrow.and_utc().timestamp();
-
-        let reply = {
-            CreateReply::default()
-                .content(format!(
-                    "You can only do this once per day! Try again <t:{}:R>.",
-                    ts
-                ))
-                .ephemeral(true)
-        };
-        ctx.send(reply).await?;
-        return Err("You can only do this once per day.".to_string().into());
+            let reply = {
+                CreateReply::default()
+                    .content(format!(
+                        "You can only do this once per day! Try again <t:{}:R>.",
+                        ts
+                    ))
+                    .ephemeral(true)
+            };
+            ctx.send(reply).await?;
+            return Err("You can only do this once per day.".to_string().into());
+        }
     }
     Ok(())
 }

@@ -39,7 +39,7 @@ pub async fn rpsgamble(
     #[description = "Who to challenge"] user: poise::serenity_prelude::User,
     #[description = "Your choice"] choice: RPSChoice,
 ) -> Result<(), Error> {
-    if user.bot && user.id.get() as i64 != ctx.data().bot_id {
+    if user.bot && user.id.get() != ctx.data().bot_id {
         let reply = {
             CreateReply::default()
                 .content("You can't play against a bot, they have no hands")
@@ -57,12 +57,7 @@ pub async fn rpsgamble(
     }
 
     let amount = amount.unwrap_or(0);
-    let balance = {
-        ctx.data()
-            .db
-            .get_balance(ctx.author().id.get().try_into().unwrap())
-            .await?
-    };
+    let balance = { ctx.data().db.get_balance(ctx.author().id.get()).await? };
     if amount > balance {
         let reply = {
             CreateReply::default()
@@ -79,14 +74,14 @@ pub async fn rpsgamble(
     {
         ctx.data()
             .db
-            .subtract_balances(vec![ctx.author().id.get() as i64], amount)
+            .subtract_balances(vec![ctx.author().id.get()], amount)
             .await?;
     }
 
     ctx.send(CreateReply::default().content("success").ephemeral(true))
         .await?;
 
-    let components = match user.id.get() as i64 == ctx.data().bot_id {
+    let components = match user.id.get() == ctx.data().bot_id {
         true => vec![],
         false => vec![serenity::CreateActionRow::Buttons(vec![
             new_rock_button(),
@@ -112,7 +107,7 @@ pub async fn rpsgamble(
 
     let mut message = ctx.channel_id().send_message(ctx, reply).await?;
 
-    if user.id.get() as i64 == ctx.data().bot_id {
+    if user.id.get() == ctx.data().bot_id {
         let reply = {
             CreateMessage::default()
                 .content(format!(
@@ -159,17 +154,12 @@ pub async fn rpsgamble(
             .await?;
             continue;
         }
-        let balance = {
-            ctx.data()
-                .db
-                .get_balance(user.id.get().try_into().unwrap())
-                .await?
-        };
+        let balance = { ctx.data().db.get_balance(user.id.get()).await? };
         if amount > balance {
             {
                 ctx.data()
                     .db
-                    .award_balances(vec![ctx.author().id.get().try_into().unwrap()], amount)
+                    .award_balances(vec![ctx.author().id.get()], amount)
                     .await?;
             }
             let content = message.content.clone();
@@ -214,7 +204,7 @@ pub async fn rpsgamble(
         None => {
             ctx.data()
                 .db
-                .award_balances(vec![ctx.author().id.get().try_into().unwrap()], amount)
+                .award_balances(vec![ctx.author().id.get()], amount)
                 .await?;
             let content = message.content.clone();
 
@@ -250,7 +240,7 @@ pub async fn rpsgamble(
         0 => {
             ctx.data()
                 .db
-                .award_balances(vec![ctx.author().id.get().try_into().unwrap()], amount)
+                .award_balances(vec![ctx.author().id.get()], amount)
                 .await?;
             format!(
                 "{} and {} both chose {}\nit is a tie!{}",
@@ -267,11 +257,11 @@ pub async fn rpsgamble(
         1 => {
             ctx.data()
                 .db
-                .award_balances(vec![ctx.author().id.get().try_into().unwrap()], prize)
+                .award_balances(vec![ctx.author().id.get()], prize)
                 .await?;
             ctx.data()
                 .db
-                .subtract_balances(vec![user.id.get() as i64], amount)
+                .subtract_balances(vec![user.id.get()], amount)
                 .await?;
 
             let tax_msg = if let Some(crowned) = award_role_holder(ctx, tax).await? {
@@ -306,7 +296,7 @@ pub async fn rpsgamble(
         2 => {
             ctx.data()
                 .db
-                .award_balances(vec![user.id.get().try_into().unwrap()], prize)
+                .award_balances(vec![user.id.get()], prize)
                 .await?;
             let tax_msg = if let Some(crowned) = award_role_holder(ctx, tax).await? {
                 format!(
@@ -379,7 +369,7 @@ fn new_scissors_button() -> serenity::CreateButton {
         .style(poise::serenity_prelude::ButtonStyle::Primary)
 }
 
-pub async fn award_role_holder(ctx: Context<'_>, amount: i32) -> Result<Option<i64>, Error> {
+pub async fn award_role_holder(ctx: Context<'_>, amount: i32) -> Result<Option<u64>, Error> {
     if let Some(user) = ctx
         .data()
         .db

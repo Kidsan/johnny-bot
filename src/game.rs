@@ -9,14 +9,14 @@ use crate::{
 #[derive(Debug)]
 pub struct Game {
     pub id: String,
-    pub players: Vec<i64>,
+    pub players: Vec<u64>,
     pub amount: i32,
     pub pot: i32,
     pub deadline: time::Instant,
 }
 
 impl Game {
-    pub fn new(id: String, amount: i32, started_by: i64, deadline: time::Instant) -> Self {
+    pub fn new(id: String, amount: i32, started_by: u64, deadline: time::Instant) -> Self {
         Self {
             id,
             players: vec![started_by],
@@ -26,12 +26,12 @@ impl Game {
         }
     }
 
-    pub fn player_joined(&mut self, player: i64) {
+    pub fn player_joined(&mut self, player: u64) {
         self.players.push(player);
         self.pot += self.amount;
     }
 
-    pub fn get_winner(&self, rng: &mut rand::rngs::StdRng) -> i64 {
+    pub fn get_winner(&self, rng: &mut rand::rngs::StdRng) -> u64 {
         *self.players.choose(rng).unwrap()
     }
 }
@@ -62,9 +62,9 @@ impl CoinSides {
 #[derive(Debug)]
 pub struct CoinGame {
     pub id: String,
-    pub players: Vec<i64>,
-    pub heads: Vec<i64>,
-    pub tails: Vec<i64>,
+    pub players: Vec<u64>,
+    pub heads: Vec<u64>,
+    pub tails: Vec<u64>,
     pub amount: i32,
     pub pot: i32,
     pub deadline: time::Instant,
@@ -73,18 +73,18 @@ pub struct CoinGame {
 
 pub struct CoinGameResult {
     pub result: CoinSides,
-    pub winners: Vec<i64>,
+    pub winners: Vec<u64>,
     pub prize: i32,
     pub prize_with_multiplier: i32,
     pub johnnys_multiplier: Option<f32>,
-    pub leader: Option<i64>,
+    pub leader: Option<u64>,
     pub remainder: Option<i32>,
 }
 
 impl CoinGame {
     pub fn new(
         id: String,
-        game_starter: i64,
+        game_starter: u64,
         choice: HeadsOrTail,
         amount: i32,
         deadline: time::Instant,
@@ -113,7 +113,7 @@ impl CoinGame {
     pub async fn player_joined(
         &mut self,
         db: &impl database::BalanceDatabase,
-        player: i64,
+        player: u64,
         choice: &String,
     ) -> Result<(), GameError> {
         if self.players.contains(&player) {
@@ -140,8 +140,8 @@ impl CoinGame {
     pub async fn get_winner<T: BalanceDatabase + RoleDatabase>(
         &mut self,
         db: &T,
-        bot_id: i64,
-        crown_role_id: i64,
+        bot_id: u64,
+        crown_role_id: u64,
     ) -> CoinGameResult {
         if self.heads.is_empty() {
             self.heads.push(bot_id);
@@ -166,7 +166,7 @@ impl CoinGame {
 
         match result {
             CoinSides::Side => {
-                let leaderboard: Vec<i64> = db
+                let leaderboard: Vec<u64> = db
                     .get_leaderboard()
                     .await
                     .unwrap()
@@ -186,7 +186,9 @@ impl CoinGame {
                 };
 
                 let winner = *leaderboard.choose(&mut rand::thread_rng()).unwrap();
-                db.award_balances(vec![winner], self.pot).await.unwrap();
+                db.award_balances(vec![winner as u64], self.pot)
+                    .await
+                    .unwrap();
                 CoinGameResult {
                     result,
                     winners: vec![winner],
@@ -422,8 +424,8 @@ mod tests {
         db.close().await.unwrap();
     }
 
-    fn new_user_id() -> i64 {
-        rand::thread_rng().gen_range::<i64, _>(0..1000000000000000000)
+    fn new_user_id() -> u64 {
+        rand::thread_rng().gen_range::<u64, _>(0..1000000000000000000)
     }
 
     #[tokio::test]
@@ -470,7 +472,7 @@ mod tests {
 #[derive(Debug, Clone)]
 pub struct Blackjack {
     pub id: String,
-    pub players: Vec<i64>,
+    pub players: Vec<u64>,
     pub players_scores: Vec<i32>,
     pub pot: i32,
 }
@@ -484,12 +486,12 @@ impl Blackjack {
             pot: 0,
         }
     }
-    pub fn player_joined(&mut self, player: i64) {
+    pub fn player_joined(&mut self, player: u64) {
         self.players.push(player);
         self.players_scores.push(0);
     }
 
-    pub fn get_winners(&self) -> Vec<i64> {
+    pub fn get_winners(&self) -> Vec<u64> {
         let mut winners = vec![];
         let mut max_score = 0;
         for (i, score) in self.players_scores.iter().enumerate() {
@@ -503,7 +505,7 @@ impl Blackjack {
         winners
     }
 
-    pub fn get_leaderboard(&self) -> Vec<(i64, i32)> {
+    pub fn get_leaderboard(&self) -> Vec<(u64, i32)> {
         self.players
             .iter()
             .zip(self.players_scores.iter())

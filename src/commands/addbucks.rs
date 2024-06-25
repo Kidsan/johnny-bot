@@ -32,7 +32,7 @@ pub async fn add_bucks(
         ctx.send(reply).await?;
         return Err("You can't do that".into());
     }
-    let user_id = user.id.get().try_into().unwrap();
+    let user_id = user.id.get();
     ctx.data().db.award_balances(vec![user_id], amount).await?;
     let reply =
         { CreateReply::default().content(format!("{} was given {} J-Buck(s)", user, amount,)) };

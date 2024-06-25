@@ -44,7 +44,7 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
                     role_id,
                     roles.get(role_id).unwrap().0,
                     if uniques.contains(role_id) {
-                        if role_id.to_string().parse::<i64>().unwrap() == ctx.data().crown_role_id {
+                        if role_id.get() == ctx.data().crown_role_id {
                             if let Some(crown_holder) = &crown_holder {
                                 format!(" (Unique - Current holder: <@{}>)", crown_holder.user_id)
                             } else {
@@ -172,12 +172,12 @@ pub async fn incrementroleprice(ctx: Context<'_>, role_id: String) -> Result<(),
         let mut roles = ctx.data().roles.write().unwrap();
         for price in prices {
             roles.insert(
-                poise::serenity_prelude::RoleId::new(price.role_id.parse().unwrap()),
+                poise::serenity_prelude::RoleId::new(price.role_id),
                 (
                     price.price,
                     price
                         .required_role_id
-                        .map(|role| poise::serenity_prelude::RoleId::new(role.parse().unwrap())),
+                        .map(poise::serenity_prelude::RoleId::new),
                 ),
             );
         }
@@ -260,11 +260,7 @@ pub async fn role(
         return Err("Role already owned".into());
     }
 
-    let balance = ctx
-        .data()
-        .db
-        .get_balance(ctx.author().id.get().try_into().unwrap())
-        .await?;
+    let balance = ctx.data().db.get_balance(ctx.author().id.get()).await?;
 
     let price = { ctx.data().roles.read().unwrap()[&role.id] };
 
@@ -313,7 +309,7 @@ pub async fn role(
 
     ctx.data()
         .db
-        .subtract_balances(vec![ctx.author().id.get() as i64], price.0)
+        .subtract_balances(vec![ctx.author().id.get()], price.0)
         .await?;
 
     if ctx.data().unique_roles.lock().unwrap().contains(&role.id) {
@@ -325,7 +321,7 @@ pub async fn role(
                 .http
                 .remove_member_role(
                     ctx.guild_id().unwrap(),
-                    poise::serenity_prelude::UserId::new(user.user_id as u64),
+                    poise::serenity_prelude::UserId::new(user.user_id),
                     role.id,
                     Some(format!("{} bought it", ctx.author().id).as_str()),
                 )
@@ -494,11 +490,10 @@ pub async fn list_prices(ctx: Context<'_>) -> Result<(), Error> {
                 config
                     .iter()
                     .map(|a| {
-                        let b = a.required_role_id.clone().unwrap_or("None".to_string());
-                        if b == "None" {
-                            b
-                        } else {
+                        if let Some(b) = a.required_role_id {
                             format!("<@&{}>", b)
+                        } else {
+                            "None".to_string()
                         }
                     })
                     .collect::<Vec<String>>()

@@ -26,10 +26,7 @@ pub async fn event_handler(
         {
             let price: i32 = data.paid_channels.lock().unwrap()[&new_message.channel_id];
 
-            let balance: i32 = data
-                .db
-                .get_balance(new_message.author.id.get().try_into().unwrap())
-                .await?;
+            let balance: i32 = data.db.get_balance(new_message.author.id.get()).await?;
 
             if balance < price {
                 new_message.delete(ctx).await?;
@@ -48,7 +45,7 @@ pub async fn event_handler(
             }
 
             data.db
-                .subtract_balances(vec![new_message.author.id.get() as i64], price)
+                .subtract_balances(vec![new_message.author.id.get()], price)
                 .await?;
 
             new_message
