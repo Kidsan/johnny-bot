@@ -500,9 +500,9 @@ impl BalanceDatabase for Database {
 
     #[tracing::instrument(level = "info")]
     async fn did_daily(&self, user_id: u64) -> Result<(), Error> {
-        sqlx::query("UPDATE dailies SET last_daily = $1 WHERE id = $2")
+        sqlx::query("INSERT INTO DAILIES (id, last_daily) VALUES ($1, $2) ON CONFLICT(id) DO UPDATE SET last_daily = $2")
+            .bind(user_id as i64)
             .bind(chrono::Utc::now().timestamp())
-            .bind(user_id.to_string())
             .execute(&self.connection)
             .await?;
         Ok(())
