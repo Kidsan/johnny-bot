@@ -1,6 +1,7 @@
 use std::time::{self, SystemTime, UNIX_EPOCH};
 
 use crate::{
+    commands::robbingevent::get_discord_name,
     database::BalanceDatabase,
     game::{CoinGame, CoinSides, GameError},
     texts::landedside::LANDEDSIDE,
@@ -201,8 +202,9 @@ pub async fn coingamble(
                 get_troll_emoji(&mut ctx.data().rng.lock().unwrap())
             ),
             _ => {
-                format!("### Woah, a side coin!\n No way to call a winner here <:dogeTroll:1160530414490886264>\n+ {} <:jbuck:1228663982462865450> to <@{}> for being on the leaderboard",
-                    coin_flip_result.prize, coin_flip_result.winners[0])
+                let name = get_discord_name(ctx, coin_flip_result.winners[0]).await;
+                format!("### Woah, a side coin!\n No way to call a winner here <:dogeTroll:1160530414490886264>\n+ {} <:jbuck:1228663982462865450> to {} for being on the leaderboard",
+                    coin_flip_result.prize, name)
             }
         },
         _ => {
