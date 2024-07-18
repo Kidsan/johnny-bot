@@ -1,6 +1,7 @@
 use crate::{
     database::BalanceDatabase, database::RobberyDatabase, database::RoleDatabase, Context, Error,
 };
+use chrono::{Datelike, NaiveDate, NaiveTime};
 use poise::serenity_prelude;
 use rand::{seq::SliceRandom, Rng};
 use serenity::{
@@ -101,7 +102,7 @@ pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
             .unwrap()
             .insert(ctx.author().id.get());
     }
-    match daily_cooldown(ctx).await {
+    match robbery_cooldown(ctx).await {
         Ok(_) => {}
         Err(e) => {
             ctx.data()
@@ -476,32 +477,43 @@ pub async fn get_discord_name(ctx: Context<'_>, user: u64) -> String {
         .await
         .unwrap_or(user.name)
 }
-async fn daily_cooldown(ctx: Context<'_>) -> Result<(), Error> {
-    let today = chrono::Utc::now()
-        .date_naive()
-        .and_hms_opt(0, 0, 0)
-        .unwrap();
 
-    let tomorrow = today + chrono::Duration::days(1);
+// robbery is only possible once per week
+async fn robbery_cooldown(ctx: Context<'_>) -> Result<(), Error> {
+    let week_number = chrono::Utc::now().date_naive().iso_week().week();
+
+    let (start, end) = week_bounds(week_number);
+
     let last_daily = ctx
         .data()
         .db
         .get_last_bought_robbery(ctx.author().id.get())
         .await?;
 
-    if last_daily.naive_utc() > today {
-        let ts = tomorrow.and_utc().timestamp();
+    if last_daily.naive_utc() > start.into() {
+        let ts = end
+            .and_time(NaiveTime::from_hms_opt(23, 59, 59).unwrap())
+            .and_utc()
+            .timestamp();
 
         let reply = {
             poise::CreateReply::default()
                 .content(format!(
-                    "You can only do this once per day! Try again <t:{}:R>.",
+                    "You can only do this once per week! Try again <t:{}:R>.",
                     ts
                 ))
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
-        return Err("You can only do this once per day.".to_string().into());
+        return Err("You can only do this once per week.".to_string().into());
     }
     Ok(())
+}
+
+fn week_bounds(week: u32) -> (NaiveDate, NaiveDate) {
+    let current_year = chrono::offset::Local::now().year();
+    (
+        NaiveDate::from_isoywd_opt(current_year, week, chrono::Weekday::Mon).unwrap(),
+        NaiveDate::from_isoywd_opt(current_year, week, chrono::Weekday::Sun).unwrap(),
+    )
 }
