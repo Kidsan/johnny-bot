@@ -1,16 +1,36 @@
-use chrono::TimeDelta;
+use std::sync::{Arc, RwLock};
 
-use crate::{database, RoleDatabase};
+use chrono::TimeDelta;
+use std::collections::HashMap;
+
+use poise::serenity_prelude::RoleId;
+
+use crate::{
+    database::{self, ConfigDatabase},
+    Config, RoleDatabase,
+};
+
+type RolePrice = (i32, Option<RoleId>);
+type RolePriceConfig = HashMap<RoleId, RolePrice>;
 
 #[derive(Debug)]
 pub struct Johnny {
     db: database::Database,
-    pub t: std::sync::mpsc::Sender<(u64, i32)>,
+    price_config: Arc<RwLock<RolePriceConfig>>,
+    config: Arc<RwLock<Config>>,
 }
 
 impl Johnny {
-    pub fn new(db: database::Database, t: std::sync::mpsc::Sender<(u64, i32)>) -> Self {
-        Self { db, t }
+    pub fn new(
+        db: database::Database,
+        t: Arc<RwLock<RolePriceConfig>>,
+        config: Arc<RwLock<Config>>,
+    ) -> Self {
+        Self {
+            db,
+            config,
+            price_config: t,
+        }
     }
     pub async fn start(&self, signal: std::sync::mpsc::Receiver<()>) {
         let mut time_passed = 0;
@@ -25,6 +45,10 @@ impl Johnny {
                     dbg!(e);
                     break;
                 }
+            }
+
+            if time_passed % 60 == 0 {
+                self.refresh_config().await;
             }
 
             if time_passed % 300 == 0 {
@@ -57,7 +81,9 @@ impl Johnny {
                     .await
                 {
                     Ok(r) => {
-                        self.t.send((r.role_id, r.price)).unwrap();
+                        let parsed = poise::serenity_prelude::RoleId::new(r.role_id);
+                        let mut config = self.price_config.write().unwrap();
+                        config.get_mut(&parsed).unwrap().0 = r.price;
                     }
                     Err(e) => {
                         dbg!(e);
@@ -69,6 +95,17 @@ impl Johnny {
                         dbg!(e);
                     }
                 }
+            }
+        }
+    }
+
+    pub async fn refresh_config(&self) {
+        match self.db.get_config().await {
+            Ok(r) => {
+                self.config.write().unwrap().daily_upper_limit = r.daily_upper_limit.unwrap_or(0);
+            }
+            Err(e) => {
+                dbg!(e);
             }
         }
     }

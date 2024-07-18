@@ -10,6 +10,7 @@ use crate::Error;
 struct Balance {
     balance: i32,
 }
+
 #[derive(Debug, sqlx::FromRow)]
 struct Daily {
     last_daily: sqlx::types::chrono::DateTime<Utc>,
@@ -113,6 +114,44 @@ pub trait RoleDatabase {
     ) -> Result<PurchaseableRole, Error>;
 }
 
+pub trait ConfigDatabase {
+    async fn get_config(&self) -> Result<Config, Error>;
+    async fn set_config_value(&self, key: &str, value: &str) -> Result<(), Error>;
+}
+
+#[derive(Debug, sqlx::FromRow)]
+struct ConfigRow {
+    pub key: String,
+    pub value: String,
+}
+
+impl ConfigDatabase for Database {
+    async fn get_config(&self) -> Result<Config, Error> {
+        let data = sqlx::query_as::<_, ConfigRow>("SELECT * FROM config")
+            .fetch_all(&self.connection)
+            .await?;
+
+        let mut config = Config {
+            daily_upper_limit: None,
+        };
+
+        for d in data {
+            if "daily_upper_limit" == d.key.as_str() {
+                config.daily_upper_limit = Some(d.value.parse().unwrap());
+            }
+        }
+        Ok(config)
+    }
+    async fn set_config_value(&self, key: &str, value: &str) -> Result<(), Error> {
+        sqlx::query("INSERT INTO config (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = $2")
+            .bind(key)
+            .bind(value)
+            .execute(&self.connection)
+            .await?;
+        Ok(())
+    }
+}
+
 #[derive(Debug, sqlx::FromRow)]
 pub struct RolePriceDecayConfig {
     pub role_id: u64,
@@ -129,6 +168,11 @@ pub struct RolePriceDecay {
     pub interval: i32,
     pub minimum: i32,
     pub last_decay: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct Config {
+    pub daily_upper_limit: Option<i32>,
 }
 
 #[derive(Debug)]

@@ -6,6 +6,7 @@ pub mod burn;
 pub mod buy;
 pub mod checkbucks;
 pub mod coingamble;
+pub mod config;
 pub mod daily;
 pub mod fine;
 pub mod gamble;

@@ -12,7 +12,6 @@ mod texts;
 use poise::{serenity_prelude as serenity, CreateReply};
 use std::sync::mpsc;
 use std::sync::RwLock;
-use std::thread;
 use std::{
     collections::{HashMap, HashSet},
     env::var,
@@ -26,6 +25,11 @@ type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
 type RolePrice = (i32, Option<serenity::RoleId>);
+
+#[derive(Debug)]
+pub struct Config {
+    daily_upper_limit: i32,
+}
 
 // Custom user data passed to all command functions
 #[derive(Debug)]
@@ -43,6 +47,7 @@ pub struct Data {
     unique_roles: Mutex<HashSet<serenity::RoleId>>,
     crown_role_id: u64,
     active_checks: Mutex<HashSet<u64>>,
+    config: Arc<RwLock<Config>>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -132,6 +137,7 @@ async fn main() {
         commands::buy::list_decays(),
         commands::buy::list_prices(),
         commands::leaderboard::crownleaderboard(),
+        commands::config::config(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
@@ -161,6 +167,9 @@ async fn main() {
         .collect::<HashMap<_, _>>();
 
     let rc = Arc::new(RwLock::new(roles.clone()));
+    let config = Arc::new(RwLock::new(Config {
+        daily_upper_limit: 0,
+    }));
 
     let unique_roles = paid_roles
         .iter()
@@ -169,19 +178,11 @@ async fn main() {
         .collect::<HashSet<_>>();
 
     let (tx, rx) = mpsc::channel();
-    let (send, rcv) = mpsc::channel();
-    let johnny = johnny::Johnny::new(db2, send);
     let rc_clone = Arc::clone(&rc);
+    let config_clone = Arc::clone(&config);
+    let johnny = johnny::Johnny::new(db2, rc_clone, config_clone);
     tokio::spawn(async move {
         johnny.start(rx).await;
-    });
-    thread::spawn(move || {
-        for (role_id, price) in rcv.iter() {
-            dbg!(&role_id, &price);
-            let parsed = serenity::RoleId::new(role_id);
-            let mut r = rc_clone.write().unwrap();
-            r.get_mut(&parsed).unwrap().0 = price;
-        }
     });
 
     // FrameworkOptions contains all of poise's configuration option in one struct
@@ -291,6 +292,7 @@ async fn main() {
                     unique_roles: Mutex::new(unique_roles),
                     crown_role_id,
                     active_checks: Mutex::new(HashSet::new()),
+                    config,
                 })
             })
         })

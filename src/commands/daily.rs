@@ -43,6 +43,30 @@ pub async fn daily(ctx: Context<'_>) -> Result<(), Error> {
     let user_id = ctx.author().id.get();
     let amount = { ctx.data().rng.lock().unwrap().gen_range(5..=10) };
     let balance = { ctx.data().db.get_balance(ctx.author().id.get()).await? };
+
+    let upper_limit = {
+        let config = ctx.data().config.read().unwrap();
+        if config.daily_upper_limit > 0 {
+            Some(config.daily_upper_limit)
+        } else {
+            None
+        }
+    };
+
+    if let Some(limit) = upper_limit {
+        if balance >= limit {
+            let msg = "You are too rich for handouts!";
+            let reply = CreateReply::default().content(msg).ephemeral(true);
+            ctx.send(reply).await?;
+            ctx.data()
+                .active_checks
+                .lock()
+                .unwrap()
+                .remove(&(ctx.author().id.get()));
+            return Err(msg.to_string().into());
+        }
+    }
+
     let interest = {
         let mp = { ctx.data().rng.lock().unwrap().gen_range(0.01..=0.03) };
         tracing::info!(
