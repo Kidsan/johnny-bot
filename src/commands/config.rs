@@ -1,10 +1,14 @@
 use poise::CreateReply;
 
-use crate::{database::ConfigDatabase, Context, Error};
+use crate::{
+    database::{self, ConfigDatabase},
+    Context, Error,
+};
 
 #[derive(Debug, poise::ChoiceParameter, Clone)]
 pub enum ConfigOption {
     DailyLimit,
+    BotOdds,
 }
 
 ///
@@ -38,10 +42,34 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .map_err(|_| Error::from("Invalid value".to_string()))?;
             ctx.data()
                 .db
-                .set_config_value("daily_upper_limit", value.as_str())
+                .set_config_value(database::ConfigKey::DailyUpperLimit, value.as_str())
                 .await
                 .unwrap();
             ctx.data().config.write().unwrap().daily_upper_limit = limit;
+        }
+        ConfigOption::BotOdds => {
+            let odds = value
+                .parse::<f32>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+
+            if !(0.0..=1.0).contains(&odds) {
+                return Err(Error::from("Invalid value".to_string()));
+            }
+
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::BotOdds, value.as_str())
+                .await
+                .unwrap();
+            ctx.data()
+                .db
+                .set_config_value(
+                    database::ConfigKey::BotOddsUpdated,
+                    &chrono::Utc::now().timestamp().to_string(),
+                )
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().bot_odds = odds;
         }
     }
     let reply = CreateReply::default().content("Success").ephemeral(true);
@@ -61,8 +89,16 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
 pub async fn get(ctx: Context<'_>) -> Result<(), Error> {
     let config = ctx.data().db.get_config().await.unwrap();
     let response = format!(
-        "Daily upper limit: {}\n",
+        r#"Daily upper limit: {}
+Bot odds: {:.2}
+Bot odds updated: {}"#,
         config.daily_upper_limit.unwrap_or(0),
+        config.bot_odds.unwrap_or(0.5),
+        config
+            .bot_odds_updated
+            .unwrap_or(chrono::Utc::now())
+            .to_string()
+            .to_owned()
     );
     let reply = CreateReply::default().content(response).ephemeral(true);
     ctx.send(reply).await?;

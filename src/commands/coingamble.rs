@@ -77,6 +77,7 @@ pub async fn coingamble(
         amount,
         time::Instant::now(),
         ctx.data().side_chance,
+        ctx.data().config.read().unwrap().bot_odds,
     );
 
     while let Some(mci) = serenity::ComponentInteractionCollector::new(ctx)

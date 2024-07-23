@@ -69,6 +69,7 @@ pub struct CoinGame {
     pub pot: i32,
     pub deadline: time::Instant,
     pub side_chance: i32,
+    odds_bot_wins: f32,
 }
 
 pub struct CoinGameResult {
@@ -89,6 +90,7 @@ impl CoinGame {
         amount: i32,
         deadline: time::Instant,
         side_chance: i32,
+        bot_odds: f32,
     ) -> Self {
         let mut heads = vec![];
         let mut tails = vec![];
@@ -107,6 +109,7 @@ impl CoinGame {
             pot: amount,
             deadline,
             side_chance,
+            odds_bot_wins: bot_odds,
         }
     }
 
@@ -143,11 +146,16 @@ impl CoinGame {
         bot_id: u64,
         crown_role_id: u64,
     ) -> CoinGameResult {
+        let (mut heads_odds, mut tails_odds) = (1.0, 1.0);
         if self.heads.is_empty() {
+            heads_odds = self.odds_bot_wins;
+            tails_odds = 1.0 - self.odds_bot_wins;
             self.heads.push(bot_id);
             self.players.push(bot_id);
             self.pot += self.pot;
         } else if self.tails.is_empty() {
+            tails_odds = self.odds_bot_wins;
+            heads_odds = 1.0 - self.odds_bot_wins;
             self.tails.push(bot_id);
             self.players.push(bot_id);
             self.pot += self.pot;
@@ -157,10 +165,14 @@ impl CoinGame {
             if rng.gen_ratio(self.side_chance.try_into().unwrap(), 100) {
                 CoinSides::Side
             } else {
-                [CoinSides::Heads, CoinSides::Tails]
-                    .choose(&mut rng)
-                    .unwrap()
-                    .to_owned()
+                [
+                    (CoinSides::Heads, heads_odds),
+                    (CoinSides::Tails, tails_odds),
+                ]
+                .choose_weighted(&mut rng, |item| item.1)
+                .unwrap()
+                .to_owned()
+                .0
             }
         };
 
@@ -258,6 +270,7 @@ mod tests {
             pot: 200,
             deadline: time::Instant::now(),
             side_chance: 0,
+            odds_bot_wins: 1.0,
         };
 
         let bot_id = new_user_id();
@@ -302,6 +315,7 @@ mod tests {
             pot: 200,
             deadline: time::Instant::now(),
             side_chance: 10,
+            odds_bot_wins: 1.0,
         };
 
         let bot_id = new_user_id();
@@ -334,6 +348,7 @@ mod tests {
             pot: 100,
             deadline: time::Instant::now(),
             side_chance: 0,
+            odds_bot_wins: 1.0,
         };
 
         let bot_id = new_user_id();
@@ -360,6 +375,7 @@ mod tests {
             pot: 200,
             deadline: time::Instant::now(),
             side_chance: 0,
+            odds_bot_wins: 1.0,
         };
 
         let bot_id = new_user_id();
@@ -397,6 +413,7 @@ mod tests {
             pot: 200,
             deadline: time::Instant::now(),
             side_chance: 100,
+            odds_bot_wins: 1.0,
         };
 
         let bot_id = new_user_id();
@@ -443,6 +460,7 @@ mod tests {
             pot: 11,
             deadline: time::Instant::now(),
             side_chance: 0,
+            odds_bot_wins: 1.0,
         };
 
         let bot_id = new_user_id();

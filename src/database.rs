@@ -116,13 +116,29 @@ pub trait RoleDatabase {
 
 pub trait ConfigDatabase {
     async fn get_config(&self) -> Result<Config, Error>;
-    async fn set_config_value(&self, key: &str, value: &str) -> Result<(), Error>;
+    async fn set_config_value(&self, key: ConfigKey, value: &str) -> Result<(), Error>;
 }
 
 #[derive(Debug, sqlx::FromRow)]
 struct ConfigRow {
     pub key: String,
     pub value: String,
+}
+
+pub enum ConfigKey {
+    DailyUpperLimit,
+    BotOddsUpdated,
+    BotOdds,
+}
+
+impl ConfigKey {
+    fn as_str(&self) -> &str {
+        match self {
+            ConfigKey::DailyUpperLimit => "daily_upper_limit",
+            ConfigKey::BotOddsUpdated => "bot_odds_updated",
+            ConfigKey::BotOdds => "bot_odds",
+        }
+    }
 }
 
 impl ConfigDatabase for Database {
@@ -133,18 +149,32 @@ impl ConfigDatabase for Database {
 
         let mut config = Config {
             daily_upper_limit: None,
+            bot_odds_updated: None,
+            bot_odds: None,
         };
 
         for d in data {
-            if "daily_upper_limit" == d.key.as_str() {
+            if ConfigKey::DailyUpperLimit.as_str() == d.key.as_str() {
                 config.daily_upper_limit = Some(d.value.parse().unwrap());
+            }
+            if ConfigKey::BotOddsUpdated.as_str() == d.key.as_str() {
+                config.bot_odds_updated = Some(
+                    chrono::DateTime::from_timestamp(d.value.parse().unwrap(), 0).unwrap_or(
+                        chrono::Utc::now()
+                            .checked_sub_days(chrono::Days::new(1))
+                            .unwrap(),
+                    ),
+                );
+            }
+            if ConfigKey::BotOdds.as_str() == d.key.as_str() {
+                config.bot_odds = Some(d.value.parse().unwrap());
             }
         }
         Ok(config)
     }
-    async fn set_config_value(&self, key: &str, value: &str) -> Result<(), Error> {
+    async fn set_config_value(&self, key: ConfigKey, value: &str) -> Result<(), Error> {
         sqlx::query("INSERT INTO config (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = $2")
-            .bind(key)
+            .bind(key.as_str())
             .bind(value)
             .execute(&self.connection)
             .await?;
@@ -173,6 +203,8 @@ pub struct RolePriceDecay {
 #[derive(Debug, sqlx::FromRow)]
 pub struct Config {
     pub daily_upper_limit: Option<i32>,
+    pub bot_odds_updated: Option<chrono::DateTime<Utc>>,
+    pub bot_odds: Option<f32>,
 }
 
 #[derive(Debug)]

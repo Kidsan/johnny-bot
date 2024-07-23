@@ -1,6 +1,7 @@
 use std::sync::{Arc, RwLock};
 
-use chrono::TimeDelta;
+use chrono::{NaiveTime, TimeDelta};
+use rand::Rng;
 use std::collections::HashMap;
 
 use poise::serenity_prelude::RoleId;
@@ -53,6 +54,7 @@ impl Johnny {
 
             if time_passed % 300 == 0 {
                 self.decay().await;
+                self.check_skewed_odds().await;
                 time_passed = 0;
             }
             tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
@@ -103,10 +105,43 @@ impl Johnny {
         match self.db.get_config().await {
             Ok(r) => {
                 self.config.write().unwrap().daily_upper_limit = r.daily_upper_limit.unwrap_or(0);
+                self.config.write().unwrap().bot_odds = r.bot_odds.unwrap_or(0.5);
             }
             Err(e) => {
                 dbg!(e);
             }
         }
+    }
+
+    async fn check_skewed_odds(&self) {
+        let today = chrono::Utc::now()
+            .with_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+            .unwrap();
+
+        if let Some(last_updated) = self.db.get_config().await.unwrap().bot_odds_updated {
+            if last_updated < today {
+                self.update_skewed_odds().await;
+                return;
+            }
+            return;
+        }
+        self.update_skewed_odds().await;
+    }
+
+    pub async fn update_skewed_odds(&self) {
+        let bot_odds = rand::thread_rng().gen_range(0.2..=0.7);
+        self.db
+            .set_config_value(database::ConfigKey::BotOdds, &bot_odds.to_string())
+            .await
+            .unwrap();
+        self.db
+            .set_config_value(
+                database::ConfigKey::BotOddsUpdated,
+                &chrono::Utc::now().timestamp().to_string(),
+            )
+            .await
+            .unwrap();
+
+        self.config.write().unwrap().bot_odds = bot_odds;
     }
 }

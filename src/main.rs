@@ -29,6 +29,8 @@ type RolePrice = (i32, Option<serenity::RoleId>);
 #[derive(Debug)]
 pub struct Config {
     daily_upper_limit: i32,
+    bot_odds: f32,
+    bot_odds_updated: chrono::DateTime<chrono::Utc>,
 }
 
 // Custom user data passed to all command functions
@@ -169,6 +171,8 @@ async fn main() {
     let rc = Arc::new(RwLock::new(roles.clone()));
     let config = Arc::new(RwLock::new(Config {
         daily_upper_limit: 0,
+        bot_odds_updated: chrono::Utc::now(),
+        bot_odds: 0.5,
     }));
 
     let unique_roles = paid_roles
