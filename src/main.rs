@@ -30,7 +30,6 @@ type RolePrice = (i32, Option<serenity::RoleId>);
 pub struct Config {
     daily_upper_limit: i32,
     bot_odds: f32,
-    bot_odds_updated: chrono::DateTime<chrono::Utc>,
 }
 
 // Custom user data passed to all command functions
@@ -93,6 +92,12 @@ async fn main() {
         Err(_) => "1237724109756956753".to_string().parse().unwrap(),
     };
 
+    let den_channel_id = match var("DEN_CHANNEL_ID") {
+        Ok(id) => poise::serenity_prelude::ChannelId::new(id.parse().unwrap()),
+        Err(_) => poise::serenity_prelude::ChannelId::new(1049354446578143252),
+    };
+    let in_dev = var("DEV_SETTINGS").is_ok();
+
     let _loki_host = var("LOKI_HOST").unwrap_or("".to_string());
 
     // if !loki_host.is_empty() {
@@ -140,6 +145,7 @@ async fn main() {
         commands::buy::list_prices(),
         commands::leaderboard::crownleaderboard(),
         commands::config::config(),
+        commands::lottery::lottery(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
@@ -169,25 +175,18 @@ async fn main() {
         .collect::<HashMap<_, _>>();
 
     let rc = Arc::new(RwLock::new(roles.clone()));
+    let rc_clone = Arc::clone(&rc);
     let config = Arc::new(RwLock::new(Config {
         daily_upper_limit: 0,
-        bot_odds_updated: chrono::Utc::now(),
         bot_odds: 0.5,
     }));
+    let config_clone = Arc::clone(&config);
 
     let unique_roles = paid_roles
         .iter()
         .filter(|role| role.only_one)
         .map(|role| serenity::RoleId::new(role.role_id))
         .collect::<HashSet<_>>();
-
-    let (tx, rx) = mpsc::channel();
-    let rc_clone = Arc::clone(&rc);
-    let config_clone = Arc::clone(&config);
-    let johnny = johnny::Johnny::new(db2, rc_clone, config_clone);
-    tokio::spawn(async move {
-        johnny.start(rx).await;
-    });
 
     // FrameworkOptions contains all of poise's configuration option in one struct
     // Every option can be omitted to use its default value
@@ -216,7 +215,11 @@ async fn main() {
         // This code is run after a command if it was successful (returned Ok)
         post_command: |ctx| {
             Box::pin(async move {
-                println!("Executed command {}!", ctx.command().qualified_name);
+                println!(
+                    "Executed command {} in {}!",
+                    ctx.command().qualified_name,
+                    ctx.channel_id()
+                );
             })
         },
         // Every command invocation must pass this check to continue execution
@@ -311,6 +314,20 @@ async fn main() {
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
         .await;
+
+    let sender = client.as_ref().unwrap().http.clone();
+    let (tx, rx) = mpsc::channel();
+    let johnny = johnny::Johnny::new(
+        db2,
+        rc_clone,
+        config_clone,
+        den_channel_id,
+        Some(sender),
+        in_dev,
+    );
+    tokio::spawn(async move {
+        johnny.start(rx).await;
+    });
 
     let shard_manager = client.as_ref().unwrap().shard_manager.clone();
 
