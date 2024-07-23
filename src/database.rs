@@ -83,6 +83,12 @@ pub trait ChannelDatabase {
     async fn remove_paid_channel(&self, channel_id: u64) -> Result<(), Error>;
 }
 
+pub trait LotteryDatabase {
+    async fn clear_tickets(&self) -> Result<(), Error>;
+    async fn bought_lottery_ticket(&self, user_id: u64) -> Result<i32, Error>;
+    async fn get_bought_tickets(&self) -> Result<Vec<(u64, i32)>, Error>;
+}
+
 pub trait RoleDatabase {
     async fn price_decayed(&self, role_id: u64) -> Result<(), Error>;
     async fn get_purchasable_roles(&self) -> Result<Vec<PurchaseableRole>, Error>;
@@ -662,6 +668,39 @@ impl BalanceDatabase for Database {
             .execute(&self.connection)
             .await?;
 
+        Ok(())
+    }
+}
+
+#[derive(Debug, sqlx::FromRow)]
+struct Tickets {
+    tickets: i32,
+}
+
+impl LotteryDatabase for Database {
+    async fn bought_lottery_ticket(&self, user_id: u64) -> Result<i32, Error> {
+        let data = sqlx::query_as::<_, Tickets>("INSERT INTO lottery_tickets (id, tickets) VALUES ($1, 1) ON CONFLICT(id) DO UPDATE SET tickets = tickets + 1 RETURNING tickets")
+            .bind(user_id as i64)
+            .fetch_one(&self.connection)
+            .await.unwrap();
+        Ok(data.tickets)
+    }
+    async fn get_bought_tickets(&self) -> Result<Vec<(u64, i32)>, Error> {
+        let data = sqlx::query_as::<_, (i64, i32)>(
+            "SELECT id, tickets as tickets FROM lottery_tickets ORDER BY tickets DESC",
+        )
+        .fetch_all(&self.connection)
+        .await?;
+        Ok(data
+            .iter()
+            .map(|(id, tickets)| (*id as u64, *tickets))
+            .collect())
+    }
+
+    async fn clear_tickets(&self) -> Result<(), Error> {
+        sqlx::query("DELETE FROM lottery_tickets")
+            .execute(&self.connection)
+            .await?;
         Ok(())
     }
 }

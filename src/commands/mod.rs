@@ -13,6 +13,7 @@ pub mod gamble;
 pub mod give;
 pub mod help;
 pub mod leaderboard;
+pub mod lottery;
 pub mod paidchannels;
 pub mod register;
 pub mod removebucks;

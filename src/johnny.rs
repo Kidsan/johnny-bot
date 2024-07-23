@@ -1,14 +1,15 @@
 use std::sync::{Arc, RwLock};
 
-use chrono::{NaiveTime, TimeDelta};
+use chrono::{NaiveTime, TimeDelta, Timelike};
 use rand::Rng;
+use serenity::all::CreateMessage;
 use std::collections::HashMap;
 
 use poise::serenity_prelude::RoleId;
 
 use crate::{
-    database::{self, ConfigDatabase},
-    Config, RoleDatabase,
+    database::{self, BalanceDatabase, ConfigDatabase, LotteryDatabase},
+    game, Config, RoleDatabase,
 };
 
 type RolePrice = (i32, Option<RoleId>);
@@ -19,6 +20,9 @@ pub struct Johnny {
     db: database::Database,
     price_config: Arc<RwLock<RolePriceConfig>>,
     config: Arc<RwLock<Config>>,
+    channel: poise::serenity_prelude::ChannelId,
+    client: Option<Arc<poise::serenity_prelude::Http>>,
+    dev_env: bool,
 }
 
 impl Johnny {
@@ -26,11 +30,17 @@ impl Johnny {
         db: database::Database,
         t: Arc<RwLock<RolePriceConfig>>,
         config: Arc<RwLock<Config>>,
+        channel: poise::serenity_prelude::ChannelId,
+        client: Option<Arc<poise::serenity_prelude::Http>>,
+        dev_env: bool,
     ) -> Self {
         Self {
             db,
             config,
             price_config: t,
+            channel,
+            client,
+            dev_env,
         }
     }
     pub async fn start(&self, signal: std::sync::mpsc::Receiver<()>) {
@@ -49,6 +59,7 @@ impl Johnny {
             }
 
             if time_passed % 60 == 0 {
+                self.check_should_trigger_lottery().await;
                 self.refresh_config().await;
             }
 
@@ -143,5 +154,44 @@ impl Johnny {
             .unwrap();
 
         self.config.write().unwrap().bot_odds = bot_odds;
+    }
+
+    pub async fn check_should_trigger_lottery(&self) {
+        let time = chrono::Utc::now()
+            .time()
+            .with_second(0)
+            .unwrap()
+            .with_nanosecond(0)
+            .unwrap();
+        if time == NaiveTime::from_hms_opt(18, 00, 0).unwrap() || self.dev_env {
+            self.lottery().await;
+        }
+    }
+
+    pub async fn lottery(&self) {
+        let lottery_tickets = self.db.get_bought_tickets().await.unwrap();
+        let pot = lottery_tickets.iter().map(|(_, x)| x * 5).sum::<i32>() + 10;
+        let lottery = game::Lottery::new(lottery_tickets.clone(), pot);
+        let winner = lottery.get_winner();
+
+        if winner == 0 {
+            return;
+        }
+
+        self.db.award_balances(vec![winner], pot).await.unwrap();
+
+        let num_tickets = lottery_tickets.iter().find(|a| a.0 == winner).unwrap().1;
+        let text = format!("> :tada: :tada: WOW! <@{}> just won the lottery!\n> They won **{} <:jbuck:1228663982462865450>** by buying only **{} :tickets:**\n> \n> **New lottery starting... NOW**\n> Prize pool: {} <:jbuck:1228663982462865450>\n> Use ***/lottery buy*** to purchase a ticket for 5 <:jbuck:1228663982462865450>", winner, pot, num_tickets
+            , 10);
+
+        let m = { CreateMessage::new().content(text) };
+
+        if let Some(client) = &self.client {
+            self.channel.send_message(client, m).await.unwrap();
+        } else {
+            dbg!("Client not set");
+        }
+
+        self.db.clear_tickets().await.unwrap();
     }
 }

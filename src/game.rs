@@ -531,3 +531,26 @@ impl Blackjack {
             .collect()
     }
 }
+
+pub struct Lottery {
+    pub players: Vec<(u64, i32)>,
+    pub pot: i32,
+}
+
+impl Lottery {
+    pub fn new(players: Vec<(u64, i32)>, pot: i32) -> Self {
+        Self { players, pot }
+    }
+
+    pub fn get_winner(&self) -> u64 {
+        if self.players.is_empty() {
+            return 0;
+        }
+        let mut rng = rand::thread_rng();
+        self.players
+            .choose_weighted(&mut rng, |item| item.1)
+            .unwrap()
+            .to_owned()
+            .0
+    }
+}
