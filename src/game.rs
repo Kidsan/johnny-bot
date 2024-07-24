@@ -485,6 +485,51 @@ mod tests {
         assert_eq!(crown_balance, 51);
         db.close().await.unwrap();
     }
+
+    mod lottery {
+        use super::super::Lottery;
+
+        #[tokio::test]
+        async fn test_lottery_get_winner() {
+            let lottery = Lottery {
+                players: vec![(1, 1), (2, 1), (3, 10)],
+                pot: 5,
+            };
+
+            let mut winners = vec![];
+
+            for _i in 0..100 {
+                let winner = lottery.get_winner();
+                winners.push(winner);
+            }
+
+            let num_1 = winners.iter().filter(|&&x| x == 1).count();
+            let num_2 = winners.iter().filter(|&&x| x == 2).count();
+            let num_3 = winners.iter().filter(|&&x| x == 3).count();
+
+            assert!(num_3 > num_2);
+            assert!(num_3 > num_1);
+        }
+
+        #[tokio::test]
+        async fn test_lottery_get_winner_skewed() {
+            let lottery = Lottery {
+                players: vec![(1, 0), (2, 0), (3, 10)],
+                pot: 5,
+            };
+
+            let mut winners = vec![];
+
+            for _i in 0..100 {
+                let winner = lottery.get_winner();
+                winners.push(winner);
+            }
+
+            let num_3 = winners.iter().filter(|&&x| x == 3).count();
+
+            assert_eq!(num_3, 100)
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
