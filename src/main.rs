@@ -1,7 +1,5 @@
 use crate::database::ChannelDatabase;
 use crate::database::RoleDatabase;
-// use tracing_subscriber::layer::SubscriberExt;
-// use tracing_subscriber::util::SubscriberInitExt;
 mod commands;
 mod database;
 mod eventhandler;
@@ -18,7 +16,6 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-// use tracing_loki::url::Url;
 
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -30,6 +27,7 @@ type RolePrice = (i32, Option<serenity::RoleId>);
 pub struct Config {
     daily_upper_limit: i32,
     bot_odds: f32,
+    game_length_seconds: i32,
 }
 
 // Custom user data passed to all command functions
@@ -37,7 +35,6 @@ pub struct Config {
 pub struct Data {
     games: Mutex<HashMap<String, game::Game>>,
     db: database::Database,
-    game_length: u64,
     side_chance: i32,
     rng: Mutex<rand::rngs::StdRng>,
     locked_balances: Mutex<HashSet<u64>>,
@@ -72,11 +69,6 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 async fn main() {
     env_logger::init();
 
-    let game_length = match var("GAME_LENGTH") {
-        Ok(length) => length.parse::<u64>().unwrap(),
-        Err(_) => 60,
-    };
-
     let side_chance = match var("SIDE_CHANCE") {
         Ok(chance) => chance.parse::<i32>().unwrap(),
         Err(_) => 2,
@@ -97,23 +89,6 @@ async fn main() {
         Err(_) => poise::serenity_prelude::ChannelId::new(1049354446578143252),
     };
     let in_dev = var("DEV_SETTINGS").is_ok();
-
-    let _loki_host = var("LOKI_HOST").unwrap_or("".to_string());
-
-    // if !loki_host.is_empty() {
-    //     let (layer, task) = tracing_loki::builder()
-    //         .build_url(Url::parse(&loki_host).unwrap())
-    //         .unwrap();
-    //
-    //     tracing_subscriber::registry().with(layer).init();
-    //     tokio::spawn(task);
-    // }
-
-    let my_subscriber = tracing_subscriber::FmtSubscriber::builder()
-        .with_max_level(tracing::Level::INFO)
-        .finish();
-
-    tracing::subscriber::set_global_default(my_subscriber).expect("setting tracing default failed");
 
     let mut commands = vec![
         commands::help::help(),
@@ -179,6 +154,7 @@ async fn main() {
     let config = Arc::new(RwLock::new(Config {
         daily_upper_limit: 0,
         bot_odds: 0.5,
+        game_length_seconds: 30,
     }));
     let config_clone = Arc::clone(&config);
 
@@ -249,6 +225,7 @@ async fn main() {
                     "rpsgamble",
                     "buy",
                     "role", // subcommand of buy role but its seen as just "role"
+                    "daily",
                 ]
                 .contains(&ctx.command().name.as_str())
                     && ctx
@@ -260,9 +237,7 @@ async fn main() {
                 {
                     let reply = {
                         CreateReply::default()
-                            .content(
-                                "Nice try, but you can't do that while the robbing event is happening. You can play again after.",
-                            )
+                            .content("Nice try, but you can't do that right now. Try again after.")
                             .ephemeral(true)
                     };
                     ctx.send(reply).await?;
@@ -289,7 +264,6 @@ async fn main() {
                     games: Mutex::new(HashMap::new()),
                     db,
                     side_chance,
-                    game_length,
                     rng: Mutex::new(rand::SeedableRng::from_entropy()),
                     locked_balances: Mutex::new(HashSet::new()),
                     bot_id,

@@ -25,7 +25,7 @@ pub async fn gamble(
     #[min = 1]
     amount: i32,
 ) -> Result<(), Error> {
-    let game_length = ctx.data().game_length;
+    let game_length = { ctx.data().config.read().unwrap().game_length_seconds };
     let game_starter = ctx.author().id.to_string();
     let db = &ctx.data().db;
     let user_balance = db.get_balance(ctx.author().id.get()).await?;
@@ -58,7 +58,7 @@ pub async fn gamble(
             .content(format!(
                 "{} has started a game, place your bets!\n Betting deadline <t:{}:R>",
                 ctx.author(),
-                now + time_to_play
+                now + time_to_play as u64
             ))
             .components(components.clone())
     };
@@ -82,7 +82,8 @@ pub async fn gamble(
         .channel_id(ctx.channel_id())
         .message_id(id)
         .timeout(std::time::Duration::from_secs(
-            (now + time_to_play - 1) - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
+            (now + time_to_play as u64 - 1)
+                - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
         ))
         .filter(move |mci| mci.data.custom_id == "Bet")
         .await

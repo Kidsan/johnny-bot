@@ -210,7 +210,7 @@ pub async fn wrapped_robbing_event(
         ),
     ])];
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let time_to_play = ctx.data().game_length;
+    let time_to_play = { ctx.data().config.read().unwrap().game_length_seconds };
 
     ctx.serenity_context()
         .shard
@@ -223,7 +223,7 @@ pub async fn wrapped_robbing_event(
     let reply = {
         CreateMessage::default()
             .content(format!(
-                    "> ### <:jbuck:1228663982462865450> {}\n> Which one of these players could spare a couple of bucks?\n > **Voting Ends: **<t:{}:R>", msg, now+time_to_play))
+                    "> ### <:jbuck:1228663982462865450> {}\n> Which one of these players could spare a couple of bucks?\n > **Voting Ends: **<t:{}:R>", msg, now+time_to_play as u64))
             .components(components.clone())
     };
 
@@ -239,7 +239,8 @@ pub async fn wrapped_robbing_event(
         .channel_id(ctx.channel_id())
         .message_id(id.id)
         .timeout(std::time::Duration::from_secs(
-            (now + time_to_play - 1) - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
+            (now + time_to_play as u64 - 1)
+                - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
         ))
         .await
     {

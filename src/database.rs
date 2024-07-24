@@ -135,6 +135,7 @@ pub enum ConfigKey {
     DailyUpperLimit,
     BotOddsUpdated,
     BotOdds,
+    GameLengthSeconds,
 }
 
 impl ConfigKey {
@@ -143,6 +144,7 @@ impl ConfigKey {
             ConfigKey::DailyUpperLimit => "daily_upper_limit",
             ConfigKey::BotOddsUpdated => "bot_odds_updated",
             ConfigKey::BotOdds => "bot_odds",
+            ConfigKey::GameLengthSeconds => "game_length_seconds",
         }
     }
 }
@@ -157,6 +159,7 @@ impl ConfigDatabase for Database {
             daily_upper_limit: None,
             bot_odds_updated: None,
             bot_odds: None,
+            game_length_seconds: None,
         };
 
         for d in data {
@@ -174,6 +177,12 @@ impl ConfigDatabase for Database {
             }
             if ConfigKey::BotOdds.as_str() == d.key.as_str() {
                 config.bot_odds = Some(d.value.parse().unwrap());
+            }
+            if ConfigKey::BotOdds.as_str() == d.key.as_str() {
+                config.bot_odds = Some(d.value.parse().unwrap());
+            }
+            if ConfigKey::GameLengthSeconds.as_str() == d.key.as_str() {
+                config.game_length_seconds = Some(d.value.parse().unwrap());
             }
         }
         Ok(config)
@@ -211,6 +220,7 @@ pub struct Config {
     pub daily_upper_limit: Option<i32>,
     pub bot_odds_updated: Option<chrono::DateTime<Utc>>,
     pub bot_odds: Option<f32>,
+    pub game_length_seconds: Option<i32>,
 }
 
 #[derive(Debug)]

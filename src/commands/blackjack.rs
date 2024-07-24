@@ -41,7 +41,7 @@ pub async fn blackjack(
     {
         *ctx.data().blackjack_active.lock().unwrap() = true;
     }
-    let game_length = ctx.data().game_length;
+    let game_length = { ctx.data().config.read().unwrap().game_length_seconds };
     let db = &ctx.data().db;
     // let game_starter = ctx.author().id.to_string();
     let player_balance = db.get_balance(ctx.author().id.get()).await?;
@@ -66,7 +66,7 @@ pub async fn blackjack(
             .content(format!(
                 "> ### It's Blackjack time, roll the :game_die: to play!\n{}> **You have <t:{}:R> seconds to play.**",
                 "",
-                start_time + time_to_play
+                start_time + time_to_play as u64
             ))
             .components(
                 vec![serenity::CreateActionRow::Buttons(vec![
@@ -103,7 +103,7 @@ pub async fn blackjack(
             "stand".to_string(),
         ])
         .timeout(std::time::Duration::from_secs(
-            (start_time + time_to_play - 1)
+            (start_time + time_to_play as u64 - 1)
                 - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
         ))
         .await
@@ -205,7 +205,7 @@ pub async fn blackjack(
             game.players_scores[idx] += total;
             msg = format!(
                 "You rolled a {} and a {} for a total of {}.\nYour current score is {}.\nGame Ends: <t:{}:R>",
-                one, two, total, game.players_scores[idx], now + (start_time + time_to_play - now)
+                one, two, total, game.players_scores[idx], now + (start_time + time_to_play as u64 - now)
             );
         } else if mci.data.custom_id == "onedice" {
             let total = ctx.data().rng.lock().unwrap().gen_range(1..=6);
@@ -215,7 +215,7 @@ pub async fn blackjack(
                 "You rolled a {}.\nYour current score is {}.\nGame Ends: <t:{}:R>",
                 total,
                 game.players_scores[idx],
-                now + (start_time + time_to_play - now)
+                now + (start_time + time_to_play as u64 - now)
             );
         }
 
@@ -269,7 +269,7 @@ pub async fn blackjack(
             update_bot_score(&ctx, &mut game.lock().unwrap());
         };
         let g = { game.lock().unwrap().clone() };
-        update_parent_message(&ctx, &a, &g, now + (start_time + time_to_play - now)).await?;
+        update_parent_message(&ctx, &a, &g, now + (start_time + time_to_play as u64 - now)).await?;
     }
 
     while game.lock().unwrap().players_scores[bot_idx] < 18 {

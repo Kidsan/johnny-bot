@@ -29,7 +29,7 @@ pub async fn coingamble(
         Ok(_) => {}
         Err(e) => return Err(e),
     }
-    let game_length = ctx.data().game_length;
+    let game_length = { ctx.data().config.read().unwrap().game_length_seconds };
     let db = &ctx.data().db;
     let game_starter = ctx.author().id.to_string();
     let user_balance = ctx.data().db.get_balance(ctx.author().id.get()).await?;
@@ -62,7 +62,7 @@ pub async fn coingamble(
             .content(format!(
                 "> ### <:jbuck:1228663982462865450> HEADS OR TAILS?\n> **Bet {} <:jbuck:1228663982462865450> **on the correct answer!\n> **Game Ends: **<t:{}:R>",
                 amount,
-                now + time_to_play
+                now + time_to_play as u64
             ))
             .components(components.clone())
     };
@@ -85,7 +85,8 @@ pub async fn coingamble(
         .custom_ids(vec!["Heads".to_string(), "Tails".to_string()])
         .message_id(id)
         .timeout(std::time::Duration::from_secs(
-            (now + time_to_play - 1) - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
+            (now + time_to_play as u64 - 1)
+                - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
         ))
         .await
     {
@@ -361,7 +362,7 @@ async fn minute_cooldown(ctx: Context<'_>) -> Result<(), Error> {
         let mut cooldown_tracker = ctx.command().cooldowns.lock().unwrap();
 
         let cooldown_durations = poise::CooldownConfig {
-            user: Some(time::Duration::from_secs(ctx.data().game_length)),
+            user: Some(time::Duration::from_secs(30)),
             ..Default::default()
         };
 
@@ -387,7 +388,7 @@ async fn minute_cooldown(ctx: Context<'_>) -> Result<(), Error> {
                 .ephemeral(true)
         };
         ctx.send(reply).await.unwrap();
-        return Err("You can use this command again in 60 seconds".into());
+        return Err("You can use this command again in 30 seconds".into());
     }
     Ok(())
 }

@@ -9,6 +9,7 @@ use crate::{
 pub enum ConfigOption {
     DailyLimit,
     BotOdds,
+    GameLengthSeconds,
 }
 
 ///
@@ -36,6 +37,17 @@ pub async fn config(_ctx: Context<'_>) -> Result<(), Error> {
 )]
 pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Result<(), Error> {
     match option {
+        ConfigOption::GameLengthSeconds => {
+            let length = value
+                .parse::<i32>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::GameLengthSeconds, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().game_length_seconds = length;
+        }
         ConfigOption::DailyLimit => {
             let limit = value
                 .parse::<i32>()
@@ -91,14 +103,16 @@ pub async fn get(ctx: Context<'_>) -> Result<(), Error> {
     let response = format!(
         r#"Daily upper limit: {}
 Bot odds: {:.2}
-Bot odds updated: {}"#,
+Bot odds updated: {}
+Game length(secs): {}"#,
         config.daily_upper_limit.unwrap_or(0),
         config.bot_odds.unwrap_or(0.5),
         config
             .bot_odds_updated
             .unwrap_or(chrono::Utc::now())
             .to_string()
-            .to_owned()
+            .to_owned(),
+        config.game_length_seconds.unwrap_or(30)
     );
     let reply = CreateReply::default().content(response).ephemeral(true);
     ctx.send(reply).await?;

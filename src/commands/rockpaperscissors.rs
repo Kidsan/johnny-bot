@@ -49,7 +49,7 @@ pub async fn rpsgamble(
         return Err("You can't do that".into());
     }
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let time_to_play = ctx.data().game_length;
+    let time_to_play = { ctx.data().config.read().unwrap().game_length_seconds };
     if user.id == ctx.author().id {
         let reply = { CreateReply::default().content("You can't challenge yourself!") };
         ctx.send(reply).await?;
@@ -71,11 +71,14 @@ pub async fn rpsgamble(
         return Err("Not enough money".into());
     }
 
-    {
+    if amount > 0 {
         ctx.data()
             .db
             .subtract_balances(vec![ctx.author().id.get()], amount)
             .await?;
+
+        let mut locked = ctx.data().locked_balances.lock().unwrap();
+        locked.insert(ctx.author().id.get());
     }
 
     ctx.send(CreateReply::default().content("success").ephemeral(true))
@@ -137,7 +140,8 @@ pub async fn rpsgamble(
         ])
         .message_id(message.id)
         .timeout(std::time::Duration::from_secs(
-            (now + time_to_play - 1) - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
+            (now + time_to_play as u64 - 1)
+                - SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
         ))
         .await
     {
@@ -161,6 +165,9 @@ pub async fn rpsgamble(
                     .db
                     .award_balances(vec![ctx.author().id.get()], amount)
                     .await?;
+
+                let mut locked = ctx.data().locked_balances.lock().unwrap();
+                locked.remove(&ctx.author().id.get());
             }
             let content = message.content.clone();
             message
@@ -206,6 +213,10 @@ pub async fn rpsgamble(
                 .db
                 .award_balances(vec![ctx.author().id.get()], amount)
                 .await?;
+            {
+                let mut locked = ctx.data().locked_balances.lock().unwrap();
+                locked.remove(&ctx.author().id.get());
+            }
             let content = message.content.clone();
 
             message
@@ -350,6 +361,10 @@ pub async fn rpsgamble(
             )
     };
     ctx.channel_id().send_message(ctx, reply).await?;
+    {
+        let mut locked = ctx.data().locked_balances.lock().unwrap();
+        locked.remove(&ctx.author().id.get());
+    }
     Ok(())
 }
 
