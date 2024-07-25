@@ -190,11 +190,6 @@ pub async fn coingamble(
     let coin_flip_result = coingame
         .get_winner(&ctx.data().db, ctx.data().bot_id, ctx.data().crown_role_id)
         .await;
-    // tracing::event!(
-    //     tracing::Level::INFO,
-    //     "Coin flip result: {}",
-    //     coin_flip_result
-    // );
 
     let msg = match coin_flip_result.result {
         CoinSides::Side => match coin_flip_result.prize {
@@ -204,9 +199,8 @@ pub async fn coingamble(
                 get_troll_emoji(&mut ctx.data().rng.lock().unwrap())
             ),
             _ => {
-                let name = get_discord_name(ctx, coin_flip_result.winners[0]).await;
-                format!("### Woah, a side coin!\n No way to call a winner here <:dogeTroll:1160530414490886264>\n+ {} <:jbuck:1228663982462865450> to {} for being on the leaderboard",
-                    coin_flip_result.prize, name)
+                format!("### Woah, a side coin!\n No way to call a winner here <:dogeTroll:1160530414490886264>\n+ {} <:jbuck:1228663982462865450> added to today's lottery!",
+                    coin_flip_result.prize)
             }
         },
         _ => {

@@ -19,9 +19,11 @@ pub async fn lottery(ctx: Context<'_>) -> Result<(), Error> {
 #[tracing::instrument(level = "info")]
 pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let data = ctx.data().db.get_bought_tickets().await.unwrap();
+    let base_prize = { ctx.data().config.read().unwrap().lottery_base_prize };
+    let price = { ctx.data().config.read().unwrap().lottery_ticket_price };
 
     let tickets_sold = data.iter().map(|(_, v)| v).sum::<i32>();
-    let prize = (tickets_sold * 5) + 10;
+    let prize = (tickets_sold * price) + base_prize;
 
     // ends at the next 18:00 UTC
     let mut end = chrono::Utc::now()
@@ -36,8 +38,8 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     }
 
     let reply = CreateReply::default().content(format!(
-        "> **LOTTERY STATUS**\n> **Prize pool:** {} <:jbuck:1228663982462865450>\n> **Tickets sold:** {} :tickets:\n > **End:** <t:{}:R>\n> Use ***/lottery buy*** to purchase a ticket for 5 <:jbuck:1228663982462865450>",
-        prize, tickets_sold, end.and_utc().timestamp()
+        "> **LOTTERY STATUS**\n> **Prize pool:** {} <:jbuck:1228663982462865450>\n> **Tickets sold:** {} :tickets:\n > **End:** <t:{}:R>\n> Use ***/lottery buy*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
+        prize, tickets_sold, end.and_utc().timestamp(), price
     ));
     ctx.send(reply).await?;
     Ok(())
@@ -74,6 +76,7 @@ pub async fn tickets(ctx: Context<'_>) -> Result<(), Error> {
         .collect::<Vec<String>>();
 
     let total = data.iter().map(|(_, v)| v).sum::<i32>();
+    let price = { ctx.data().config.read().unwrap().lottery_ticket_price };
 
     if a.len() < data.len() {
         a.push(String::from(
@@ -86,8 +89,9 @@ pub async fn tickets(ctx: Context<'_>) -> Result<(), Error> {
     }
     a.push(format!("> **Total sold:** {} :tickets:", total));
 
-    a.push(String::from(
-        "> Use ***/lottery buy*** to purchase a ticket for 5 <:jbuck:1228663982462865450>",
+    a.push(format!(
+        "> Use ***/lottery buy*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
+        price
     ));
 
     let reply = CreateReply::default()
@@ -113,7 +117,9 @@ pub async fn buy(
 ) -> Result<(), Error> {
     let amount = amount.unwrap_or(1);
     let user_balance = ctx.data().db.get_balance(ctx.author().id.get()).await?;
-    if 5 * amount > user_balance {
+    let base_prize = { ctx.data().config.read().unwrap().lottery_base_prize };
+    let price = { ctx.data().config.read().unwrap().lottery_ticket_price };
+    if price * amount > user_balance {
         let reply = {
             CreateReply::default()
                 .content(format!(
@@ -128,7 +134,7 @@ pub async fn buy(
 
     ctx.data()
         .db
-        .subtract_balances(vec![ctx.author().id.get()], 5 * amount)
+        .subtract_balances(vec![ctx.author().id.get()], price * amount)
         .await?;
 
     let owned_tickets = ctx
@@ -144,9 +150,9 @@ pub async fn buy(
         .await
         .unwrap()
         .iter()
-        .map(|(_, x)| x * 5)
+        .map(|(_, x)| x * price)
         .sum::<i32>()
-        + 10;
+        + base_prize;
 
     let reply = {
         CreateReply::default()

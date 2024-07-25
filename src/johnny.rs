@@ -116,8 +116,14 @@ impl Johnny {
     pub async fn refresh_config(&self) {
         match self.db.get_config().await {
             Ok(r) => {
-                self.config.write().unwrap().daily_upper_limit = r.daily_upper_limit.unwrap_or(0);
-                self.config.write().unwrap().bot_odds = r.bot_odds.unwrap_or(0.5);
+                let mut config = self.config.write().unwrap();
+                config.daily_upper_limit = r.daily_upper_limit.unwrap_or(0);
+                config.bot_odds = r.bot_odds.unwrap_or(0.5);
+                config.bot_odds = r.bot_odds.unwrap_or(0.5);
+                config.lottery_ticket_price = r.lottery_ticket_price.unwrap_or(5);
+                config.lottery_base_prize = r.lottery_base_prize.unwrap_or(10);
+                config.future_lottery_ticket_price = r.future_lottery_ticket_price.unwrap_or(5);
+                config.future_lottery_base_prize = r.future_lottery_base_prize.unwrap_or(10);
             }
             Err(e) => {
                 dbg!(e);
@@ -170,8 +176,12 @@ impl Johnny {
     }
 
     pub async fn lottery(&self) {
+        let (base_prize, price) = {
+            let config = self.config.read().unwrap();
+            (config.lottery_base_prize, config.lottery_ticket_price)
+        };
         let lottery_tickets = self.db.get_bought_tickets().await.unwrap();
-        let pot = lottery_tickets.iter().map(|(_, x)| x * 5).sum::<i32>() + 10;
+        let pot = lottery_tickets.iter().map(|(_, x)| x * price).sum::<i32>() + base_prize;
         let lottery = game::Lottery::new(lottery_tickets.clone(), pot);
         let winner = lottery.get_winner();
 
@@ -180,10 +190,36 @@ impl Johnny {
         }
 
         self.db.award_balances(vec![winner], pot).await.unwrap();
+        let (new_base_prize, new_ticket_price) = {
+            let config = self.config.read().unwrap();
+            (
+                config.future_lottery_base_prize,
+                config.future_lottery_ticket_price,
+            )
+        };
+        {
+            let mut config = self.config.write().unwrap();
+            config.lottery_base_prize = new_base_prize;
+            config.lottery_ticket_price = new_ticket_price;
+        }
+        self.db
+            .set_config_value(
+                database::ConfigKey::LotteryTicketPrice,
+                &new_ticket_price.to_string(),
+            )
+            .await
+            .unwrap();
+        self.db
+            .set_config_value(
+                database::ConfigKey::LotteryBasePrize,
+                &new_base_prize.to_string(),
+            )
+            .await
+            .unwrap();
 
         let num_tickets = lottery_tickets.iter().find(|a| a.0 == winner).unwrap().1;
-        let text = format!("> :tada: :tada: WOW! <@{}> just won the lottery!\n> They won **{} <:jbuck:1228663982462865450>** by buying only **{} :tickets:**\n> \n> **New lottery starting... NOW**\n> Prize pool: {} <:jbuck:1228663982462865450>\n> Use ***/lottery buy*** to purchase a ticket for 5 <:jbuck:1228663982462865450>", winner, pot, num_tickets
-            , 10);
+        let text = format!("> :tada: :tada: WOW! <@{}> just won the lottery!\n> They won **{} <:jbuck:1228663982462865450>** by buying only **{} :tickets:**\n> \n> **New lottery starting... NOW**\n> Prize pool: {} <:jbuck:1228663982462865450>\n> Use ***/lottery buy*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
+            winner, pot, num_tickets, new_base_prize, new_ticket_price);
 
         let m = { CreateMessage::new().content(text) };
 

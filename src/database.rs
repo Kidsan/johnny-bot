@@ -136,6 +136,10 @@ pub enum ConfigKey {
     BotOddsUpdated,
     BotOdds,
     GameLengthSeconds,
+    LotteryBasePrize,
+    LotteryTicketPrice,
+    FutureLotteryBasePrize,
+    FutureLotteryTicketPrice,
 }
 
 impl ConfigKey {
@@ -145,6 +149,10 @@ impl ConfigKey {
             ConfigKey::BotOddsUpdated => "bot_odds_updated",
             ConfigKey::BotOdds => "bot_odds",
             ConfigKey::GameLengthSeconds => "game_length_seconds",
+            ConfigKey::LotteryBasePrize => "lottery_base_prize",
+            ConfigKey::LotteryTicketPrice => "lottery_ticket_price",
+            ConfigKey::FutureLotteryBasePrize => "future_lottery_base_prize",
+            ConfigKey::FutureLotteryTicketPrice => "future_lottery_ticket_price",
         }
     }
 }
@@ -160,6 +168,10 @@ impl ConfigDatabase for Database {
             bot_odds_updated: None,
             bot_odds: None,
             game_length_seconds: None,
+            lottery_base_prize: None,
+            lottery_ticket_price: None,
+            future_lottery_base_prize: None,
+            future_lottery_ticket_price: None,
         };
 
         for d in data {
@@ -183,6 +195,19 @@ impl ConfigDatabase for Database {
             }
             if ConfigKey::GameLengthSeconds.as_str() == d.key.as_str() {
                 config.game_length_seconds = Some(d.value.parse().unwrap());
+            }
+            if ConfigKey::LotteryBasePrize.as_str() == d.key.as_str() {
+                config.lottery_base_prize = Some(d.value.parse().unwrap());
+            }
+            if ConfigKey::LotteryTicketPrice.as_str() == d.key.as_str() {
+                config.lottery_ticket_price = Some(d.value.parse().unwrap());
+            }
+            if ConfigKey::FutureLotteryBasePrize.as_str() == d.key.as_str() {
+                config.future_lottery_base_prize = Some(d.value.parse().unwrap());
+            }
+
+            if ConfigKey::FutureLotteryTicketPrice.as_str() == d.key.as_str() {
+                config.future_lottery_ticket_price = Some(d.value.parse().unwrap());
             }
         }
         Ok(config)
@@ -221,6 +246,10 @@ pub struct Config {
     pub bot_odds_updated: Option<chrono::DateTime<Utc>>,
     pub bot_odds: Option<f32>,
     pub game_length_seconds: Option<i32>,
+    pub lottery_base_prize: Option<i32>,
+    pub lottery_ticket_price: Option<i32>,
+    pub future_lottery_base_prize: Option<i32>,
+    pub future_lottery_ticket_price: Option<i32>,
 }
 
 #[derive(Debug)]

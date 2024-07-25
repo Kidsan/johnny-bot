@@ -28,6 +28,10 @@ pub struct Config {
     daily_upper_limit: i32,
     bot_odds: f32,
     game_length_seconds: i32,
+    lottery_ticket_price: i32,
+    lottery_base_prize: i32,
+    future_lottery_ticket_price: i32,
+    future_lottery_base_prize: i32,
 }
 
 // Custom user data passed to all command functions
@@ -155,6 +159,10 @@ async fn main() {
         daily_upper_limit: 0,
         bot_odds: 0.5,
         game_length_seconds: 30,
+        lottery_ticket_price: 5,
+        lottery_base_prize: 10,
+        future_lottery_ticket_price: 5,
+        future_lottery_base_prize: 10,
     }));
     let config_clone = Arc::clone(&config);
 

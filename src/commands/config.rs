@@ -10,6 +10,10 @@ pub enum ConfigOption {
     DailyLimit,
     BotOdds,
     GameLengthSeconds,
+    LotteryTicketPrice,
+    LotteryBasePrize,
+    FutureLotteryTicketPrice,
+    FutureLotteryBasePrize,
 }
 
 ///
@@ -63,11 +67,9 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
             let odds = value
                 .parse::<f32>()
                 .map_err(|_| Error::from("Invalid value".to_string()))?;
-
             if !(0.0..=1.0).contains(&odds) {
                 return Err(Error::from("Invalid value".to_string()));
             }
-
             ctx.data()
                 .db
                 .set_config_value(database::ConfigKey::BotOdds, value.as_str())
@@ -82,6 +84,57 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .await
                 .unwrap();
             ctx.data().config.write().unwrap().bot_odds = odds;
+        }
+        ConfigOption::LotteryTicketPrice => {
+            let price = value
+                .parse::<i32>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::LotteryTicketPrice, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().lottery_ticket_price = price;
+        }
+        ConfigOption::LotteryBasePrize => {
+            let prize = value
+                .parse::<i32>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::LotteryBasePrize, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().lottery_base_prize = prize;
+        }
+        ConfigOption::FutureLotteryTicketPrice => {
+            let price = value
+                .parse::<i32>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+            ctx.data()
+                .db
+                .set_config_value(
+                    database::ConfigKey::FutureLotteryTicketPrice,
+                    value.as_str(),
+                )
+                .await
+                .unwrap();
+            ctx.data()
+                .config
+                .write()
+                .unwrap()
+                .future_lottery_ticket_price = price;
+        }
+        ConfigOption::FutureLotteryBasePrize => {
+            let prize = value
+                .parse::<i32>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::FutureLotteryBasePrize, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().future_lottery_base_prize = prize;
         }
     }
     let reply = CreateReply::default().content("Success").ephemeral(true);
@@ -104,7 +157,11 @@ pub async fn get(ctx: Context<'_>) -> Result<(), Error> {
         r#"Daily upper limit: {}
 Bot odds: {:.2}
 Bot odds updated: {}
-Game length(secs): {}"#,
+Game length(secs): {}
+Lottery Base Prize: {},
+Lottery Ticket Price: {},
+Future Lottery Base Prize: {},
+Future Lottery Ticket Price: {}"#,
         config.daily_upper_limit.unwrap_or(0),
         config.bot_odds.unwrap_or(0.5),
         config
@@ -112,7 +169,11 @@ Game length(secs): {}"#,
             .unwrap_or(chrono::Utc::now())
             .to_string()
             .to_owned(),
-        config.game_length_seconds.unwrap_or(30)
+        config.game_length_seconds.unwrap_or(30),
+        config.lottery_base_prize.unwrap_or(10),
+        config.lottery_ticket_price.unwrap_or(5),
+        config.future_lottery_base_prize.unwrap_or(10),
+        config.future_lottery_ticket_price.unwrap_or(5),
     );
     let reply = CreateReply::default().content(response).ephemeral(true);
     ctx.send(reply).await?;

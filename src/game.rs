@@ -3,7 +3,7 @@ use std::time;
 
 use crate::{
     commands::coingamble::HeadsOrTail,
-    database::{self, BalanceDatabase, RoleDatabase},
+    database::{self, BalanceDatabase, ConfigDatabase, RoleDatabase},
 };
 
 #[derive(Debug)]
@@ -140,7 +140,7 @@ impl CoinGame {
         Ok(())
     }
 
-    pub async fn get_winner<T: BalanceDatabase + RoleDatabase>(
+    pub async fn get_winner<T: BalanceDatabase + RoleDatabase + ConfigDatabase>(
         &mut self,
         db: &T,
         bot_id: u64,
@@ -197,13 +197,23 @@ impl CoinGame {
                     };
                 };
 
-                let winner = *leaderboard.choose(&mut rand::thread_rng()).unwrap();
-                db.award_balances(vec![winner as u64], self.pot)
+                let current_pot = {
+                    db.get_config()
+                        .await
+                        .unwrap()
+                        .lottery_base_prize
+                        .unwrap_or(10)
+                };
+
+                let new_pot = current_pot + self.pot;
+
+                db.set_config_value(database::ConfigKey::LotteryBasePrize, &new_pot.to_string())
                     .await
                     .unwrap();
+
                 CoinGameResult {
                     result,
-                    winners: vec![winner],
+                    winners: vec![],
                     prize: self.pot,
                     prize_with_multiplier: 0,
                     leader: None,
