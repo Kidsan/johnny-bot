@@ -14,6 +14,7 @@ pub enum ConfigOption {
     LotteryBasePrize,
     FutureLotteryTicketPrice,
     FutureLotteryBasePrize,
+    SideChance,
 }
 
 ///
@@ -136,6 +137,20 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .unwrap();
             ctx.data().config.write().unwrap().future_lottery_base_prize = prize;
         }
+        ConfigOption::SideChance => {
+            let chance = value
+                .parse::<i32>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+            if !(0..=100).contains(&chance) {
+                return Err(Error::from("Chance must be in range 0..=100".to_string()));
+            }
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::SideChance, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().side_chance = chance;
+        }
     }
     let reply = CreateReply::default().content("Success").ephemeral(true);
     ctx.send(reply).await?;
@@ -153,28 +168,7 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
 )]
 pub async fn get(ctx: Context<'_>) -> Result<(), Error> {
     let config = ctx.data().db.get_config().await.unwrap();
-    let response = format!(
-        r#"Daily upper limit: {}
-Bot odds: {:.2}
-Bot odds updated: {}
-Game length(secs): {}
-Lottery Base Prize: {},
-Lottery Ticket Price: {},
-Future Lottery Base Prize: {},
-Future Lottery Ticket Price: {}"#,
-        config.daily_upper_limit.unwrap_or(0),
-        config.bot_odds.unwrap_or(0.5),
-        config
-            .bot_odds_updated
-            .unwrap_or(chrono::Utc::now())
-            .to_string()
-            .to_owned(),
-        config.game_length_seconds.unwrap_or(30),
-        config.lottery_base_prize.unwrap_or(10),
-        config.lottery_ticket_price.unwrap_or(5),
-        config.future_lottery_base_prize.unwrap_or(10),
-        config.future_lottery_ticket_price.unwrap_or(5),
-    );
+    let response = format!("{config}");
     let reply = CreateReply::default().content(response).ephemeral(true);
     ctx.send(reply).await?;
     Ok(())

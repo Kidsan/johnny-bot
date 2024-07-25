@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use sqlx::Pool;
+use std::fmt;
 
 #[cfg(not(test))]
 use tokio::fs;
@@ -131,6 +132,23 @@ struct ConfigRow {
     pub value: String,
 }
 
+impl ConfigRow {
+    fn as_config_key(&self) -> ConfigKey {
+        match self.key.as_str() {
+            "daily_upper_limit" => ConfigKey::DailyUpperLimit,
+            "bot_odds_updated" => ConfigKey::BotOddsUpdated,
+            "bot_odds" => ConfigKey::BotOdds,
+            "game_length_seconds" => ConfigKey::GameLengthSeconds,
+            "lottery_base_prize" => ConfigKey::LotteryBasePrize,
+            "lottery_ticket_price" => ConfigKey::LotteryTicketPrice,
+            "future_lottery_base_prize" => ConfigKey::FutureLotteryBasePrize,
+            "future_lottery_ticket_price" => ConfigKey::FutureLotteryTicketPrice,
+            "side_chance" => ConfigKey::SideChance,
+            _ => panic!("Invalid config"),
+        }
+    }
+}
+
 pub enum ConfigKey {
     DailyUpperLimit,
     BotOddsUpdated,
@@ -140,6 +158,7 @@ pub enum ConfigKey {
     LotteryTicketPrice,
     FutureLotteryBasePrize,
     FutureLotteryTicketPrice,
+    SideChance,
 }
 
 impl ConfigKey {
@@ -153,6 +172,7 @@ impl ConfigKey {
             ConfigKey::LotteryTicketPrice => "lottery_ticket_price",
             ConfigKey::FutureLotteryBasePrize => "future_lottery_base_prize",
             ConfigKey::FutureLotteryTicketPrice => "future_lottery_ticket_price",
+            ConfigKey::SideChance => "side_chance",
         }
     }
 }
@@ -172,42 +192,44 @@ impl ConfigDatabase for Database {
             lottery_ticket_price: None,
             future_lottery_base_prize: None,
             future_lottery_ticket_price: None,
+            side_chance: None,
         };
 
         for d in data {
-            if ConfigKey::DailyUpperLimit.as_str() == d.key.as_str() {
-                config.daily_upper_limit = Some(d.value.parse().unwrap());
-            }
-            if ConfigKey::BotOddsUpdated.as_str() == d.key.as_str() {
-                config.bot_odds_updated = Some(
-                    chrono::DateTime::from_timestamp(d.value.parse().unwrap(), 0).unwrap_or(
-                        chrono::Utc::now()
-                            .checked_sub_days(chrono::Days::new(1))
-                            .unwrap(),
-                    ),
-                );
-            }
-            if ConfigKey::BotOdds.as_str() == d.key.as_str() {
-                config.bot_odds = Some(d.value.parse().unwrap());
-            }
-            if ConfigKey::BotOdds.as_str() == d.key.as_str() {
-                config.bot_odds = Some(d.value.parse().unwrap());
-            }
-            if ConfigKey::GameLengthSeconds.as_str() == d.key.as_str() {
-                config.game_length_seconds = Some(d.value.parse().unwrap());
-            }
-            if ConfigKey::LotteryBasePrize.as_str() == d.key.as_str() {
-                config.lottery_base_prize = Some(d.value.parse().unwrap());
-            }
-            if ConfigKey::LotteryTicketPrice.as_str() == d.key.as_str() {
-                config.lottery_ticket_price = Some(d.value.parse().unwrap());
-            }
-            if ConfigKey::FutureLotteryBasePrize.as_str() == d.key.as_str() {
-                config.future_lottery_base_prize = Some(d.value.parse().unwrap());
-            }
-
-            if ConfigKey::FutureLotteryTicketPrice.as_str() == d.key.as_str() {
-                config.future_lottery_ticket_price = Some(d.value.parse().unwrap());
+            match d.as_config_key() {
+                ConfigKey::DailyUpperLimit => {
+                    config.daily_upper_limit = Some(d.value.parse().unwrap());
+                }
+                ConfigKey::BotOddsUpdated => {
+                    config.bot_odds_updated = Some(
+                        chrono::DateTime::from_timestamp(d.value.parse().unwrap(), 0).unwrap_or(
+                            chrono::Utc::now()
+                                .checked_sub_days(chrono::Days::new(1))
+                                .unwrap(),
+                        ),
+                    );
+                }
+                ConfigKey::BotOdds => {
+                    config.bot_odds = Some(d.value.parse().unwrap());
+                }
+                ConfigKey::GameLengthSeconds => {
+                    config.game_length_seconds = Some(d.value.parse().unwrap());
+                }
+                ConfigKey::LotteryBasePrize => {
+                    config.lottery_base_prize = Some(d.value.parse().unwrap());
+                }
+                ConfigKey::LotteryTicketPrice => {
+                    config.lottery_ticket_price = Some(d.value.parse().unwrap());
+                }
+                ConfigKey::FutureLotteryBasePrize => {
+                    config.future_lottery_base_prize = Some(d.value.parse().unwrap());
+                }
+                ConfigKey::FutureLotteryTicketPrice => {
+                    config.future_lottery_ticket_price = Some(d.value.parse().unwrap());
+                }
+                ConfigKey::SideChance => {
+                    config.side_chance = Some(d.value.parse().unwrap());
+                }
             }
         }
         Ok(config)
@@ -250,6 +272,27 @@ pub struct Config {
     pub lottery_ticket_price: Option<i32>,
     pub future_lottery_base_prize: Option<i32>,
     pub future_lottery_ticket_price: Option<i32>,
+    pub side_chance: Option<i32>,
+}
+
+impl fmt::Display for Config {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Daily upper limit: {}\nBot odds updated: {}\nBot odds: {:.2}\nGame length seconds: {}\nLottery base prize: {}\nLottery ticket price: {}\nFuture lottery base prize: {}\nFuture lottery ticket price: {}\nSide chance: {}",
+            self.daily_upper_limit.unwrap_or(0),
+            self.bot_odds_updated
+                .map(|x| x.to_rfc2822())
+                .unwrap_or_else(|| "None".to_string()),
+            self.bot_odds.unwrap_or(0.0),
+            self.game_length_seconds.unwrap_or(0),
+            self.lottery_base_prize.unwrap_or(0),
+            self.lottery_ticket_price.unwrap_or(0),
+            self.future_lottery_base_prize.unwrap_or(0),
+            self.future_lottery_ticket_price.unwrap_or(0),
+            self.side_chance.unwrap_or(0)
+        )
+    }
 }
 
 #[derive(Debug)]

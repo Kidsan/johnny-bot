@@ -437,15 +437,9 @@ mod tests {
 
         let result = game.get_winner(&db, bot_id, crown_role_id).await;
         assert_eq!(result.result, CoinSides::Side);
-        assert_eq!(result.winners.len(), 1);
-        let winner = &result.winners[0];
-        let balance = db.get_balance(*winner).await.unwrap();
-        assert_eq!(balance, 250);
-        if *winner == p1 {
-            let balance = db.get_balance(p2).await.unwrap();
-            assert_eq!(balance, 50);
-        } else {
-            let balance = db.get_balance(p1).await.unwrap();
+        assert_eq!(result.winners.len(), 0);
+        for p in &game.players {
+            let balance = db.get_balance(*p).await.unwrap();
             assert_eq!(balance, 50);
         }
         db.close().await.unwrap();

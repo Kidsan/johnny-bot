@@ -32,6 +32,22 @@ pub struct Config {
     lottery_base_prize: i32,
     future_lottery_ticket_price: i32,
     future_lottery_base_prize: i32,
+    side_chance: i32,
+}
+
+impl Config {
+    fn from(input: database::Config) -> Self {
+        Self {
+            daily_upper_limit: input.daily_upper_limit.unwrap_or(0),
+            bot_odds: input.bot_odds.unwrap_or(0.5),
+            game_length_seconds: input.game_length_seconds.unwrap_or(30),
+            lottery_ticket_price: input.lottery_ticket_price.unwrap_or(5),
+            lottery_base_prize: input.lottery_base_prize.unwrap_or(10),
+            future_lottery_ticket_price: input.future_lottery_ticket_price.unwrap_or(5),
+            future_lottery_base_prize: input.future_lottery_base_prize.unwrap_or(10),
+            side_chance: input.side_chance.unwrap_or(2),
+        }
+    }
 }
 
 // Custom user data passed to all command functions
@@ -39,7 +55,6 @@ pub struct Config {
 pub struct Data {
     games: Mutex<HashMap<String, game::Game>>,
     db: database::Database,
-    side_chance: i32,
     rng: Mutex<rand::rngs::StdRng>,
     locked_balances: Mutex<HashSet<u64>>,
     bot_id: u64,
@@ -163,6 +178,7 @@ async fn main() {
         lottery_base_prize: 10,
         future_lottery_ticket_price: 5,
         future_lottery_base_prize: 10,
+        side_chance,
     }));
     let config_clone = Arc::clone(&config);
 
@@ -271,7 +287,6 @@ async fn main() {
                 Ok(Data {
                     games: Mutex::new(HashMap::new()),
                     db,
-                    side_chance,
                     rng: Mutex::new(rand::SeedableRng::from_entropy()),
                     locked_balances: Mutex::new(HashSet::new()),
                     bot_id,

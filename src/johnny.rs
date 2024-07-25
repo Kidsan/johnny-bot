@@ -115,16 +115,7 @@ impl Johnny {
 
     pub async fn refresh_config(&self) {
         match self.db.get_config().await {
-            Ok(r) => {
-                let mut config = self.config.write().unwrap();
-                config.daily_upper_limit = r.daily_upper_limit.unwrap_or(0);
-                config.bot_odds = r.bot_odds.unwrap_or(0.5);
-                config.bot_odds = r.bot_odds.unwrap_or(0.5);
-                config.lottery_ticket_price = r.lottery_ticket_price.unwrap_or(5);
-                config.lottery_base_prize = r.lottery_base_prize.unwrap_or(10);
-                config.future_lottery_ticket_price = r.future_lottery_ticket_price.unwrap_or(5);
-                config.future_lottery_base_prize = r.future_lottery_base_prize.unwrap_or(10);
-            }
+            Ok(r) => *self.config.write().unwrap() = Config::from(r),
             Err(e) => {
                 dbg!(e);
             }

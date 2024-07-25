@@ -1,7 +1,6 @@
 use std::time::{self, SystemTime, UNIX_EPOCH};
 
 use crate::{
-    commands::robbingevent::get_discord_name,
     database::BalanceDatabase,
     game::{CoinGame, CoinSides, GameError},
     texts::landedside::LANDEDSIDE,
@@ -76,7 +75,7 @@ pub async fn coingamble(
         choice.clone(),
         amount,
         time::Instant::now(),
-        ctx.data().side_chance,
+        ctx.data().config.read().unwrap().side_chance,
         ctx.data().config.read().unwrap().bot_odds,
     );
 
