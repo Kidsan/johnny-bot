@@ -491,10 +491,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_lottery_get_winner() {
-            let lottery = Lottery {
-                players: vec![(1, 1), (2, 1), (3, 10)],
-                pot: 5,
-            };
+            let lottery = Lottery::new(vec![(1, 1), (2, 1), (3, 10)], 5);
 
             let mut winners = vec![];
 
@@ -513,10 +510,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_lottery_get_winner_skewed() {
-            let lottery = Lottery {
-                players: vec![(1, 0), (2, 0), (3, 10)],
-                pot: 5,
-            };
+            let lottery = Lottery::new(vec![(1, 0), (2, 0), (3, 10)], 5);
 
             let mut winners = vec![];
 
@@ -591,9 +585,8 @@ impl Lottery {
         if self.players.is_empty() {
             return 0;
         }
-        let mut rng = rand::thread_rng();
         self.players
-            .choose_weighted(&mut rng, |item| item.1)
+            .choose_weighted(&mut rand::thread_rng(), |item| item.1)
             .unwrap()
             .to_owned()
             .0

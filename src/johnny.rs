@@ -59,6 +59,7 @@ impl Johnny {
             }
 
             if time_passed % 60 == 0 {
+                let _ = rand::thread_rng().gen_range(0..=100);
                 self.check_should_trigger_lottery().await;
                 self.refresh_config().await;
             }

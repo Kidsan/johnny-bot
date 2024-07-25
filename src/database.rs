@@ -85,7 +85,7 @@ pub trait ChannelDatabase {
 
 pub trait LotteryDatabase {
     async fn clear_tickets(&self) -> Result<(), Error>;
-    async fn bought_lottery_ticket(&self, user_id: u64) -> Result<i32, Error>;
+    async fn bought_lottery_ticket(&self, user_id: u64, amount: i32) -> Result<i32, Error>;
     async fn get_bought_tickets(&self) -> Result<Vec<(u64, i32)>, Error>;
 }
 
@@ -688,9 +688,10 @@ struct Tickets {
 }
 
 impl LotteryDatabase for Database {
-    async fn bought_lottery_ticket(&self, user_id: u64) -> Result<i32, Error> {
-        let data = sqlx::query_as::<_, Tickets>("INSERT INTO lottery_tickets (id, tickets) VALUES ($1, 1) ON CONFLICT(id) DO UPDATE SET tickets = tickets + 1 RETURNING tickets")
+    async fn bought_lottery_ticket(&self, user_id: u64, amount: i32) -> Result<i32, Error> {
+        let data = sqlx::query_as::<_, Tickets>("INSERT INTO lottery_tickets (id, tickets) VALUES ($1, $2) ON CONFLICT(id) DO UPDATE SET tickets = tickets + $2 RETURNING tickets")
             .bind(user_id as i64)
+            .bind(amount)
             .fetch_one(&self.connection)
             .await.unwrap();
         Ok(data.tickets)

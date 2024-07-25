@@ -105,9 +105,15 @@ pub async fn tickets(ctx: Context<'_>) -> Result<(), Error> {
 /// /lottery buy
 /// ```
 #[poise::command(slash_command)]
-pub async fn buy(ctx: Context<'_>) -> Result<(), Error> {
+pub async fn buy(
+    ctx: Context<'_>,
+    #[description = "The amount of tickets to buy"]
+    #[min = 1]
+    amount: Option<i32>,
+) -> Result<(), Error> {
+    let amount = amount.unwrap_or(1);
     let user_balance = ctx.data().db.get_balance(ctx.author().id.get()).await?;
-    if 5 > user_balance {
+    if 5 * amount > user_balance {
         let reply = {
             CreateReply::default()
                 .content(format!(
@@ -122,13 +128,13 @@ pub async fn buy(ctx: Context<'_>) -> Result<(), Error> {
 
     ctx.data()
         .db
-        .subtract_balances(vec![ctx.author().id.get()], 5)
+        .subtract_balances(vec![ctx.author().id.get()], 5 * amount)
         .await?;
 
     let owned_tickets = ctx
         .data()
         .db
-        .bought_lottery_ticket(ctx.author().id.get())
+        .bought_lottery_ticket(ctx.author().id.get(), amount)
         .await?;
 
     let prize = ctx
