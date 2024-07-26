@@ -70,6 +70,7 @@ pub trait BalanceDatabase {
     async fn bury_balance(&self, user_id: u64, amount: i32) -> Result<(), Error>;
     async fn get_dailies_today(&self) -> Result<i32, Error>;
     async fn get_crown_leaderboard(&self) -> Result<Vec<(u64, f32)>, Error>;
+    async fn get_crown_time(&self, user_id: u64) -> Result<(u64, f32), Error>;
     async fn update_crown_timer(&self, user_id: u64, hours: f32) -> Result<(), Error>;
 }
 
@@ -88,6 +89,7 @@ pub trait LotteryDatabase {
     async fn clear_tickets(&self) -> Result<(), Error>;
     async fn bought_lottery_ticket(&self, user_id: u64, amount: i32) -> Result<i32, Error>;
     async fn get_bought_tickets(&self) -> Result<Vec<(u64, i32)>, Error>;
+    async fn get_user_tickets(&self, user_id: u64) -> Result<i32, Error>;
 }
 
 pub trait RoleDatabase {
@@ -752,6 +754,27 @@ impl BalanceDatabase for Database {
 
         Ok(())
     }
+
+    async fn get_crown_time(&self, user_id: u64) -> Result<(u64, f32), Error> {
+        let data = sqlx::query_as::<_, UserCrownTime>(
+            "SELECT id, hours_held FROM crown_holder_times where id = $1",
+        )
+        .bind(user_id as i64)
+        .fetch_optional(&self.connection)
+        .await;
+
+        match data {
+            Ok(Some(data)) => Ok((data.user_id as u64, data.hours_held)),
+            Ok(None) => Ok((user_id, 0.0)),
+            Err(e) => Err(e.into()),
+        }
+    }
+}
+
+#[derive(Debug, sqlx::FromRow)]
+struct UserCrownTime {
+    user_id: i64,
+    hours_held: f32,
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -785,5 +808,19 @@ impl LotteryDatabase for Database {
             .execute(&self.connection)
             .await?;
         Ok(())
+    }
+
+    async fn get_user_tickets(&self, user_id: u64) -> Result<i32, Error> {
+        let data =
+            sqlx::query_as::<_, Tickets>("SELECT tickets FROM lottery_tickets WHERE id = $1")
+                .bind(user_id as i64)
+                .fetch_one(&self.connection)
+                .await;
+
+        match data {
+            Ok(data) => Ok(data.tickets),
+            Err(sqlx::Error::RowNotFound) => Ok(0),
+            Err(e) => Err(e.into()),
+        }
     }
 }
