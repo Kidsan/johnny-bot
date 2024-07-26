@@ -55,6 +55,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command)]
 #[tracing::instrument(level = "info")]
 pub async fn tickets(ctx: Context<'_>) -> Result<(), Error> {
+    let _ = ctx.defer_or_broadcast().await; // leaderboard can take some time
     let data = ctx.data().db.get_bought_tickets().await.unwrap();
 
     let mut player_names = std::collections::HashMap::new();
