@@ -18,12 +18,15 @@ pub async fn balance(ctx: Context<'_>) -> Result<(), Error> {
         .get_user_tickets(ctx.author().id.get())
         .await?;
 
+    let hours = crown_time.1.trunc() as i32;
+    let minutes = (((crown_time.1.fract() * 100.0).round() / 100.0) * 60.0) as i32;
+
     let response = format!(
-        "**Balance data for {}:\n\nBalance:** {} <:jbuck:1228663982462865450>\n**Lottery Tickets:** {}\n**Crown Time**: {}",
+        "> **{}'s Balance** \n> \n> **Balance:** {} <:jbuck:1228663982462865450>\n> **Lottery Tickets:** {} :tickets:\n> **Crown Time**: {:0>2}:{:0>2} :clock1:",
         ctx.author(),
         response,
         lottery_tickets,
-        crown_time.1
+        hours, minutes
     );
     let reply = {
         poise::CreateReply::default()
