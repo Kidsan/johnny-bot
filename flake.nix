@@ -50,9 +50,9 @@
             python3
             doctl
             pkg-config
-            (rust-bin.stable.latest.default.override {
+            (rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
               extensions = [ "rust-src" ];
-            })
+            }))
             bashInteractive
             cargo-watch
             sqlx-cli
