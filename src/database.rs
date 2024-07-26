@@ -764,7 +764,7 @@ impl BalanceDatabase for Database {
         .await;
 
         match data {
-            Ok(Some(data)) => Ok((data.user_id as u64, data.hours_held)),
+            Ok(Some(data)) => Ok((data.id as u64, data.hours_held)),
             Ok(None) => Ok((user_id, 0.0)),
             Err(e) => Err(e.into()),
         }
@@ -773,7 +773,7 @@ impl BalanceDatabase for Database {
 
 #[derive(Debug, sqlx::FromRow)]
 struct UserCrownTime {
-    user_id: i64,
+    id: i64,
     hours_held: f32,
 }
 
