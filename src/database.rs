@@ -76,6 +76,10 @@ pub trait BalanceDatabase {
 
 pub trait RobberyDatabase {
     async fn get_last_bought_robbery(&self, user_id: u64) -> Result<DateTime<Utc>, Error>;
+    async fn get_last_bought_robbery_two(
+        &self,
+        user_id: u64,
+    ) -> Result<Option<DateTime<Utc>>, Error>;
     async fn bought_robbery(&self, user_id: u64) -> Result<(), Error>;
 }
 
@@ -340,6 +344,25 @@ impl Database {
 }
 
 impl RobberyDatabase for Database {
+    async fn get_last_bought_robbery_two(
+        &self,
+        user_id: u64,
+    ) -> Result<Option<DateTime<Utc>>, Error> {
+        let user = user_id;
+        let last_daily = sqlx::query_as::<_, BoughtRobbery>(
+            "SELECT last_bought FROM bought_robberies WHERE id = $1",
+        )
+        .bind(user.to_string())
+        .fetch_optional(&self.connection)
+        .await?;
+
+        match last_daily {
+            Some(last_daily) => Ok(Some(
+                DateTime::<Utc>::from_timestamp(last_daily.last_bought, 0).unwrap(),
+            )),
+            None => Ok(None),
+        }
+    }
     async fn get_last_bought_robbery(&self, user_id: u64) -> Result<DateTime<Utc>, Error> {
         let user = user_id;
         let last_daily = sqlx::query_as::<_, BoughtRobbery>(

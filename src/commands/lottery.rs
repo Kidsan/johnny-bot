@@ -103,7 +103,7 @@ pub async fn tickets(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 ///
-/// Buy a lottery ticket for 5 J-Bucks
+/// Buy a lottery ticket
 ///
 /// Enter `/lottery buy`
 /// ```

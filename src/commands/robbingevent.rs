@@ -511,7 +511,7 @@ async fn robbery_cooldown(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-fn week_bounds(week: u32) -> (NaiveDate, NaiveDate) {
+pub fn week_bounds(week: u32) -> (NaiveDate, NaiveDate) {
     let current_year = chrono::offset::Local::now().year();
     (
         NaiveDate::from_isoywd_opt(current_year, week, chrono::Weekday::Mon).unwrap(),
