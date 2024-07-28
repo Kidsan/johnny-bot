@@ -22,37 +22,51 @@ pub async fn balance(ctx: Context<'_>) -> Result<(), Error> {
 
     let robbery_status: String;
     {
+        let guild_id = ctx.guild_id().unwrap();
         let last_bought_robbery = ctx
             .data()
             .db
             .get_last_bought_robbery_two(ctx.author().id.get())
             .await?;
 
-        if last_bought_robbery.is_none() {
-            let a = ctx
-                .serenity_context()
-                .http
-                .get_member(ctx.guild_id().unwrap(), ctx.author().id)
-                .await?;
+        let a = ctx
+            .serenity_context()
+            .http
+            .get_member(guild_id, ctx.author().id)
+            .await?;
 
-            let has = a
+        let nitro_role = match ctx.guild().unwrap().role_by_name("Nitro Dealers") {
+            Some(x) => x.clone(),
+            None => ctx
+                .guild()
+                .unwrap()
                 .roles
-                .iter()
-                .any(|&x| x == poise::serenity_prelude::RoleId::new(1236716462266122250));
-            dbg!(&has);
-            if !has {
-                robbery_status = "License Needed".to_string();
-            } else {
-                robbery_status = "Ready".to_string()
-            }
+                .get(&poise::serenity_prelude::RoleId::new(1236716462266122250))
+                .unwrap()
+                .clone(),
+        };
+
+        let has = a
+            .roles
+            .iter()
+            .any(|&x| x == poise::serenity_prelude::RoleId::new(1236716462266122250))
+            || ctx
+                .author()
+                .has_role(ctx, guild_id, nitro_role)
+                .await
+                .unwrap();
+
+        if !has {
+            robbery_status = "License Needed".to_string();
+        } else if last_bought_robbery.is_none() {
+            robbery_status = "Ready".to_string();
         } else {
             let week_number = chrono::Utc::now().date_naive().iso_week().week();
-
             let (start, _end) = week_bounds(week_number);
             if last_bought_robbery.unwrap().naive_utc() > start.into() {
                 robbery_status = "Used".to_string();
             } else {
-                robbery_status = "Ready".to_string()
+                robbery_status = "Ready".to_string();
             }
         }
     };
