@@ -75,11 +75,7 @@ pub trait BalanceDatabase {
 }
 
 pub trait RobberyDatabase {
-    async fn get_last_bought_robbery(&self, user_id: u64) -> Result<DateTime<Utc>, Error>;
-    async fn get_last_bought_robbery_two(
-        &self,
-        user_id: u64,
-    ) -> Result<Option<DateTime<Utc>>, Error>;
+    async fn get_last_bought_robbery(&self, user_id: u64) -> Result<Option<DateTime<Utc>>, Error>;
     async fn bought_robbery(&self, user_id: u64) -> Result<(), Error>;
 }
 
@@ -344,10 +340,7 @@ impl Database {
 }
 
 impl RobberyDatabase for Database {
-    async fn get_last_bought_robbery_two(
-        &self,
-        user_id: u64,
-    ) -> Result<Option<DateTime<Utc>>, Error> {
+    async fn get_last_bought_robbery(&self, user_id: u64) -> Result<Option<DateTime<Utc>>, Error> {
         let user = user_id;
         let last_daily = sqlx::query_as::<_, BoughtRobbery>(
             "SELECT last_bought FROM bought_robberies WHERE id = $1",
@@ -363,37 +356,11 @@ impl RobberyDatabase for Database {
             None => Ok(None),
         }
     }
-    async fn get_last_bought_robbery(&self, user_id: u64) -> Result<DateTime<Utc>, Error> {
-        let user = user_id;
-        let last_daily = sqlx::query_as::<_, BoughtRobbery>(
-            "SELECT last_bought FROM bought_robberies WHERE id = $1",
-        )
-        .bind(user.to_string())
-        .fetch_one(&self.connection)
-        .await;
-
-        let res = match last_daily {
-            Ok(last_daily) => DateTime::<Utc>::from_timestamp(last_daily.last_bought, 0).unwrap(),
-            Err(sqlx::Error::RowNotFound) => {
-                let user = user_id.to_string();
-                let now = (chrono::Utc::now() - chrono::Duration::days(7)).timestamp();
-                dbg!(chrono::Utc::now().timestamp(), now);
-                sqlx::query("INSERT INTO bought_robberies (id, last_bought) VALUES ($1, $2)")
-                    .bind(user)
-                    .bind(now)
-                    .execute(&self.connection)
-                    .await?;
-                DateTime::from_timestamp(now, 0).unwrap()
-            }
-            Err(e) => return Err(e.into()),
-        };
-        Ok(res)
-    }
 
     async fn bought_robbery(&self, user_id: u64) -> Result<(), Error> {
-        sqlx::query("UPDATE bought_robberies SET last_bought = $1 WHERE id = $2")
-            .bind(chrono::Utc::now().timestamp())
+        sqlx::query("INSERT INTO bought_robberies (id, last_bought) VALUES ($1, $2) ON CONFLICT(id) DO UPDATE SET last_bought = $2")
             .bind(user_id.to_string())
+            .bind(chrono::Utc::now().timestamp())
             .execute(&self.connection)
             .await?;
         Ok(())
