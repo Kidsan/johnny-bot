@@ -26,7 +26,7 @@ pub async fn balance(ctx: Context<'_>) -> Result<(), Error> {
         let last_bought_robbery = ctx
             .data()
             .db
-            .get_last_bought_robbery_two(ctx.author().id.get())
+            .get_last_bought_robbery(ctx.author().id.get())
             .await?;
 
         let a = ctx
@@ -35,26 +35,18 @@ pub async fn balance(ctx: Context<'_>) -> Result<(), Error> {
             .get_member(guild_id, ctx.author().id)
             .await?;
 
-        let nitro_role = match ctx.guild().unwrap().role_by_name("Nitro Dealers") {
-            Some(x) => x.clone(),
-            None => ctx
-                .guild()
-                .unwrap()
-                .roles
-                .get(&poise::serenity_prelude::RoleId::new(1236716462266122250))
-                .unwrap()
-                .clone(),
+        let nitro_role = ctx.guild().unwrap().role_by_name("Nitro Dealers").cloned();
+
+        let has_nitro_role = match nitro_role {
+            Some(x) => a.roles.iter().any(|&y| y == x.id),
+            None => false,
         };
 
         let has = a
             .roles
             .iter()
             .any(|&x| x == poise::serenity_prelude::RoleId::new(1236716462266122250))
-            || ctx
-                .author()
-                .has_role(ctx, guild_id, nitro_role)
-                .await
-                .unwrap();
+            || has_nitro_role;
 
         if !has {
             robbery_status = "License Needed".to_string();
