@@ -172,7 +172,11 @@ impl Johnny {
             (config.lottery_base_prize, config.lottery_ticket_price)
         };
         let lottery_tickets = self.db.get_bought_tickets().await.unwrap();
-        let pot = lottery_tickets.iter().map(|(_, x)| x * price).sum::<i32>() + base_prize;
+        let pot = lottery_tickets
+            .iter()
+            .map(|(_, x)| x * (price - 1))
+            .sum::<i32>()
+            + base_prize;
         let lottery = game::Lottery::new(lottery_tickets.clone(), pot);
         let winner = lottery.get_winner();
 

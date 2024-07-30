@@ -485,13 +485,17 @@ async fn robbery_cooldown(ctx: Context<'_>) -> Result<(), Error> {
 
     let (start, end) = week_bounds(week_number);
 
-    let last_daily = ctx
+    let last_robbery = ctx
         .data()
         .db
         .get_last_bought_robbery(ctx.author().id.get())
         .await?;
 
-    if last_daily.naive_utc() > start.into() {
+    if last_robbery.is_none() {
+        return Ok(());
+    }
+
+    if last_robbery.unwrap().naive_utc() > start.into() {
         let ts = end
             .and_time(NaiveTime::from_hms_opt(23, 59, 59).unwrap())
             .and_utc()

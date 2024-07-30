@@ -23,7 +23,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     let price = { ctx.data().config.read().unwrap().lottery_ticket_price };
 
     let tickets_sold = data.iter().map(|(_, v)| v).sum::<i32>();
-    let prize = (tickets_sold * price) + base_prize;
+    let prize = (tickets_sold * (price - 1)) + base_prize;
 
     // ends at the next 18:00 UTC
     let mut end = chrono::Utc::now()
@@ -151,7 +151,7 @@ pub async fn buy(
         .await
         .unwrap()
         .iter()
-        .map(|(_, x)| x * price)
+        .map(|(_, x)| x * (price - 1))
         .sum::<i32>()
         + base_prize;
 
