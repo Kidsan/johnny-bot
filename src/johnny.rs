@@ -1,9 +1,8 @@
-use std::sync::{Arc, RwLock};
-
 use chrono::{NaiveTime, TimeDelta, Timelike};
 use rand::Rng;
 use serenity::all::CreateMessage;
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 use poise::serenity_prelude::RoleId;
 
@@ -72,7 +71,9 @@ impl Johnny {
 
             if five_minute_counter.elapsed().as_secs() >= 300 {
                 self.decay().await;
-                self.check_skewed_odds().await;
+                if self.should_update_skewed_odds().await {
+                    self.update_skewed_odds().await;
+                }
                 five_minute_counter = tokio::time::Instant::now();
             }
             tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
@@ -127,19 +128,17 @@ impl Johnny {
         }
     }
 
-    async fn check_skewed_odds(&self) {
-        let today = chrono::Utc::now()
-            .with_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
-            .unwrap();
+    async fn should_update_skewed_odds(&self) -> bool {
+        let last = self.db.get_config().await.unwrap().bot_odds_updated;
 
-        if let Some(last_updated) = self.db.get_config().await.unwrap().bot_odds_updated {
-            if last_updated < today {
-                self.update_skewed_odds().await;
-                return;
-            }
-            return;
+        if last.is_none() {
+            return true;
         }
-        self.update_skewed_odds().await;
+
+        if chrono::Utc::now().timestamp() - last.unwrap().timestamp() >= 24 * 60 * 60 {
+            return true;
+        }
+        false
     }
 
     pub async fn update_skewed_odds(&self) {
