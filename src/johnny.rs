@@ -224,9 +224,26 @@ impl Johnny {
             .await
             .unwrap();
 
+        let losers = lottery_tickets
+            .iter()
+            .map(|(a, _)| a)
+            .filter(|a| **a != winner)
+            .collect::<Vec<_>>();
+
+        let loser_text = if losers.is_empty() {
+            "".to_string()
+        } else {
+            let text = losers
+                .iter()
+                .map(|a| format!("<@{}>", a))
+                .collect::<Vec<String>>()
+                .join(", ");
+            format!("> Losers: {}\n", text)
+        };
+
         let num_tickets = lottery_tickets.iter().find(|a| a.0 == winner).unwrap().1;
-        let text = format!("> :tada: :tada: WOW! <@{}> just won the lottery!\n> They won **{} <:jbuck:1228663982462865450>** by buying only **{} :tickets:**\n> \n> **New lottery starting... NOW**\n> Prize pool: {} <:jbuck:1228663982462865450>\n> Use ***/lottery buy*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
-            winner, pot, num_tickets, new_base_prize, new_ticket_price);
+        let text = format!("> :tada: :tada: WOW! <@{}> just won the lottery!\n> They won **{} <:jbuck:1228663982462865450>** by buying only **{} :tickets:**\n{}> \n> **New lottery starting... NOW**\n> Prize pool: {} <:jbuck:1228663982462865450>\n> Use ***/lottery buy*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
+            winner, pot, num_tickets, loser_text, new_base_prize, new_ticket_price);
 
         let m = { CreateMessage::new().content(text) };
 
