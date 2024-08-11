@@ -1,8 +1,11 @@
 use crate::{
+    commands::{lottery::buylotteryticket, robbingevent::buyrobbery},
     database::{BalanceDatabase, RoleDatabase, ShopDatabase},
+    johnny::is_weekend,
     Context, Error,
 };
 use base64::{engine::general_purpose, Engine as _};
+use chrono::{Datelike, Days, NaiveTime};
 use poise::CreateReply;
 use serenity::all::Emoji;
 
@@ -85,6 +88,15 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
         );
         role_prices.insert_str(0, "**Emoji:**\n");
 
+        role_prices.insert_str(
+            0,
+            format!(
+                "> Bones: {} <:jbuck:1228663982462865450>\n",
+                ctx.data().config.read().unwrap().bones_price
+            )
+            .as_str(),
+        );
+        role_prices.insert_str(0, "**Bones:**\n");
         role_prices.insert_str(
             0,
             "### <:jbuck:1228663982462865450> Shop <:jbuck:1228663982462865450> ###\n\n",
@@ -211,7 +223,11 @@ pub async fn incrementroleprice(ctx: Context<'_>, role_id: String) -> Result<(),
 /// ```
 /// /buy role @role
 /// ```
-#[poise::command(slash_command, subcommands("role", "emoji"), subcommand_required)]
+#[poise::command(
+    slash_command,
+    subcommands("role", "emoji", "bones", "buyrobbery", "buylotteryticket"),
+    subcommand_required
+)]
 pub async fn buy(_: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -238,6 +254,138 @@ pub async fn complete_roles<'a>(
         })
         .collect::<Vec<poise::serenity_prelude::AutocompleteChoice>>()
         .into_iter()
+}
+
+async fn weekends_only(ctx: Context<'_>) -> Result<bool, Error> {
+    if chrono::Utc::now().weekday() == chrono::Weekday::Sat
+        || chrono::Utc::now().weekday() == chrono::Weekday::Sun
+    {
+        Ok(true)
+    } else {
+        ctx.send(
+            CreateReply::default()
+                .content("You can only buy on weekends!")
+                .ephemeral(true)
+                .reply(true),
+        )
+        .await?;
+        Err("You can only buy on weekends!".into())
+    }
+}
+
+async fn weekdays_only(ctx: Context<'_>) -> Result<bool, Error> {
+    if chrono::Utc::now().weekday() == chrono::Weekday::Sat
+        || chrono::Utc::now().weekday() == chrono::Weekday::Sun
+    {
+        ctx.send(
+            CreateReply::default()
+                .content("You can't do that on weekends!")
+                .ephemeral(true)
+                .reply(true),
+        )
+        .await?;
+        Err("You can't do that on weekends!".into())
+    } else {
+        Ok(true)
+    }
+}
+
+///
+/// Buy bones with your JBucks
+///
+/// Enter `/buy bones <amount>`
+/// ```
+/// /buy bones 3
+/// ```
+#[poise::command(slash_command, check = "weekends_only")]
+pub async fn bones(
+    ctx: Context<'_>,
+    #[description = "amount to purchase"]
+    #[min = 1]
+    amount: Option<i32>,
+) -> Result<(), Error> {
+    let amount = amount.unwrap_or(1);
+    let price = ctx.data().config.read().unwrap().bones_price;
+    let balance = ctx.data().db.get_balance(ctx.author().id.get()).await?;
+    if balance < price * amount {
+        let reply = {
+            CreateReply::default()
+                .content(format!(
+                    "You can't afford that many :bone:! You need {} <:jbuck:1228663982462865450>!",
+                    price * amount
+                ))
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("Not enough money".into());
+    }
+
+    ctx.data()
+        .db
+        .subtract_balances(vec![ctx.author().id.get()], price * amount)
+        .await?;
+    ctx.data()
+        .db
+        .add_bones(ctx.author().id.get(), amount)
+        .await?;
+    let reply = {
+        CreateReply::default()
+            .content(format!(
+                "You have purchased {} :bone: for {} <:jbuck:1228663982462865450>!",
+                amount,
+                price * amount
+            ))
+            .ephemeral(false)
+    };
+    ctx.send(reply).await?;
+    Ok(())
+}
+
+///
+/// Sell your bones
+///
+/// Enter `/sell bones <amount>`
+/// ```
+/// /sell bones 3
+/// ```
+#[poise::command(slash_command, rename = "bones", check = "weekdays_only")]
+pub async fn sellbones(
+    ctx: Context<'_>,
+    #[description = "amount to sell"]
+    #[min = 1]
+    amount: i32,
+) -> Result<(), Error> {
+    let balance = ctx.data().db.get_bones(ctx.author().id.get()).await?;
+    if balance < amount {
+        let reply = {
+            CreateReply::default()
+                .content("You don't have that many :bone:!".to_string())
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("Not enough bones".into());
+    }
+    let price = ctx.data().config.read().unwrap().bones_price;
+
+    ctx.data()
+        .db
+        .award_balances(vec![ctx.author().id.get()], price * amount)
+        .await?;
+    ctx.data()
+        .db
+        .remove_bones(ctx.author().id.get(), amount)
+        .await?;
+    let reply = {
+        CreateReply::default()
+            .content(format!(
+                "You have sold {} :bone: for {} <:jbuck:1228663982462865450>!",
+                amount,
+                price * amount
+            ))
+            .ephemeral(false)
+    };
+    ctx.send(reply).await?;
+    Ok(())
 }
 
 ///
@@ -654,5 +802,67 @@ pub async fn list_prices(ctx: Context<'_>) -> Result<(), Error> {
     let reply = { CreateReply::default().ephemeral(true).embed(embed) };
     ctx.send(reply).await?;
 
+    Ok(())
+}
+#[poise::command(slash_command, rename = "bones")]
+pub async fn bones_status(ctx: Context<'_>) -> Result<(), Error> {
+    let bones = ctx.data().db.get_bones(ctx.author().id.get()).await?;
+    let price = ctx.data().config.read().unwrap().bones_price;
+    let status = match is_weekend() {
+        true => "> Status: **BUYING TIME :chart_with_upwards_trend: **",
+        false => "> Status: **SELLING TIME :chart_with_downwards_trend: **",
+    };
+    let deadline = match is_weekend() {
+        true => {
+            // deadline is Monday 00:00 UTC
+            let mut deadline = chrono::Utc::now();
+            let now = chrono::Utc::now();
+            if now.weekday() == chrono::Weekday::Sat {
+                deadline = deadline.checked_add_days(Days::new(2)).unwrap()
+            } else if now.weekday() == chrono::Weekday::Sun {
+                deadline = deadline.checked_add_days(Days::new(1)).unwrap()
+            }
+            deadline = deadline
+                .with_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                .unwrap();
+
+            format!("> Buying time ends: <t:{}:R>", deadline.timestamp())
+        }
+        false => {
+            // deadline is Saturday 00:00 UTC
+            let mut deadline = chrono::Utc::now();
+            while deadline.weekday() != chrono::Weekday::Sat {
+                dbg!(deadline.weekday());
+                deadline = deadline.checked_add_days(Days::new(1)).unwrap();
+            }
+            deadline = deadline
+                .with_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+                .unwrap();
+            format!("> Bones expire: <t:{}:R>", deadline.timestamp())
+        }
+    };
+    let footer = match is_weekend() {
+        true => "> Buy more via** /buy bones** command!",
+        false => "> Sell your stock via** /sell bones** command!",
+    };
+    let formatted_price = format!("> Price: **{}** <:jbuck:1228663982462865450>", price);
+    let formatted_balance = format!("> {} has: **{}** :bone:", ctx.author(), bones);
+    let message = format!(
+        "> **BONE MARKET**\n{status}\n{formatted_price}\n{deadline}\n{formatted_balance}\n{footer}"
+    );
+    let reply = { CreateReply::default().content(message).reply(true) };
+    ctx.send(reply).await?;
+    Ok(())
+}
+
+///
+/// Sell something for JBucks
+///
+/// Enter `/sell `
+/// ```
+/// /sell bones 1
+/// ```
+#[poise::command(slash_command, subcommands("sellbones"), subcommand_required)]
+pub async fn sell(_: Context<'_>) -> Result<(), Error> {
     Ok(())
 }

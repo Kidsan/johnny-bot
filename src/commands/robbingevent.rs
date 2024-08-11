@@ -83,7 +83,12 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
 /// ```
 /// /buyrobbery
 /// ```
-#[poise::command(slash_command, check = "no_locked_balances", check = "enough_players")]
+#[poise::command(
+    slash_command,
+    rename = "robbery",
+    check = "no_locked_balances",
+    check = "enough_players"
+)]
 pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
     {
         if ctx

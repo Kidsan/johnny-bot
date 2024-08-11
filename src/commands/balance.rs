@@ -13,6 +13,7 @@ use chrono::Datelike;
 #[poise::command(slash_command)]
 pub async fn balance(ctx: Context<'_>) -> Result<(), Error> {
     let response = ctx.data().db.get_balance(ctx.author().id.get()).await?;
+    let bones = ctx.data().db.get_bones(ctx.author().id.get()).await?;
     let crown_time = ctx.data().db.get_crown_time(ctx.author().id.get()).await?;
     let lottery_tickets = ctx
         .data()
@@ -69,9 +70,10 @@ pub async fn balance(ctx: Context<'_>) -> Result<(), Error> {
     let minutes = (((crown_time.1.fract() * 100.0).round() / 100.0) * 60.0) as i32;
 
     let response = format!(
-        "> **{}'s Balance** \n> \n> **Balance:** {} <:jbuck:1228663982462865450>\n> **Lottery Tickets:** {} :tickets:\n> **Crown Time**: {:0>2}:{:0>2} :clock1:\n> **Robbery Status**: {} :moneybag:",
+        "> **{}'s Balance** \n> \n> **Balance:** {} <:jbuck:1228663982462865450>\n> **Bones**: {} :bone:\n> **Lottery Tickets:** {} :tickets:\n> **Crown Time**: {:0>2}:{:0>2} :clock1:\n> **Robbery Status**: {} :moneybag:",
         ctx.author(),
         response,
+        bones,
         lottery_tickets,
         hours, minutes,
         robbery_status

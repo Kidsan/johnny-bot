@@ -2,7 +2,7 @@ use crate::commands::robbingevent::get_discord_name;
 use crate::{database::BalanceDatabase, database::LotteryDatabase, Context, Error};
 use poise::CreateReply;
 
-#[poise::command(slash_command, subcommands("info", "tickets", "buy"))]
+#[poise::command(slash_command, subcommands("info", "tickets"))]
 #[tracing::instrument(level = "info")]
 pub async fn lottery(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
@@ -105,12 +105,12 @@ pub async fn tickets(ctx: Context<'_>) -> Result<(), Error> {
 ///
 /// Buy a lottery ticket
 ///
-/// Enter `/lottery buy`
+/// Enter `/buy lottery`
 /// ```
-/// /lottery buy
+/// /buy lottery
 /// ```
-#[poise::command(slash_command)]
-pub async fn buy(
+#[poise::command(slash_command, rename = "lottery")]
+pub async fn buylotteryticket(
     ctx: Context<'_>,
     #[description = "The amount of tickets to buy"]
     #[min = 1]

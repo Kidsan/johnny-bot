@@ -17,6 +17,8 @@ pub async fn complete_help<'a>(
         "buyrobbery",
         "rpsgamble",
         "buy",
+        "sell",
+        "bones",
         "shop",
         "lottery",
     ];
@@ -45,6 +47,7 @@ pub async fn help(
             "bury",
             "buyrobbery",
             "rpsgamble",
+            "sellbones",
             "buy",
             "shop",
             "lottery",

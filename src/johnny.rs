@@ -1,4 +1,4 @@
-use chrono::{NaiveTime, TimeDelta, Timelike};
+use chrono::{Datelike, NaiveTime, TimeDelta, Timelike};
 use rand::Rng;
 use serenity::all::CreateMessage;
 use std::collections::HashMap;
@@ -6,6 +6,7 @@ use std::sync::{Arc, RwLock};
 
 use poise::serenity_prelude::RoleId;
 
+use crate::database::ConfigKey;
 use crate::{
     database::{self, BalanceDatabase, ConfigDatabase, LotteryDatabase},
     game, Config, RoleDatabase,
@@ -46,6 +47,7 @@ impl Johnny {
         let mut minute_counter = tokio::time::Instant::now();
         let mut five_minute_counter = tokio::time::Instant::now();
         let mut last_lottery: Option<chrono::NaiveDateTime> = None;
+        self.refresh_config().await;
         loop {
             match signal.try_recv() {
                 Ok(_) => {
@@ -66,6 +68,13 @@ impl Johnny {
             if minute_counter.elapsed().as_secs() >= 60 {
                 let _ = rand::thread_rng().gen_range(0..=100);
                 self.refresh_config().await;
+                let bones_price_updated = { self.config.read().unwrap().bones_price_updated };
+                if self.should_update_bones_price(bones_price_updated) {
+                    self.update_bones_price().await;
+                }
+                if self.should_decay_bones() {
+                    self.decay_bones().await;
+                }
                 minute_counter = tokio::time::Instant::now();
             }
 
@@ -255,4 +264,155 @@ impl Johnny {
 
         self.db.clear_tickets().await.unwrap();
     }
+
+    fn should_update_bones_price(&self, last: chrono::DateTime<chrono::Utc>) -> bool {
+        let time = chrono::Utc::now()
+            .time()
+            .with_second(0)
+            .unwrap()
+            .with_nanosecond(0)
+            .unwrap()
+            .with_minute(0)
+            .unwrap();
+
+        if (time == NaiveTime::from_hms_opt(0, 0, 0).unwrap()
+            || time == NaiveTime::from_hms_opt(12, 0, 0).unwrap())
+            && last.checked_add_signed(TimeDelta::hours(11)).unwrap() < chrono::Utc::now()
+        {
+            dbg!("updating bones price ");
+            return true;
+        }
+        if last.checked_add_signed(TimeDelta::minutes(5)).unwrap() < chrono::Utc::now()
+            && self.dev_env
+        {
+            dbg!("updating bones price for dev_env setting");
+            return true;
+        }
+        dbg!("Not updating bones price");
+        false
+    }
+
+    async fn update_bones_price(&self) {
+        let (min, max, old_price, last_was_increase) = {
+            let config = self.config.read().unwrap();
+            let a = if is_weekend() {
+                (50, None)
+            } else {
+                (config.bones_price, config.bones_price_last_was_increase)
+            };
+            (config.bones_price_min, config.bones_price_max, a.0, a.1)
+        };
+        if min > max {
+            tracing::error!("Invalid bones price range. Min: {}, Max: {}", min, max);
+            return;
+        }
+        let mut change = min;
+        if min < max {
+            change = rand::thread_rng().gen_range(min..=max);
+        }
+
+        let odds: f64;
+        if last_was_increase.is_none() {
+            odds = 0.5;
+        } else if last_was_increase.unwrap() {
+            odds = 0.6;
+        } else {
+            odds = 0.4;
+        };
+        let mut price: i32 = if rand::thread_rng().gen_bool(odds) {
+            old_price + change
+        } else {
+            old_price - change
+        };
+        if price < 0 {
+            price = 0;
+        }
+
+        self.db
+            .set_config_value(ConfigKey::BonesPrice, &price.to_string())
+            .await
+            .unwrap();
+        self.db
+            .set_config_value(
+                ConfigKey::BonesPriceUpdated,
+                &chrono::Utc::now().timestamp().to_string(),
+            )
+            .await
+            .unwrap();
+        self.db
+            .set_config_value(
+                ConfigKey::BonesPriceLastWasIncrease,
+                &(price > old_price).to_string(),
+            )
+            .await
+            .unwrap();
+        {
+            let mut config = self.config.write().unwrap();
+            config.bones_price = price;
+            config.bones_price_updated = chrono::Utc::now();
+            config.bones_price_last_was_increase = Some(price > old_price);
+        }
+
+        let m = {
+            CreateMessage::new().content(format!(
+                "I just set the bones price to {} <:jbuck:1228663982462865450>",
+                price
+            ))
+        };
+
+        if let Some(client) = &self.client {
+            self.channel.send_message(client, m).await.unwrap();
+        } else {
+            dbg!("Client not set");
+        }
+    }
+
+    fn should_decay_bones(&self) -> bool {
+        let time = chrono::Utc::now()
+            .time()
+            .with_second(0)
+            .unwrap()
+            .with_minute(0)
+            .unwrap()
+            .with_nanosecond(0)
+            .unwrap();
+        if time == NaiveTime::from_hms_opt(0, 0, 0).unwrap()
+            && chrono::Utc::now().weekday() == chrono::Weekday::Sat
+        {
+            dbg!("decaying bones");
+            return true;
+        }
+        false
+    }
+
+    async fn decay_bones(&self) {
+        let affected = self.db.decay_bones().await.unwrap();
+        let m = {
+            CreateMessage::new().content(format!(
+                ":bone: I just decayed all bones from the economy! :bone:\n{} people lost all their bones",
+                affected.len()
+            ))
+        };
+
+        if let Some(client) = &self.client {
+            self.channel.send_message(client, m).await.unwrap();
+            for person in affected {
+                let u = poise::serenity_prelude::UserId::new(person);
+                u.dm(
+                    client,
+                    poise::serenity_prelude::CreateMessage::default()
+                        .content("Oh no, your bones expired!"),
+                )
+                .await
+                .unwrap();
+            }
+        } else {
+            dbg!("Client not set");
+        }
+    }
+}
+
+pub fn is_weekend() -> bool {
+    let now = chrono::Utc::now();
+    now.weekday() == chrono::Weekday::Sat || now.weekday() == chrono::Weekday::Sun
 }

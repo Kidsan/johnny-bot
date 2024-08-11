@@ -72,6 +72,10 @@ pub trait BalanceDatabase {
     async fn get_crown_leaderboard(&self) -> Result<Vec<(u64, f32)>, Error>;
     async fn get_crown_time(&self, user_id: u64) -> Result<(u64, f32), Error>;
     async fn update_crown_timer(&self, user_id: u64, hours: f32) -> Result<(), Error>;
+    async fn get_bones(&self, user_id: u64) -> Result<i32, Error>;
+    async fn decay_bones(&self) -> Result<Vec<u64>, Error>;
+    async fn add_bones(&self, user_id: u64, amount: i32) -> Result<i32, Error>;
+    async fn remove_bones(&self, user_id: u64, amount: i32) -> Result<i32, Error>;
 }
 
 pub trait RobberyDatabase {
@@ -159,6 +163,11 @@ impl ConfigRow {
             "future_lottery_ticket_price" => ConfigKey::FutureLotteryTicketPrice,
             "side_chance" => ConfigKey::SideChance,
             "community_emoji_price" => ConfigKey::CommunityEmojiPrice,
+            "bones_price_updated" => ConfigKey::BonesPriceUpdated,
+            "bones_price" => ConfigKey::BonesPrice,
+            "bones_price_min" => ConfigKey::BonesPriceMin,
+            "bones_price_max" => ConfigKey::BonesPriceMax,
+            "bones_price_last_was_increase" => ConfigKey::BonesPriceLastWasIncrease,
             _ => panic!("Invalid config"),
         }
     }
@@ -175,6 +184,11 @@ pub enum ConfigKey {
     FutureLotteryTicketPrice,
     SideChance,
     CommunityEmojiPrice,
+    BonesPrice,
+    BonesPriceUpdated,
+    BonesPriceMin,
+    BonesPriceMax,
+    BonesPriceLastWasIncrease,
 }
 
 impl ConfigKey {
@@ -188,8 +202,13 @@ impl ConfigKey {
             ConfigKey::LotteryTicketPrice => "lottery_ticket_price",
             ConfigKey::FutureLotteryBasePrize => "future_lottery_base_prize",
             ConfigKey::FutureLotteryTicketPrice => "future_lottery_ticket_price",
+            ConfigKey::BonesPrice => "bones_price",
             ConfigKey::SideChance => "side_chance",
             ConfigKey::CommunityEmojiPrice => "community_emoji_price",
+            ConfigKey::BonesPriceUpdated => "bones_price_updated",
+            ConfigKey::BonesPriceMin => "bones_price_min",
+            ConfigKey::BonesPriceMax => "bones_price_max",
+            ConfigKey::BonesPriceLastWasIncrease => "bones_price_last_was_increase",
         }
     }
 }
@@ -211,6 +230,11 @@ impl ConfigDatabase for Database {
             future_lottery_ticket_price: None,
             side_chance: None,
             community_emoji_price: 5,
+            bones_price: 5,
+            bones_price_updated: chrono::Utc::now(),
+            bones_price_min: 1,
+            bones_price_max: 5,
+            bones_price_last_was_increase: None,
         };
 
         for d in data {
@@ -245,11 +269,30 @@ impl ConfigDatabase for Database {
                 ConfigKey::FutureLotteryTicketPrice => {
                     config.future_lottery_ticket_price = Some(d.value.parse().unwrap());
                 }
+                ConfigKey::BonesPrice => {
+                    config.bones_price = d.value.parse().unwrap();
+                }
                 ConfigKey::SideChance => {
                     config.side_chance = Some(d.value.parse().unwrap());
                 }
                 ConfigKey::CommunityEmojiPrice => {
                     config.community_emoji_price = d.value.parse().unwrap();
+                }
+                ConfigKey::BonesPriceUpdated => {
+                    let a = chrono::DateTime::from_timestamp(d.value.parse().unwrap(), 0)
+                        .unwrap_or(
+                            chrono::Utc::now()
+                                .checked_sub_days(chrono::Days::new(1))
+                                .unwrap(),
+                        );
+                    config.bones_price_updated = a;
+                }
+                ConfigKey::BonesPriceMin => {
+                    config.bones_price_min = d.value.parse().unwrap();
+                }
+                ConfigKey::BonesPriceMax => config.bones_price_max = d.value.parse().unwrap(),
+                ConfigKey::BonesPriceLastWasIncrease => {
+                    config.bones_price_last_was_increase = Some(d.value.parse().unwrap())
                 }
             }
         }
@@ -295,13 +338,18 @@ pub struct Config {
     pub future_lottery_ticket_price: Option<i32>,
     pub side_chance: Option<i32>,
     pub community_emoji_price: i32,
+    pub bones_price: i32,
+    pub bones_price_updated: chrono::DateTime<Utc>,
+    pub bones_price_min: i32,
+    pub bones_price_max: i32,
+    pub bones_price_last_was_increase: Option<bool>,
 }
 
 impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Daily upper limit: {}\nBot odds updated: {}\nBot odds: {:.2}\nGame length seconds: {}\nLottery base prize: {}\nLottery ticket price: {}\nFuture lottery base prize: {}\nFuture lottery ticket price: {}\nSide chance: {}\nCommunity emoji price: {}",
+            "Daily upper limit: {}\nBot odds updated: {}\nBot odds: {:.2}\nGame length seconds: {}\nLottery base prize: {}\nLottery ticket price: {}\nFuture lottery base prize: {}\nFuture lottery ticket price: {}\nSide chance: {}\nBones price: {}\nBones price updated: {}\nCommunity emoji price: {}\nBones price min: {}\nBones price max: {}",
             self.daily_upper_limit.unwrap_or(0),
             self.bot_odds_updated
                 .map(|x| x.to_rfc2822())
@@ -313,8 +361,11 @@ impl fmt::Display for Config {
             self.future_lottery_base_prize.unwrap_or(0),
             self.future_lottery_ticket_price.unwrap_or(0),
             self.side_chance.unwrap_or(0),
+            self.bones_price,
+            self.bones_price_updated,
             self.community_emoji_price,
-
+            self.bones_price_min,
+            self.bones_price_max,
         )
     }
 }
@@ -780,6 +831,54 @@ impl BalanceDatabase for Database {
             Ok(None) => Ok((user_id, 0.0)),
             Err(e) => Err(e.into()),
         }
+    }
+
+    async fn get_bones(&self, user_id: u64) -> Result<i32, Error> {
+        Ok(
+            sqlx::query_as::<_, Balance>("SELECT bones as balance FROM balances WHERE id = $1")
+                .bind(user_id as i64)
+                .fetch_one(&self.connection)
+                .await?
+                .balance,
+        )
+    }
+
+    async fn add_bones(&self, user_id: u64, amount: i32) -> Result<i32, Error> {
+        Ok(
+            sqlx::query("UPDATE balances SET bones = bones + $1 WHERE id = $2")
+                .bind(amount)
+                .bind(user_id as i64)
+                .execute(&self.connection)
+                .await?
+                .rows_affected()
+                .try_into()
+                .unwrap(),
+        )
+    }
+
+    async fn remove_bones(&self, user_id: u64, amount: i32) -> Result<i32, Error> {
+        Ok(
+            sqlx::query("UPDATE balances SET bones = bones - $1 WHERE id = $2")
+                .bind(amount)
+                .bind(user_id as i64)
+                .execute(&self.connection)
+                .await?
+                .rows_affected()
+                .try_into()
+                .unwrap(),
+        )
+    }
+
+    async fn decay_bones(&self) -> Result<Vec<u64>, Error> {
+        let affected: Vec<(i64, i64)> =
+            sqlx::query_as::<_, (i64, i64)>("SELECT id, id from balances WHERE bones > 0")
+                .fetch_all(&self.connection)
+                .await?;
+
+        sqlx::query("UPDATE balances SET bones = 0 WHERE bones > 0")
+            .execute(&self.connection)
+            .await?;
+        Ok(affected.iter().map(|x| x.0 as u64).collect())
     }
 }
 

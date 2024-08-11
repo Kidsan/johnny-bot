@@ -34,6 +34,11 @@ pub struct Config {
     future_lottery_base_prize: i32,
     side_chance: i32,
     community_emoji_price: i32,
+    bones_price: i32,
+    bones_price_updated: chrono::DateTime<chrono::Utc>,
+    bones_price_min: i32,
+    bones_price_max: i32,
+    bones_price_last_was_increase: Option<bool>,
 }
 
 impl Config {
@@ -48,6 +53,11 @@ impl Config {
             future_lottery_base_prize: input.future_lottery_base_prize.unwrap_or(10),
             side_chance: input.side_chance.unwrap_or(2),
             community_emoji_price: input.community_emoji_price,
+            bones_price: input.bones_price,
+            bones_price_updated: input.bones_price_updated,
+            bones_price_min: input.bones_price_min,
+            bones_price_max: input.bones_price_max,
+            bones_price_last_was_increase: input.bones_price_last_was_increase,
         }
     }
 }
@@ -130,7 +140,6 @@ async fn main() {
         commands::burn::bury(),
         commands::robbingevent::robbingevent(),
         commands::leaderboard::leaderboard(),
-        commands::robbingevent::buyrobbery(),
         commands::rockpaperscissors::rpsgamble(),
         commands::paidchannels::setchannelprice(),
         commands::buy::buy(),
@@ -143,6 +152,8 @@ async fn main() {
         commands::config::config(),
         commands::lottery::lottery(),
         commands::giveaway::giveaway(),
+        commands::buy::bones_status(),
+        commands::buy::sell(),
     ];
 
     if var("MOUNT_ALL").is_ok() {

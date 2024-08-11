@@ -16,6 +16,8 @@ pub enum ConfigOption {
     FutureLotteryBasePrize,
     SideChance,
     CommunityEmojiPrice,
+    BonesPriceMin,
+    BonesPriceMax,
 }
 
 ///
@@ -162,6 +164,28 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .await
                 .unwrap();
             ctx.data().config.write().unwrap().community_emoji_price = price;
+        }
+        ConfigOption::BonesPriceMin => {
+            let price = value
+                .parse::<i32>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::BonesPriceMin, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().bones_price_min = price;
+        }
+        ConfigOption::BonesPriceMax => {
+            let price = value
+                .parse::<i32>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::BonesPriceMax, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().bones_price_max = price;
         }
     }
     let reply = CreateReply::default().content("Success").ephemeral(true);

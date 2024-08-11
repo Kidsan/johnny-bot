@@ -1,11 +1,8 @@
 use crate::database::BalanceDatabase;
 use crate::{Context, Error};
 use poise::serenity_prelude as serenity;
-use poise::serenity_prelude::User;
-use poise::CreateReply;
 use rand::seq::SliceRandom;
-use std::collections::HashMap;
-use std::time::{self, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn option_button(text: String) -> serenity::CreateButton {
     serenity::CreateButton::new(text.clone())
