@@ -11,6 +11,7 @@ pub mod daily;
 pub mod fine;
 pub mod gamble;
 pub mod give;
+pub mod giveaway;
 pub mod help;
 pub mod leaderboard;
 pub mod lottery;

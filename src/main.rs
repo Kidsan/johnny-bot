@@ -140,6 +140,7 @@ async fn main() {
         commands::leaderboard::crownleaderboard(),
         commands::config::config(),
         commands::lottery::lottery(),
+        commands::giveaway::giveaway(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
