@@ -92,6 +92,18 @@ pub trait LotteryDatabase {
     async fn get_user_tickets(&self, user_id: u64) -> Result<i32, Error>;
 }
 
+#[derive(Debug, sqlx::FromRow)]
+pub struct CommunityEmoji {
+    pub name: String,
+    pub added: chrono::DateTime<Utc>,
+}
+
+pub trait ShopDatabase {
+    async fn get_oldest_community_emoji(&self) -> Result<CommunityEmoji, Error>;
+    async fn get_community_emojis(&self) -> Result<Vec<CommunityEmoji>, Error>;
+    async fn add_community_emoji(&self, name: &str) -> Result<(), Error>;
+}
+
 pub trait RoleDatabase {
     async fn price_decayed(&self, role_id: u64) -> Result<(), Error>;
     async fn get_purchasable_roles(&self) -> Result<Vec<PurchaseableRole>, Error>;
@@ -146,6 +158,7 @@ impl ConfigRow {
             "future_lottery_base_prize" => ConfigKey::FutureLotteryBasePrize,
             "future_lottery_ticket_price" => ConfigKey::FutureLotteryTicketPrice,
             "side_chance" => ConfigKey::SideChance,
+            "community_emoji_price" => ConfigKey::CommunityEmojiPrice,
             _ => panic!("Invalid config"),
         }
     }
@@ -161,6 +174,7 @@ pub enum ConfigKey {
     FutureLotteryBasePrize,
     FutureLotteryTicketPrice,
     SideChance,
+    CommunityEmojiPrice,
 }
 
 impl ConfigKey {
@@ -175,6 +189,7 @@ impl ConfigKey {
             ConfigKey::FutureLotteryBasePrize => "future_lottery_base_prize",
             ConfigKey::FutureLotteryTicketPrice => "future_lottery_ticket_price",
             ConfigKey::SideChance => "side_chance",
+            ConfigKey::CommunityEmojiPrice => "community_emoji_price",
         }
     }
 }
@@ -195,6 +210,7 @@ impl ConfigDatabase for Database {
             future_lottery_base_prize: None,
             future_lottery_ticket_price: None,
             side_chance: None,
+            community_emoji_price: 5,
         };
 
         for d in data {
@@ -231,6 +247,9 @@ impl ConfigDatabase for Database {
                 }
                 ConfigKey::SideChance => {
                     config.side_chance = Some(d.value.parse().unwrap());
+                }
+                ConfigKey::CommunityEmojiPrice => {
+                    config.community_emoji_price = d.value.parse().unwrap();
                 }
             }
         }
@@ -275,13 +294,14 @@ pub struct Config {
     pub future_lottery_base_prize: Option<i32>,
     pub future_lottery_ticket_price: Option<i32>,
     pub side_chance: Option<i32>,
+    pub community_emoji_price: i32,
 }
 
 impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Daily upper limit: {}\nBot odds updated: {}\nBot odds: {:.2}\nGame length seconds: {}\nLottery base prize: {}\nLottery ticket price: {}\nFuture lottery base prize: {}\nFuture lottery ticket price: {}\nSide chance: {}",
+            "Daily upper limit: {}\nBot odds updated: {}\nBot odds: {:.2}\nGame length seconds: {}\nLottery base prize: {}\nLottery ticket price: {}\nFuture lottery base prize: {}\nFuture lottery ticket price: {}\nSide chance: {}\nCommunity emoji price: {}",
             self.daily_upper_limit.unwrap_or(0),
             self.bot_odds_updated
                 .map(|x| x.to_rfc2822())
@@ -292,7 +312,9 @@ impl fmt::Display for Config {
             self.lottery_ticket_price.unwrap_or(0),
             self.future_lottery_base_prize.unwrap_or(0),
             self.future_lottery_ticket_price.unwrap_or(0),
-            self.side_chance.unwrap_or(0)
+            self.side_chance.unwrap_or(0),
+            self.community_emoji_price,
+
         )
     }
 }
@@ -812,5 +834,31 @@ impl LotteryDatabase for Database {
             Err(sqlx::Error::RowNotFound) => Ok(0),
             Err(e) => Err(e.into()),
         }
+    }
+}
+
+impl ShopDatabase for Database {
+    async fn get_oldest_community_emoji(&self) -> Result<CommunityEmoji, Error> {
+        let data = sqlx::query_as::<_, CommunityEmoji>(
+            "SELECT name, added FROM community_emojis ORDER BY added ASC LIMIT 1",
+        )
+        .fetch_one(&self.connection)
+        .await?;
+        Ok(data)
+    }
+
+    async fn get_community_emojis(&self) -> Result<Vec<CommunityEmoji>, Error> {
+        let data = sqlx::query_as::<_, CommunityEmoji>("SELECT name, added FROM community_emojis")
+            .fetch_all(&self.connection)
+            .await?;
+        Ok(data)
+    }
+
+    async fn add_community_emoji(&self, name: &str) -> Result<(), Error> {
+        sqlx::query("INSERT INTO community_emojis (name, added) VALUES ($1, CURRENT_TIMESTAMP) ON CONFLICT(name) DO UPDATE SET added = CURRENT_TIMESTAMP")
+            .bind(name)
+            .execute(&self.connection)
+            .await?;
+        Ok(())
     }
 }

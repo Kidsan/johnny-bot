@@ -1,8 +1,10 @@
 use crate::{
-    database::{BalanceDatabase, RoleDatabase},
+    database::{BalanceDatabase, RoleDatabase, ShopDatabase},
     Context, Error,
 };
+use base64::{engine::general_purpose, Engine as _};
 use poise::CreateReply;
+use serenity::all::Emoji;
 
 ///
 /// List the items for sale in the shop
@@ -69,6 +71,20 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
             .collect::<Vec<String>>()
             .join("\n");
         role_prices.insert_str(0, "**Roles for sale:**\n");
+        role_prices.insert_str(
+            0,
+            "> *The oldest of the community emojis gets replaced*\n\n",
+        );
+        role_prices.insert_str(
+            0,
+            format!(
+                "> Community Emoji: {} <:jbuck:1228663982462865450>\n",
+                ctx.data().config.read().unwrap().community_emoji_price
+            )
+            .as_str(),
+        );
+        role_prices.insert_str(0, "**Emoji:**\n");
+
         role_prices.insert_str(
             0,
             "### <:jbuck:1228663982462865450> Shop <:jbuck:1228663982462865450> ###\n\n",
@@ -195,7 +211,7 @@ pub async fn incrementroleprice(ctx: Context<'_>, role_id: String) -> Result<(),
 /// ```
 /// /buy role @role
 /// ```
-#[poise::command(slash_command, subcommands("role"), subcommand_required)]
+#[poise::command(slash_command, subcommands("role", "emoji"), subcommand_required)]
 pub async fn buy(_: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
@@ -222,6 +238,137 @@ pub async fn complete_roles<'a>(
         })
         .collect::<Vec<poise::serenity_prelude::AutocompleteChoice>>()
         .into_iter()
+}
+
+///
+/// Buy an emoji for the server
+///
+/// Enter `/buy emoji`
+/// ```
+/// /buy emoji
+/// ```
+#[poise::command(slash_command)]
+pub async fn emoji(
+    ctx: Context<'_>,
+    img: poise::serenity_prelude::Attachment,
+) -> Result<(), Error> {
+    ctx.defer().await?;
+    let size = img.size;
+    if size > 256 * 1024 {
+        let reply = {
+            CreateReply::default()
+                .content("The image is too large! Please keep it under 256KB.")
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("Image too large".into());
+    }
+
+    let ct = img.content_type.clone();
+    match ct {
+        Some(ref ct) => {
+            // TODO: discuss with NJ about gif usage
+            let allowed = ["image/png", "image/jpeg", "image/gif"];
+            if !allowed.contains(&ct.as_str()) {
+                let reply = {
+                    CreateReply::default()
+                        .content("That is not an image!")
+                        .ephemeral(true)
+                };
+                ctx.send(reply).await?;
+                return Err("Not an image".into());
+            }
+        }
+        None => {
+            let reply = {
+                CreateReply::default()
+                    .content("That is not an image!")
+                    .ephemeral(true)
+            };
+            ctx.send(reply).await?;
+            return Err("Not an image".into());
+        }
+    }
+
+    let balance = ctx.data().db.get_balance(ctx.author().id.get()).await?;
+    let price = { ctx.data().config.read().unwrap().community_emoji_price };
+    if balance < price {
+        let reply = {
+            CreateReply::default()
+                .content(format!(
+                    "You can't afford that emoji! It costs {} <:jbuck:1228663982462865450>!",
+                    price
+                ))
+                .ephemeral(true)
+        };
+        ctx.send(reply).await?;
+        return Err("Not enough money".into());
+    }
+
+    ctx.data()
+        .db
+        .subtract_balances(vec![ctx.author().id.get()], price)
+        .await?;
+
+    let emoji = ctx.data().db.get_oldest_community_emoji().await.unwrap();
+
+    let emojis: Vec<Emoji> = ctx
+        .guild_id()
+        .unwrap()
+        .emojis(ctx)
+        .await
+        .unwrap()
+        .iter()
+        .filter(|a| a.name == emoji.name)
+        .cloned()
+        .collect();
+
+    if !emojis.is_empty() {
+        let emoji_id = emojis.first().unwrap();
+        ctx.guild_id().unwrap().delete_emoji(ctx, emoji_id).await?;
+    }
+
+    let i = img.download().await.unwrap();
+    let ct = ct.unwrap();
+
+    let v = format!(
+        "data:{};base64,{}",
+        ct,
+        general_purpose::STANDARD.encode(&i)
+    );
+
+    match ctx
+        .guild_id()
+        .unwrap()
+        .create_emoji(ctx, &emoji.name, &v)
+        .await
+    {
+        Ok(a) => {
+            ctx.data().db.add_community_emoji(&emoji.name).await?;
+            let reply = {
+                CreateReply::default().content(format!(
+                    "You have purchased the emoji <:{}:{}> for {} <:jbuck:1228663982462865450>!",
+                    a.name, a.id, price
+                ))
+            };
+            ctx.send(reply).await?;
+        }
+        Err(e) => {
+            dbg!(e);
+            ctx.data()
+                .db
+                .award_balances(vec![ctx.author().id.into()], price)
+                .await?;
+            let reply = {
+                CreateReply::default()
+                    .content("There was an error creating the emoji!")
+                    .ephemeral(true)
+            };
+            // TODO: refund
+            ctx.send(reply).await?;
+        }
+    };
+    Ok(())
 }
 
 ///

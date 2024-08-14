@@ -15,6 +15,7 @@ pub enum ConfigOption {
     FutureLotteryTicketPrice,
     FutureLotteryBasePrize,
     SideChance,
+    CommunityEmojiPrice,
 }
 
 ///
@@ -150,6 +151,17 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .await
                 .unwrap();
             ctx.data().config.write().unwrap().side_chance = chance;
+        }
+        ConfigOption::CommunityEmojiPrice => {
+            let price = value
+                .parse::<i32>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::CommunityEmojiPrice, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().community_emoji_price = price;
         }
     }
     let reply = CreateReply::default().content("Success").ephemeral(true);

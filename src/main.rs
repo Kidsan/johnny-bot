@@ -1,5 +1,4 @@
-use crate::database::ChannelDatabase;
-use crate::database::RoleDatabase;
+use crate::database::{ChannelDatabase, RoleDatabase, ShopDatabase};
 mod commands;
 mod database;
 mod eventhandler;
@@ -7,6 +6,7 @@ mod game;
 mod johnny;
 mod texts;
 
+use database::ConfigDatabase;
 use poise::{serenity_prelude as serenity, CreateReply};
 use std::sync::mpsc;
 use std::sync::RwLock;
@@ -33,6 +33,7 @@ pub struct Config {
     future_lottery_ticket_price: i32,
     future_lottery_base_prize: i32,
     side_chance: i32,
+    community_emoji_price: i32,
 }
 
 impl Config {
@@ -46,6 +47,7 @@ impl Config {
             future_lottery_ticket_price: input.future_lottery_ticket_price.unwrap_or(5),
             future_lottery_base_prize: input.future_lottery_base_prize.unwrap_or(10),
             side_chance: input.side_chance.unwrap_or(2),
+            community_emoji_price: input.community_emoji_price,
         }
     }
 }
@@ -151,6 +153,8 @@ async fn main() {
     let db: database::Database = database::Database::new().await.unwrap();
     let db2 = database::Database::new().await.unwrap();
 
+    setup_community_emojis(&db).await;
+
     let paid_channels = db.get_paid_channels().await.unwrap();
     let paid_channels_map: HashMap<_, _> = paid_channels
         .iter()
@@ -171,16 +175,8 @@ async fn main() {
 
     let rc = Arc::new(RwLock::new(roles.clone()));
     let rc_clone = Arc::clone(&rc);
-    let config = Arc::new(RwLock::new(Config {
-        daily_upper_limit: 0,
-        bot_odds: 0.5,
-        game_length_seconds: 30,
-        lottery_ticket_price: 5,
-        lottery_base_prize: 10,
-        future_lottery_ticket_price: 5,
-        future_lottery_base_prize: 10,
-        side_chance,
-    }));
+    let c = db.get_config().await.unwrap();
+    let config = Arc::new(RwLock::new(Config::from(c)));
     let config_clone = Arc::clone(&config);
 
     let unique_roles = paid_roles
@@ -365,4 +361,30 @@ async fn wait_until_shutdown() {
     use tokio::signal::windows::{signal, SignalKind};
     tokio::signal::ctrl_c().await.unwrap();
     println!("Received CTRL-C, shutting down...");
+}
+
+async fn setup_community_emojis(db: &database::Database) {
+    let emojis = match db.get_community_emojis().await {
+        Ok(emojis) => emojis,
+        Err(_) => {
+            println!("Failed to setup community emojis");
+            return;
+        }
+    };
+
+    let emoji_names = ["neds1", "neds2", "neds3", "neds4", "neds5"];
+    let mut missing = vec![];
+
+    for e in emoji_names {
+        if !emojis.iter().any(|emoji| emoji.name == e) {
+            missing.push(e);
+        }
+    }
+
+    for missing in missing {
+        match db.add_community_emoji(missing).await {
+            Ok(_) => println!("Added missing community emoji: {}", missing),
+            Err(e) => println!("Failed to add missing community emoji: {}", e),
+        }
+    }
 }
