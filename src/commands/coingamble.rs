@@ -70,11 +70,9 @@ pub async fn coingamble(
     let id = a.message().await?.id;
 
     let mut coingame = CoinGame::new(
-        id.to_string(),
         ctx.author().id.get(),
         choice.clone(),
         amount,
-        time::Instant::now(),
         ctx.data().config.read().unwrap().side_chance,
         ctx.data().config.read().unwrap().bot_odds,
     );

@@ -1,5 +1,5 @@
 pub(crate) use crate::commands::coingamble::new_pot_counter_button;
-use std::time::{self, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
     commands::coingamble::new_player_count_button, database::BalanceDatabase, Context, Error,
@@ -69,12 +69,7 @@ pub async fn gamble(
         let mut games = ctx.data().games.lock().unwrap();
         games.insert(
             id.to_string(),
-            crate::game::Game::new(
-                id.to_string(),
-                amount,
-                ctx.author().id.get(),
-                time::Instant::now(),
-            ),
+            crate::game::Game::new(amount, ctx.author().id.get()),
         );
     }
 

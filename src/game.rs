@@ -1,5 +1,4 @@
 use rand::{seq::SliceRandom, Rng};
-use std::time;
 
 use crate::{
     commands::coingamble::HeadsOrTail,
@@ -8,21 +7,17 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Game {
-    pub id: String,
     pub players: Vec<u64>,
     pub amount: i32,
     pub pot: i32,
-    pub deadline: time::Instant,
 }
 
 impl Game {
-    pub fn new(id: String, amount: i32, started_by: u64, deadline: time::Instant) -> Self {
+    pub fn new(amount: i32, started_by: u64) -> Self {
         Self {
-            id,
             players: vec![started_by],
             amount,
             pot: amount,
-            deadline,
         }
     }
 
@@ -61,20 +56,17 @@ impl CoinSides {
 
 #[derive(Debug)]
 pub struct CoinGame {
-    pub id: String,
     pub players: Vec<u64>,
     pub heads: Vec<u64>,
     pub tails: Vec<u64>,
     pub amount: i32,
     pub pot: i32,
-    pub deadline: time::Instant,
     pub side_chance: i32,
     odds_bot_wins: f32,
 }
 
 pub struct CoinGameResult {
     pub result: CoinSides,
-    pub winners: Vec<u64>,
     pub prize: i32,
     pub prize_with_multiplier: i32,
     pub johnnys_multiplier: Option<f32>,
@@ -84,11 +76,9 @@ pub struct CoinGameResult {
 
 impl CoinGame {
     pub fn new(
-        id: String,
         game_starter: u64,
         choice: HeadsOrTail,
         amount: i32,
-        deadline: time::Instant,
         side_chance: i32,
         bot_odds: f32,
     ) -> Self {
@@ -101,13 +91,11 @@ impl CoinGame {
             HeadsOrTail::Tails => tails.push(game_starter),
         }
         Self {
-            id,
             players,
             heads,
             tails,
             amount,
             pot: amount,
-            deadline,
             side_chance,
             odds_bot_wins: bot_odds,
         }
@@ -188,7 +176,6 @@ impl CoinGame {
                 if leaderboard.is_empty() {
                     return CoinGameResult {
                         result,
-                        winners: leaderboard,
                         prize: 0,
                         prize_with_multiplier: 0,
                         leader: None,
@@ -213,7 +200,6 @@ impl CoinGame {
 
                 CoinGameResult {
                     result,
-                    winners: vec![],
                     prize: self.pot,
                     prize_with_multiplier: 0,
                     leader: None,
@@ -253,7 +239,6 @@ impl CoinGame {
                 }
                 CoinGameResult {
                     result,
-                    winners,
                     prize,
                     prize_with_multiplier,
                     leader,
@@ -272,13 +257,11 @@ mod tests {
     #[tokio::test]
     async fn test_coin_game_get_winner() {
         let mut game = CoinGame {
-            id: "1".to_owned(),
             players: vec![8222483375454858662, 5607624227456207587],
             heads: vec![8222483375454858662],
             tails: vec![5607624227456207587],
             amount: 100,
             pot: 200,
-            deadline: time::Instant::now(),
             side_chance: 0,
             odds_bot_wins: 1.0,
         };
@@ -317,13 +300,11 @@ mod tests {
         let p1 = new_user_id();
         let p2 = new_user_id();
         let mut game = CoinGame {
-            id: "1".to_owned(),
             players: vec![p1, p2],
             heads: vec![p1],
             tails: vec![p2],
             amount: 100,
             pot: 200,
-            deadline: time::Instant::now(),
             side_chance: 10,
             odds_bot_wins: 1.0,
         };
@@ -350,13 +331,11 @@ mod tests {
     async fn test_coin_game_get_winner_adds_bot() {
         let p1 = new_user_id();
         let mut game = CoinGame {
-            id: "1".to_owned(),
             players: vec![p1],
             heads: vec![p1],
             tails: vec![],
             amount: 100,
             pot: 100,
-            deadline: time::Instant::now(),
             side_chance: 0,
             odds_bot_wins: 1.0,
         };
@@ -365,25 +344,20 @@ mod tests {
         let crown_role_id = 1;
 
         let db = database::Database::new().await.unwrap();
-        let result = game.get_winner(&db, bot_id, crown_role_id).await;
+        let _ = game.get_winner(&db, bot_id, crown_role_id).await;
         assert!(game.tails.contains(&bot_id));
         assert_eq!(game.pot, 200);
-        if let CoinSides::Tails = result.result {
-            assert_eq!(result.winners, vec![bot_id]);
-        }
     }
 
     #[tokio::test]
     async fn test_coin_game_get_winners_award() {
         let (p1, p2) = (new_user_id(), new_user_id());
         let mut game = CoinGame {
-            id: "1".to_owned(),
             players: vec![p1, p2],
             heads: vec![p1],
             tails: vec![p2],
             amount: 100,
             pot: 200,
-            deadline: time::Instant::now(),
             side_chance: 0,
             odds_bot_wins: 1.0,
         };
@@ -399,12 +373,10 @@ mod tests {
 
         let result = game.get_winner(&db, bot_id, crown_role_id).await;
         if let CoinSides::Tails = result.result {
-            assert_eq!(result.winners, game.tails);
             let p2_balance = db.get_balance(p2).await.unwrap();
             assert_eq!(p2_balance, 250);
         }
         if let CoinSides::Heads = result.result {
-            assert_eq!(result.winners, game.heads);
             let p1_balance = db.get_balance(p1).await.unwrap();
             assert_eq!(p1_balance, 250);
         }
@@ -415,13 +387,11 @@ mod tests {
     async fn test_coin_game_get_winners_side_award() {
         let (p1, p2) = (new_user_id(), new_user_id());
         let mut game = CoinGame {
-            id: "1".to_owned(),
             players: vec![p1, p2],
             heads: vec![p1],
             tails: vec![p2],
             amount: 100,
             pot: 200,
-            deadline: time::Instant::now(),
             side_chance: 100,
             odds_bot_wins: 1.0,
         };
@@ -437,7 +407,6 @@ mod tests {
 
         let result = game.get_winner(&db, bot_id, crown_role_id).await;
         assert_eq!(result.result, CoinSides::Side);
-        assert_eq!(result.winners.len(), 0);
         for p in &game.players {
             let balance = db.get_balance(*p).await.unwrap();
             assert_eq!(balance, 50);
@@ -456,13 +425,11 @@ mod tests {
         let p3 = new_user_id();
         let p4 = new_user_id();
         let mut game = CoinGame {
-            id: "1".to_owned(),
             players: vec![p1, p2, p3, p4],
             heads: vec![p1, p2],
             tails: vec![p3, p4],
             amount: 1,
             pot: 11,
-            deadline: time::Instant::now(),
             side_chance: 0,
             odds_bot_wins: 1.0,
         };
@@ -479,12 +446,7 @@ mod tests {
         db.get_balance(p5).await.unwrap();
         db.set_unique_role_holder(crown_role_id, p5).await.unwrap();
 
-        let result = game.get_winner(&db, bot_id, crown_role_id).await;
-        assert_eq!(result.winners.len(), 2);
-        for winner in &result.winners {
-            let balance = db.get_balance(*winner).await.unwrap();
-            assert_eq!(balance, 55);
-        }
+        let _ = game.get_winner(&db, bot_id, crown_role_id).await;
         let crown_balance = db.get_balance(p5).await.unwrap();
         assert_eq!(crown_balance, 51);
         db.close().await.unwrap();
@@ -495,7 +457,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_lottery_get_winner() {
-            let lottery = Lottery::new(vec![(1, 1), (2, 1), (3, 10)], 5);
+            let lottery = Lottery::new(vec![(1, 1), (2, 1), (3, 10)]);
 
             let mut winners = vec![];
 
@@ -514,7 +476,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_lottery_get_winner_skewed() {
-            let lottery = Lottery::new(vec![(1, 0), (2, 0), (3, 10)], 5);
+            let lottery = Lottery::new(vec![(1, 0), (2, 0), (3, 10)]);
 
             let mut winners = vec![];
 
@@ -532,16 +494,14 @@ mod tests {
 
 #[derive(Debug, Clone)]
 pub struct Blackjack {
-    pub id: String,
     pub players: Vec<u64>,
     pub players_scores: Vec<i32>,
     pub pot: i32,
 }
 
 impl Blackjack {
-    pub fn new(id: String) -> Self {
+    pub fn new() -> Self {
         Self {
-            id,
             players: vec![],
             players_scores: vec![],
             pot: 0,
@@ -577,12 +537,11 @@ impl Blackjack {
 
 pub struct Lottery {
     pub players: Vec<(u64, i32)>,
-    pub pot: i32,
 }
 
 impl Lottery {
-    pub fn new(players: Vec<(u64, i32)>, pot: i32) -> Self {
-        Self { players, pot }
+    pub fn new(players: Vec<(u64, i32)>) -> Self {
+        Self { players }
     }
 
     pub fn get_winner(&self) -> u64 {

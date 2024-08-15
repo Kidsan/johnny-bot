@@ -99,7 +99,6 @@ pub trait LotteryDatabase {
 #[derive(Debug, sqlx::FromRow)]
 pub struct CommunityEmoji {
     pub name: String,
-    pub added: chrono::DateTime<Utc>,
 }
 
 pub trait ShopDatabase {
@@ -120,7 +119,6 @@ pub trait RoleDatabase {
         required_role: Option<u64>,
         only_one: Option<bool>,
     ) -> Result<(), Error>;
-    async fn toggle_role_unique(&self, role_id: u64, only_one: bool) -> Result<(), Error>;
     async fn get_unique_role_holder(&self, role_id: u64) -> Result<Option<RoleHolder>, Error>;
     async fn set_unique_role_holder(&self, role_id: u64, user_id: u64) -> Result<(), Error>;
     async fn get_price_decay_config(&self) -> Result<Vec<RolePriceDecayConfig>, Error>;
@@ -513,15 +511,6 @@ impl RoleDatabase for Database {
             .execute(&self.connection)
             .await?;
 
-        Ok(())
-    }
-
-    async fn toggle_role_unique(&self, role_id: u64, only_one: bool) -> Result<(), Error> {
-        sqlx::query("INSERT INTO purchaseable_roles (role_id, only_one) VALUES ($1, $2) ON CONFLICT(role_id) DO UPDATE SET only_one = $2")
-            .bind(role_id as i64)
-            .bind(only_one)
-            .execute(&self.connection)
-            .await?;
         Ok(())
     }
 

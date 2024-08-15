@@ -100,11 +100,6 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 async fn main() {
     env_logger::init();
 
-    let side_chance = match var("SIDE_CHANCE") {
-        Ok(chance) => chance.parse::<i32>().unwrap(),
-        Err(_) => 2,
-    };
-
     let bot_id = match var("BOT_ID") {
         Ok(id) => id.parse().unwrap(),
         Err(_) => 1049354446578143252,

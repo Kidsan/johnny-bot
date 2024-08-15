@@ -82,7 +82,7 @@ pub async fn blackjack(
         .shard
         .set_activity(Some(serenity::ActivityData::playing("Blackjack!")));
 
-    let game = Mutex::new(Blackjack::new(id.to_string()));
+    let game = Mutex::new(Blackjack::new());
     let bot_idx = {
         let mut g = game.lock().unwrap();
         g.player_joined(ctx.data().bot_id);

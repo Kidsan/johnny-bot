@@ -198,7 +198,7 @@ impl Johnny {
             .map(|(_, x)| x * (price - 1))
             .sum::<i32>()
             + base_prize;
-        let lottery = game::Lottery::new(lottery_tickets.clone(), pot);
+        let lottery = game::Lottery::new(lottery_tickets.clone());
         let winner = lottery.get_winner();
 
         if winner == 0 {
