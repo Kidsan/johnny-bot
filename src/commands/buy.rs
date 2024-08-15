@@ -16,7 +16,6 @@ use serenity::all::Emoji;
 /// ```
 /// /shop
 /// ```
-///
 #[poise::command(slash_command)]
 pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
     let crown_holder = {
@@ -98,7 +97,6 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
 /// ```
 /// /setroleprice @Johnny'sChosen 5 1
 /// ```
-///
 #[poise::command(
     slash_command,
     category = "Admin",
@@ -396,7 +394,6 @@ pub async fn emoji(
     let ct = img.content_type.clone();
     match ct {
         Some(ref ct) => {
-            // TODO: discuss with NJ about gif usage
             let allowed = ["image/png", "image/jpeg", "image/gif"];
             if !allowed.contains(&ct.as_str()) {
                 let reply = {
@@ -785,6 +782,14 @@ pub async fn list_prices(ctx: Context<'_>) -> Result<(), Error> {
 
     Ok(())
 }
+
+///
+/// Get the status of the bones market
+///
+/// Enter `/bones`
+/// ```
+/// /bones
+/// ```
 #[poise::command(slash_command, rename = "bones")]
 pub async fn bones_status(ctx: Context<'_>) -> Result<(), Error> {
     let bones = ctx.data().db.get_bones(ctx.author().id.get()).await?;

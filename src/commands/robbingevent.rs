@@ -77,11 +77,11 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
 ///
 /// pay 10 J-Bucks to start a robbing event
 ///
-/// Enter `/buyrobbery` to start a robbing event. Event costs 10 JBucks This will randomly select 4 players from the leaderboard and ask the chat to vote on who to rob from.
+/// Enter `/buy robbery` to start a robbing event. Event costs 10 JBucks This will randomly select 4 players from the leaderboard and ask the chat to vote on who to rob from.
 /// Requires that there be 4 players on the leaderboard. Will fail if one of the chosen players has
 /// 0 bucks
 /// ```
-/// /buyrobbery
+/// /buy robbery
 /// ```
 #[poise::command(
     slash_command,

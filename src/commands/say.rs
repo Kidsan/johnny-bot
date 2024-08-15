@@ -7,7 +7,6 @@ use poise::CreateReply;
 /// ```
 /// /say Awoo
 /// ```
-///
 #[poise::command(
     slash_command,
     category = "Admin",

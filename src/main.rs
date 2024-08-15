@@ -122,7 +122,6 @@ async fn main() {
         commands::checkbucks::checkbucks(),
         commands::balance::balance(),
         commands::register::register(),
-        commands::gamble::gamble(),
         commands::give::give(),
         commands::fine::fine(),
         commands::addbucks::add_bucks(),
@@ -154,6 +153,7 @@ async fn main() {
     if var("MOUNT_ALL").is_ok() {
         println!("Mounting all commands");
         commands.push(commands::blackjack::blackjack());
+        commands.push(commands::gamble::gamble());
     };
 
     let db: database::Database = database::Database::new().await.unwrap();

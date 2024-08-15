@@ -2,10 +2,11 @@ use crate::{Context, Error};
 use poise::serenity_prelude as serenity;
 use poise::CreateReply;
 
-const WHITE_LISTED: [&str; 14] = [
+const WHITE_LISTED: [&str; 15] = [
     "help",
     "balance",
     "leaderboard",
+    "crownleaderboard",
     "give",
     "coingamble",
     "daily",

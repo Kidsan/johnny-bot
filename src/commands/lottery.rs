@@ -2,6 +2,13 @@ use crate::commands::robbingevent::get_discord_name;
 use crate::{database::BalanceDatabase, database::LotteryDatabase, Context, Error};
 use poise::CreateReply;
 
+///
+/// Commands relating to the lottery
+///
+/// Enter `/lottery info or /lottery tickets`
+/// ```
+/// /lottery info
+/// ```
 #[poise::command(slash_command, subcommands("info", "tickets"))]
 #[tracing::instrument(level = "info")]
 pub async fn lottery(ctx: Context<'_>) -> Result<(), Error> {
@@ -9,7 +16,7 @@ pub async fn lottery(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 ///
-/// Get information about the current lottery.
+/// Get information about the current lottery
 ///
 /// Enter `/lottery info`
 /// ```

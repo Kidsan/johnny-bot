@@ -9,7 +9,6 @@ use poise::CreateReply;
 /// ```
 /// /fine @John 50
 /// ```
-///
 #[poise::command(
     slash_command,
     category = "Admin",

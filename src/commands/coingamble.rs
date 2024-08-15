@@ -11,7 +11,7 @@ use rand::seq::SliceRandom;
 ///
 /// Start a coin gamble
 ///
-/// Enter `/gamble <amount>`
+/// Enter `/coingamble <amount>`
 /// ```
 /// /coingamble 10
 /// ```
