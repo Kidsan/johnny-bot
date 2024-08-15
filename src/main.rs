@@ -148,12 +148,12 @@ async fn main() {
         commands::giveaway::giveaway(),
         commands::buy::bones_status(),
         commands::buy::sell(),
+        commands::gamble::gamble();
     ];
 
     if var("MOUNT_ALL").is_ok() {
         println!("Mounting all commands");
         commands.push(commands::blackjack::blackjack());
-        commands.push(commands::gamble::gamble());
     };
 
     let db: database::Database = database::Database::new().await.unwrap();
