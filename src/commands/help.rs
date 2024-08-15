@@ -2,29 +2,30 @@ use crate::{Context, Error};
 use poise::serenity_prelude as serenity;
 use poise::CreateReply;
 
+const WHITE_LISTED: [&str; 14] = [
+    "help",
+    "balance",
+    "leaderboard",
+    "give",
+    "coingamble",
+    "daily",
+    "bury",
+    "buyrobbery",
+    "rpsgamble",
+    "buy",
+    "sell",
+    "bones",
+    "shop",
+    "lottery",
+];
+
 pub async fn complete_help<'a>(
     ctx: Context<'a>,
     partial: &'a str,
 ) -> impl Iterator<Item = serenity::AutocompleteChoice> + 'a {
-    let white_listed = [
-        "help",
-        "balance",
-        "leaderboard",
-        "give",
-        "coingamble",
-        "daily",
-        "bury",
-        "buyrobbery",
-        "rpsgamble",
-        "buy",
-        "sell",
-        "bones",
-        "shop",
-        "lottery",
-    ];
     poise::builtins::autocomplete_command(ctx, partial)
         .await
-        .filter(move |cmd| white_listed.contains(&cmd.as_str()))
+        .filter(move |cmd| WHITE_LISTED.contains(&cmd.as_str()))
         .map(|cmd| serenity::AutocompleteChoice::new(cmd.to_string(), cmd))
 }
 
@@ -37,23 +38,7 @@ pub async fn help(
     command: Option<String>,
 ) -> Result<(), Error> {
     if let Some(command) = &command {
-        if ![
-            "help",
-            "balance",
-            "leaderboard",
-            "give",
-            "coingamble",
-            "daily",
-            "bury",
-            "buyrobbery",
-            "rpsgamble",
-            "sellbones",
-            "buy",
-            "shop",
-            "lottery",
-        ]
-        .contains(&command.as_str())
-        {
+        if !WHITE_LISTED.contains(&command.as_str()) {
             let reply = {
                 CreateReply::default()
                     .content("Unknown command!")
