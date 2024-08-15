@@ -44,7 +44,7 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
         a.sort_by_key(|r| r.1);
         a.reverse();
         let uniques = ctx.data().unique_roles.lock().unwrap();
-        let mut role_prices = a
+        let role_prices = a
             .iter()
             .map(|(role_id, _)| {
                 format!(
@@ -73,37 +73,18 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
             })
             .collect::<Vec<String>>()
             .join("\n");
-        role_prices.insert_str(0, "**Roles for sale:**\n");
-        role_prices.insert_str(
-            0,
-            "> *The oldest of the community emojis gets replaced*\n\n",
+        let formatted_role_prices = format!("**Roles for sale:**\n{}", role_prices);
+        let formatted_emoji_prices = format!("**Emoji:**\n> Community Emoji: {} <:jbuck:1228663982462865450>\n> *The oldest of the community emojis gets replaced*\n\n", ctx.data().config.read().unwrap().community_emoji_price);
+        let formatted_bones_prices = format!(
+            "**Bones:**\n> Bones: {} <:jbuck:1228663982462865450>\n\n",
+            ctx.data().config.read().unwrap().bones_price
         );
-        role_prices.insert_str(
-            0,
-            format!(
-                "> Community Emoji: {} <:jbuck:1228663982462865450>\n",
-                ctx.data().config.read().unwrap().community_emoji_price
-            )
-            .as_str(),
-        );
-        role_prices.insert_str(0, "**Emoji:**\n");
-
-        role_prices.insert_str(
-            0,
-            format!(
-                "> Bones: {} <:jbuck:1228663982462865450>\n",
-                ctx.data().config.read().unwrap().bones_price
-            )
-            .as_str(),
-        );
-        role_prices.insert_str(0, "**Bones:**\n");
-        role_prices.insert_str(
-            0,
+        let header = String::from(
             "### <:jbuck:1228663982462865450> Shop <:jbuck:1228663982462865450> ###\n\n",
         );
+        let footer = String::from("\n\nMore info on roles at: https://canary.discord.com/channels/1128350000343167130/1227274968312844320\nTo buy a role use the **/buy role** command.");
 
-        role_prices = format!("{}\n\n{}", role_prices, "More info on roles at: https://canary.discord.com/channels/1128350000343167130/1227274968312844320\nTo buy a role use the **/buy role** command.");
-        CreateReply::default().content(role_prices).ephemeral(true)
+        CreateReply::default().content(format!("{header}{formatted_bones_prices}{formatted_emoji_prices}{formatted_role_prices}{footer}")).ephemeral(true)
     };
     ctx.send(reply).await?;
 
