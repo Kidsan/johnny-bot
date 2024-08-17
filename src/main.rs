@@ -148,7 +148,7 @@ async fn main() {
         commands::giveaway::giveaway(),
         commands::buy::bones_status(),
         commands::buy::sell(),
-        commands::gamble::gamble();
+        commands::gamble::gamble(),
     ];
 
     if var("MOUNT_ALL").is_ok() {
