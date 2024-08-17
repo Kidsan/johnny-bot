@@ -22,7 +22,7 @@ pub async fn coingamble(
     #[min = 1]
     #[description = "How much to play"]
     amount: i32,
-    choice: HeadsOrTail,
+    #[description = "Heads or Tails?"] choice: HeadsOrTail,
 ) -> Result<(), Error> {
     match minute_cooldown(ctx).await {
         Ok(_) => {}

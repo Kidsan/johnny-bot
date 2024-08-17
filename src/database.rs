@@ -403,10 +403,10 @@ impl Database {
         let pool = sqlx::sqlite::SqlitePool::connect("sqlite::memory:").await?;
         match sqlx::migrate!().run(&pool).await {
             Ok(_) => {
-                dbg!("Migrations ran successfully");
+                tracing::debug!("Migrations ran successfully");
             }
             Err(e) => {
-                dbg!(e);
+                tracing::debug!("{e}");
             }
         }
         Ok(Self { connection: pool })

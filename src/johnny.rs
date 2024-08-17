@@ -51,12 +51,12 @@ impl Johnny {
         loop {
             match signal.try_recv() {
                 Ok(_) => {
-                    dbg!("Johnny received signal to stop");
+                    tracing::debug!("Johnny received signal to stop");
                     break;
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {}
                 Err(e) => {
-                    dbg!(e);
+                    tracing::debug!("{}", e.to_string());
                     break;
                 }
             }
@@ -76,6 +76,7 @@ impl Johnny {
                     self.update_bones_price().await;
                 }
                 if force {
+                    tracing::debug!("toggling bones price force");
                     self.db
                         .set_config_value(ConfigKey::ForceBonesPriceUpdate, "false")
                         .await
@@ -105,7 +106,7 @@ impl Johnny {
             match self.db.get_price_decay_config().await {
                 Ok(result) => result,
                 Err(e) => {
-                    dbg!(e);
+                    tracing::debug!(e);
                     vec![]
                 }
             }
@@ -126,13 +127,13 @@ impl Johnny {
                         config.get_mut(&parsed).unwrap().0 = r.price;
                     }
                     Err(e) => {
-                        dbg!(e);
+                        tracing::debug!(e);
                     }
                 }
                 match self.db.price_decayed(config.role_id).await {
                     Ok(_) => {}
                     Err(e) => {
-                        dbg!(e);
+                        tracing::debug!(e);
                     }
                 }
             }
@@ -143,7 +144,7 @@ impl Johnny {
         match self.db.get_config().await {
             Ok(r) => *self.config.write().unwrap() = Config::from(r),
             Err(e) => {
-                dbg!(e);
+                tracing::debug!(e);
             }
         }
     }
@@ -270,7 +271,7 @@ impl Johnny {
         if let Some(client) = &self.client {
             self.channel.send_message(client, m).await.unwrap();
         } else {
-            dbg!("Client not set");
+            tracing::warn!("Discord client not set");
         }
 
         self.db.clear_tickets().await.unwrap();
@@ -290,16 +291,13 @@ impl Johnny {
             || time == NaiveTime::from_hms_opt(12, 0, 0).unwrap())
             && last.checked_add_signed(TimeDelta::minutes(2)).unwrap() < chrono::Utc::now()
         {
-            dbg!("updating bones price ");
             return true;
         }
         if last.checked_add_signed(TimeDelta::minutes(5)).unwrap() < chrono::Utc::now()
             && self.dev_env
         {
-            dbg!("updating bones price for dev_env setting");
             return true;
         }
-        dbg!("Not updating bones price");
         false
     }
 
@@ -374,7 +372,7 @@ impl Johnny {
         if let Some(client) = &self.client {
             self.channel.send_message(client, m).await.unwrap();
         } else {
-            dbg!("Client not set");
+            tracing::warn!("Discord client not set");
         }
     }
 
@@ -390,7 +388,6 @@ impl Johnny {
         if time == NaiveTime::from_hms_opt(0, 0, 0).unwrap()
             && chrono::Utc::now().weekday() == chrono::Weekday::Sat
         {
-            dbg!("decaying bones");
             return true;
         }
         false
@@ -418,7 +415,7 @@ impl Johnny {
                 .unwrap();
             }
         } else {
-            dbg!("Client not set");
+            tracing::warn!("Discord client not set");
         }
     }
 }

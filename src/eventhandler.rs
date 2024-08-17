@@ -9,7 +9,7 @@ pub async fn event_handler(
     _framework: poise::FrameworkContext<'_, Data, Error>,
     data: &Data,
 ) -> Result<(), Error> {
-    println!(
+    tracing::info!(
         "Got an event in event handler: {:?}",
         event.snake_case_name()
     );
@@ -61,7 +61,7 @@ pub async fn event_handler(
                 )
                 .await?;
 
-            println!("Found message in paid channel, price is {}", price);
+            tracing::info!("Found message in paid channel, price is {}", price);
             return Ok(());
         }
     }

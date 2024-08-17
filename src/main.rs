@@ -88,11 +88,11 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
     match error {
         poise::FrameworkError::Setup { error, .. } => panic!("Failed to start bot: {:?}", error),
         poise::FrameworkError::Command { error, ctx, .. } => {
-            println!("Error in command `{}`: {:?}", ctx.command().name, error,);
+            tracing::error!("Error in command `{}`: {:?}", ctx.command().name, error,);
         }
         error => {
             if let Err(e) = poise::builtins::on_error(error).await {
-                println!("Error while handling error: {}", e)
+                tracing::error!("Error while handling error: {}", e)
             }
         }
     }
@@ -154,7 +154,7 @@ async fn main() {
     ];
 
     if var("MOUNT_ALL").is_ok() {
-        println!("Mounting all commands");
+        tracing::debug!("Mounting all commands");
         commands.push(commands::blackjack::blackjack());
     };
 
@@ -214,13 +214,13 @@ async fn main() {
         // This code is run before every command
         pre_command: |ctx| {
             Box::pin(async move {
-                println!("Executing command {}...", ctx.command().qualified_name);
+                tracing::debug!("Executing command {}...", ctx.command().qualified_name);
             })
         },
         // This code is run after a command if it was successful (returned Ok)
         post_command: |ctx| {
             Box::pin(async move {
-                println!(
+                tracing::debug!(
                     "Executed command {} in {}!",
                     ctx.command().qualified_name,
                     ctx.channel_id()
@@ -288,7 +288,7 @@ async fn main() {
     let framework = poise::Framework::builder()
         .setup(move |_ctx, _ready, _framework| {
             Box::pin(async move {
-                println!("Logged in as {}", _ready.user.name);
+                tracing::info!("Logged in as {}", _ready.user.name);
                 Ok(Data {
                     games: Mutex::new(HashMap::new()),
                     db,
@@ -350,15 +350,15 @@ async fn wait_until_shutdown() {
     let mut sigterm = signal(SignalKind::terminate()).unwrap();
     tokio::select! {
         v = sigint.recv() => {
-            println!("Received A SIGINT, shutting down...");
+            tracing::debug!("Received A SIGINT, shutting down...");
             v.unwrap()
         },
         v = sigterm.recv() => {
-            println!("Received SIGTERM, shutting down...");
+            tracing::debug!("Received SIGTERM, shutting down...");
             v.unwrap()
         }
         v = sighup.recv() => {
-            println!("Received SIGHUP, shutting down...");
+            tracing::debug!("Received SIGHUP, shutting down...");
             v.unwrap()
         }
     }
@@ -368,14 +368,14 @@ async fn wait_until_shutdown() {
 async fn wait_until_shutdown() {
     use tokio::signal::windows::{signal, SignalKind};
     tokio::signal::ctrl_c().await.unwrap();
-    println!("Received CTRL-C, shutting down...");
+    tracing::debug!("Received CTRL-C, shutting down...");
 }
 
 async fn setup_community_emojis(db: &database::Database) {
     let emojis = match db.get_community_emojis().await {
         Ok(emojis) => emojis,
         Err(_) => {
-            println!("Failed to setup community emojis");
+            tracing::warn!("Failed to setup community emojis");
             return;
         }
     };
@@ -391,8 +391,8 @@ async fn setup_community_emojis(db: &database::Database) {
 
     for missing in missing {
         match db.add_community_emoji(missing).await {
-            Ok(_) => println!("Added missing community emoji: {}", missing),
-            Err(e) => println!("Failed to add missing community emoji: {}", e),
+            Ok(_) => tracing::info!("Added missing community emoji: {}", missing),
+            Err(e) => tracing::error!("Failed to add missing community emoji: {}", e),
         }
     }
 }

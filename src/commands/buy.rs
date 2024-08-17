@@ -228,7 +228,6 @@ pub async fn complete_roles<'a>(
         .iter()
         .filter(move |cmd| for_sale.contains_key(&cmd.id))
         .map(|cmd| {
-            println!("Role: {:?}", cmd.name);
             poise::serenity_prelude::AutocompleteChoice::new(cmd.name.to_string(), cmd.to_string())
         })
         .collect::<Vec<poise::serenity_prelude::AutocompleteChoice>>()
@@ -480,7 +479,7 @@ pub async fn emoji(
             ctx.send(reply).await?;
         }
         Err(e) => {
-            dbg!(e);
+            tracing::debug!("{e}");
             ctx.data()
                 .db
                 .award_balances(vec![ctx.author().id.into()], price)
@@ -679,7 +678,7 @@ pub async fn decay(
             ctx.send(reply).await?
         }
         Err(e) => {
-            dbg!(e);
+            tracing::debug!("{e}");
             let reply = {
                 CreateReply::default()
                     .content("There was an error setting the decay!\nTalk to Kidsan.")
@@ -818,7 +817,7 @@ pub async fn bones_status(ctx: Context<'_>) -> Result<(), Error> {
             // deadline is Saturday 00:00 UTC
             let mut deadline = chrono::Utc::now();
             while deadline.weekday() != chrono::Weekday::Sat {
-                dbg!(deadline.weekday());
+                tracing::debug!("{}", deadline.weekday());
                 deadline = deadline.checked_add_days(Days::new(1)).unwrap();
             }
             deadline = deadline
