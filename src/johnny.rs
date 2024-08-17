@@ -355,7 +355,7 @@ impl Johnny {
 
         let m = {
             CreateMessage::new().content(format!(
-                "I just set the bones price to {} <:jbuck:1228663982462865450>",
+                ":bone: I just set the bones price to {} <:jbuck:1228663982462865450>",
                 price
             ))
         };
