@@ -166,6 +166,7 @@ impl ConfigRow {
             "bones_price_min" => ConfigKey::BonesPriceMin,
             "bones_price_max" => ConfigKey::BonesPriceMax,
             "bones_price_last_was_increase" => ConfigKey::BonesPriceLastWasIncrease,
+            "bones_price_force_update" => ConfigKey::ForceBonesPriceUpdate,
             _ => panic!("Invalid config"),
         }
     }
@@ -187,6 +188,7 @@ pub enum ConfigKey {
     BonesPriceMin,
     BonesPriceMax,
     BonesPriceLastWasIncrease,
+    ForceBonesPriceUpdate,
 }
 
 impl ConfigKey {
@@ -207,6 +209,7 @@ impl ConfigKey {
             ConfigKey::BonesPriceMin => "bones_price_min",
             ConfigKey::BonesPriceMax => "bones_price_max",
             ConfigKey::BonesPriceLastWasIncrease => "bones_price_last_was_increase",
+            ConfigKey::ForceBonesPriceUpdate => "bones_price_force_update",
         }
     }
 }
@@ -233,6 +236,7 @@ impl ConfigDatabase for Database {
             bones_price_min: 1,
             bones_price_max: 5,
             bones_price_last_was_increase: None,
+            force_bones_price_update: None,
         };
 
         for d in data {
@@ -292,6 +296,9 @@ impl ConfigDatabase for Database {
                 ConfigKey::BonesPriceLastWasIncrease => {
                     config.bones_price_last_was_increase = Some(d.value.parse().unwrap())
                 }
+                ConfigKey::ForceBonesPriceUpdate => {
+                    config.force_bones_price_update = Some(d.value.parse().unwrap())
+                }
             }
         }
         Ok(config)
@@ -341,13 +348,14 @@ pub struct Config {
     pub bones_price_min: i32,
     pub bones_price_max: i32,
     pub bones_price_last_was_increase: Option<bool>,
+    pub force_bones_price_update: Option<bool>,
 }
 
 impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Daily upper limit: {}\nBot odds updated: {}\nBot odds: {:.2}\nGame length seconds: {}\nLottery base prize: {}\nLottery ticket price: {}\nFuture lottery base prize: {}\nFuture lottery ticket price: {}\nSide chance: {}\nBones price: {}\nBones price updated: {}\nCommunity emoji price: {}\nBones price min: {}\nBones price max: {}",
+            "Daily upper limit: {}\nBot odds updated: {}\nBot odds: {:.2}\nGame length seconds: {}\nLottery base prize: {}\nLottery ticket price: {}\nFuture lottery base prize: {}\nFuture lottery ticket price: {}\nSide chance: {}\nBones price: {}\nBones price updated: {}\nCommunity emoji price: {}\nBones price min change: {}\nBones price max change: {}\nBones price force update: {}\n",
             self.daily_upper_limit.unwrap_or(0),
             self.bot_odds_updated
                 .map(|x| x.to_rfc2822())
@@ -364,6 +372,7 @@ impl fmt::Display for Config {
             self.community_emoji_price,
             self.bones_price_min,
             self.bones_price_max,
+            self.force_bones_price_update.unwrap_or(false),
         )
     }
 }

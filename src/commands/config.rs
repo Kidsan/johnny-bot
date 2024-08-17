@@ -16,8 +16,9 @@ pub enum ConfigOption {
     FutureLotteryBasePrize,
     SideChance,
     CommunityEmojiPrice,
-    BonesPriceMin,
-    BonesPriceMax,
+    BonesPriceMinFluctuation,
+    BonesPriceMaxFluctuation,
+    ForceBonesPriceUpdate,
 }
 
 ///
@@ -165,7 +166,7 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .unwrap();
             ctx.data().config.write().unwrap().community_emoji_price = price;
         }
-        ConfigOption::BonesPriceMin => {
+        ConfigOption::BonesPriceMinFluctuation => {
             let price = value
                 .parse::<i32>()
                 .map_err(|_| Error::from("Invalid value".to_string()))?;
@@ -176,7 +177,7 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .unwrap();
             ctx.data().config.write().unwrap().bones_price_min = price;
         }
-        ConfigOption::BonesPriceMax => {
+        ConfigOption::BonesPriceMaxFluctuation => {
             let price = value
                 .parse::<i32>()
                 .map_err(|_| Error::from("Invalid value".to_string()))?;
@@ -186,6 +187,17 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .await
                 .unwrap();
             ctx.data().config.write().unwrap().bones_price_max = price;
+        }
+        ConfigOption::ForceBonesPriceUpdate => {
+            let force = value
+                .parse::<bool>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::ForceBonesPriceUpdate, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().bones_price_force_update = force;
         }
     }
     let reply = CreateReply::default().content("Success").ephemeral(true);

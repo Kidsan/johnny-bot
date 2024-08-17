@@ -68,8 +68,11 @@ impl Johnny {
             if minute_counter.elapsed().as_secs() >= 60 {
                 let _ = rand::thread_rng().gen_range(0..=100);
                 self.refresh_config().await;
-                let bones_price_updated = { self.config.read().unwrap().bones_price_updated };
-                if self.should_update_bones_price(bones_price_updated) {
+                let (bones_price_updated, force) = {
+                    let c = self.config.read().unwrap();
+                    (c.bones_price_updated, c.bones_price_force_update)
+                };
+                if self.should_update_bones_price(bones_price_updated) || force {
                     self.update_bones_price().await;
                 }
                 if self.should_decay_bones() {
@@ -277,7 +280,7 @@ impl Johnny {
 
         if (time == NaiveTime::from_hms_opt(0, 0, 0).unwrap()
             || time == NaiveTime::from_hms_opt(12, 0, 0).unwrap())
-            && last.checked_add_signed(TimeDelta::hours(11)).unwrap() < chrono::Utc::now()
+            && last.checked_add_signed(TimeDelta::hours(1)).unwrap() < chrono::Utc::now()
         {
             dbg!("updating bones price ");
             return true;

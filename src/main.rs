@@ -39,6 +39,7 @@ pub struct Config {
     bones_price_min: i32,
     bones_price_max: i32,
     bones_price_last_was_increase: Option<bool>,
+    bones_price_force_update: bool,
 }
 
 impl Config {
@@ -58,6 +59,7 @@ impl Config {
             bones_price_min: input.bones_price_min,
             bones_price_max: input.bones_price_max,
             bones_price_last_was_increase: input.bones_price_last_was_increase,
+            bones_price_force_update: input.force_bones_price_update.unwrap_or(false),
         }
     }
 }
