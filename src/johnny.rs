@@ -75,9 +75,17 @@ impl Johnny {
                 if self.should_update_bones_price(bones_price_updated) || force {
                     self.update_bones_price().await;
                 }
+                if force {
+                    self.db
+                        .set_config_value(ConfigKey::ForceBonesPriceUpdate, "false")
+                        .await
+                        .unwrap();
+                    self.config.write().unwrap().bones_price_force_update = false;
+                }
                 if self.should_decay_bones() {
                     self.decay_bones().await;
                 }
+
                 minute_counter = tokio::time::Instant::now();
             }
 
@@ -280,7 +288,7 @@ impl Johnny {
 
         if (time == NaiveTime::from_hms_opt(0, 0, 0).unwrap()
             || time == NaiveTime::from_hms_opt(12, 0, 0).unwrap())
-            && last.checked_add_signed(TimeDelta::hours(1)).unwrap() < chrono::Utc::now()
+            && last.checked_add_signed(TimeDelta::minutes(2)).unwrap() < chrono::Utc::now()
         {
             dbg!("updating bones price ");
             return true;
