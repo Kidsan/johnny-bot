@@ -296,7 +296,7 @@ impl Johnny {
         let (min, max, old_price, last_was_increase) = {
             let config = self.config.read().unwrap();
             let a = if is_weekend() {
-                (50, None)
+                (25, None)
             } else {
                 (config.bones_price, config.bones_price_last_was_increase)
             };

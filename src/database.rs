@@ -228,7 +228,7 @@ impl ConfigDatabase for Database {
             future_lottery_ticket_price: None,
             side_chance: None,
             community_emoji_price: 5,
-            bones_price: 5,
+            bones_price: 25,
             bones_price_updated: chrono::Utc::now(),
             bones_price_min: 1,
             bones_price_max: 5,
