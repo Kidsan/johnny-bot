@@ -45,7 +45,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
     }
 
     let reply = CreateReply::default().content(format!(
-        "> **LOTTERY STATUS**\n> **Prize pool:** {} <:jbuck:1228663982462865450>\n> **Tickets sold:** {} :tickets:\n > **End:** <t:{}:R>\n> Use ***/lottery buy*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
+        "> **LOTTERY STATUS**\n> **Prize pool:** {} <:jbuck:1228663982462865450>\n> **Tickets sold:** {} :tickets:\n > **End:** <t:{}:R>\n> Use ***/buy lottery*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
         prize, tickets_sold, end.and_utc().timestamp(), price
     ));
     ctx.send(reply).await?;
