@@ -56,13 +56,17 @@ impl Johnny {
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {}
                 Err(e) => {
-                    tracing::debug!("{}", e.to_string());
+                    tracing::error!("{}", e.to_string());
                     break;
                 }
             }
             if self.should_trigger_lottery(last_lottery).await {
                 last_lottery = Some(chrono::Utc::now().naive_utc());
                 self.lottery().await;
+            }
+
+            if self.should_update_skewed_odds().await {
+                self.update_skewed_odds().await;
             }
 
             if minute_counter.elapsed().as_secs() >= 60 {
@@ -91,9 +95,6 @@ impl Johnny {
 
             if five_minute_counter.elapsed().as_secs() >= 300 {
                 self.decay().await;
-                if self.should_update_skewed_odds().await {
-                    self.update_skewed_odds().await;
-                }
                 five_minute_counter = tokio::time::Instant::now();
             }
             tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
@@ -105,7 +106,7 @@ impl Johnny {
             match self.db.get_price_decay_config().await {
                 Ok(result) => result,
                 Err(e) => {
-                    tracing::debug!(e);
+                    tracing::error!(e);
                     vec![]
                 }
             }
@@ -126,13 +127,13 @@ impl Johnny {
                         config.get_mut(&parsed).unwrap().0 = r.price;
                     }
                     Err(e) => {
-                        tracing::debug!(e);
+                        tracing::error!(e);
                     }
                 }
                 match self.db.price_decayed(config.role_id).await {
                     Ok(_) => {}
                     Err(e) => {
-                        tracing::debug!(e);
+                        tracing::error!(e);
                     }
                 }
             }
@@ -143,13 +144,13 @@ impl Johnny {
         match self.db.get_config().await {
             Ok(r) => *self.config.write().unwrap() = Config::from(r),
             Err(e) => {
-                tracing::debug!(e);
+                tracing::error!(e);
             }
         }
     }
 
     async fn should_update_skewed_odds(&self) -> bool {
-        let last = self.db.get_config().await.unwrap().bot_odds_updated;
+        let last = self.config.read().unwrap().bot_odds_updated;
 
         if last.is_none() {
             return true;
@@ -174,7 +175,7 @@ impl Johnny {
             )
             .await
             .unwrap();
-
+        self.config.write().unwrap().bot_odds_updated = Some(chrono::Utc::now());
         self.config.write().unwrap().bot_odds = bot_odds;
     }
 

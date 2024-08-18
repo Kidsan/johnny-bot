@@ -355,7 +355,7 @@ impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Daily upper limit: {}\nBot odds updated: {}\nBot odds: {:.2}\nGame length seconds: {}\nLottery base prize: {}\nLottery ticket price: {}\nFuture lottery base prize: {}\nFuture lottery ticket price: {}\nSide chance: {}\nBones price: {}\nBones price updated: {}\nCommunity emoji price: {}\nBones price min change: {}\nBones price max change: {}\nBones price force update: {}\n",
+            "**Daily upper limit**: {}\n**Bot odds updated**: {}\n**Bot odds**: {:.2}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n",
             self.daily_upper_limit.unwrap_or(0),
             self.bot_odds_updated
                 .map(|x| x.to_rfc2822())
@@ -368,7 +368,7 @@ impl fmt::Display for Config {
             self.future_lottery_ticket_price.unwrap_or(0),
             self.side_chance.unwrap_or(0),
             self.bones_price,
-            self.bones_price_updated,
+            self.bones_price_updated.to_rfc2822(),
             self.community_emoji_price,
             self.bones_price_min,
             self.bones_price_max,

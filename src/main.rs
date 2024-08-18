@@ -27,6 +27,7 @@ type RolePrice = (i32, Option<serenity::RoleId>);
 pub struct Config {
     daily_upper_limit: i32,
     bot_odds: f32,
+    bot_odds_updated: Option<chrono::DateTime<chrono::Utc>>,
     game_length_seconds: i32,
     lottery_ticket_price: i32,
     lottery_base_prize: i32,
@@ -60,6 +61,7 @@ impl Config {
             bones_price_max: input.bones_price_max,
             bones_price_last_was_increase: input.bones_price_last_was_increase,
             bones_price_force_update: input.force_bones_price_update.unwrap_or(false),
+            bot_odds_updated: input.bot_odds_updated,
         }
     }
 }
