@@ -286,7 +286,7 @@ impl Johnny {
 
         if (time == NaiveTime::from_hms_opt(0, 0, 0).unwrap()
             || time == NaiveTime::from_hms_opt(12, 0, 0).unwrap())
-            && last.checked_add_signed(TimeDelta::minutes(2)).unwrap() < chrono::Utc::now()
+            && last.checked_add_signed(TimeDelta::minutes(55)).unwrap() < chrono::Utc::now()
         {
             return true;
         }
