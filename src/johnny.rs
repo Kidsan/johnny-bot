@@ -66,7 +66,6 @@ impl Johnny {
             }
 
             if minute_counter.elapsed().as_secs() >= 60 {
-                let _ = rand::thread_rng().gen_range(0..=100);
                 self.refresh_config().await;
                 let (bones_price_updated, force) = {
                     let c = self.config.read().unwrap();
@@ -76,7 +75,7 @@ impl Johnny {
                     self.update_bones_price().await;
                 }
                 if force {
-                    tracing::debug!("toggling bones price force");
+                    tracing::info!("toggling bones price force");
                     self.db
                         .set_config_value(ConfigKey::ForceBonesPriceUpdate, "false")
                         .await
@@ -283,8 +282,6 @@ impl Johnny {
             .with_second(0)
             .unwrap()
             .with_nanosecond(0)
-            .unwrap()
-            .with_minute(0)
             .unwrap();
 
         if (time == NaiveTime::from_hms_opt(0, 0, 0).unwrap()
