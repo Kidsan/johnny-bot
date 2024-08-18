@@ -121,6 +121,7 @@ pub async fn buylotteryticket(
     ctx: Context<'_>,
     #[description = "The amount of tickets to buy"]
     #[min = 1]
+    #[max = 100]
     amount: Option<i32>,
 ) -> Result<(), Error> {
     let amount = amount.unwrap_or(1);

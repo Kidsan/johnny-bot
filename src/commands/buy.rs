@@ -280,6 +280,7 @@ pub async fn bones(
     ctx: Context<'_>,
     #[description = "amount to purchase"]
     #[min = 1]
+    #[max = 100]
     amount: Option<i32>,
 ) -> Result<(), Error> {
     let amount = amount.unwrap_or(1);
@@ -331,6 +332,7 @@ pub async fn sellbones(
     ctx: Context<'_>,
     #[description = "amount to sell"]
     #[min = 1]
+    #[max = 100]
     amount: i32,
 ) -> Result<(), Error> {
     let balance = ctx.data().db.get_bones(ctx.author().id.get()).await?;
