@@ -167,6 +167,7 @@ impl ConfigRow {
             "bones_price_max" => ConfigKey::BonesPriceMax,
             "bones_price_last_was_increase" => ConfigKey::BonesPriceLastWasIncrease,
             "bones_price_force_update" => ConfigKey::ForceBonesPriceUpdate,
+            "bot_odds_game_limit" => ConfigKey::BotOddsGameLimit,
             _ => panic!("Invalid config"),
         }
     }
@@ -189,6 +190,7 @@ pub enum ConfigKey {
     BonesPriceMax,
     BonesPriceLastWasIncrease,
     ForceBonesPriceUpdate,
+    BotOddsGameLimit,
 }
 
 impl ConfigKey {
@@ -197,6 +199,7 @@ impl ConfigKey {
             ConfigKey::DailyUpperLimit => "daily_upper_limit",
             ConfigKey::BotOddsUpdated => "bot_odds_updated",
             ConfigKey::BotOdds => "bot_odds",
+            ConfigKey::BotOddsGameLimit => "bot_odds_game_limit",
             ConfigKey::GameLengthSeconds => "game_length_seconds",
             ConfigKey::LotteryBasePrize => "lottery_base_prize",
             ConfigKey::LotteryTicketPrice => "lottery_ticket_price",
@@ -224,6 +227,8 @@ impl ConfigDatabase for Database {
             daily_upper_limit: None,
             bot_odds_updated: None,
             bot_odds: None,
+            bot_odds_game_counter: None,
+            bot_odds_game_limit: None,
             game_length_seconds: None,
             lottery_base_prize: None,
             lottery_ticket_price: None,
@@ -299,6 +304,12 @@ impl ConfigDatabase for Database {
                 ConfigKey::ForceBonesPriceUpdate => {
                     config.force_bones_price_update = Some(d.value.parse().unwrap())
                 }
+                ConfigKey::BotOddsGameLimit => {
+                    config.bot_odds_game_limit = match d.value.parse() {
+                        Ok(x) => Some(x),
+                        Err(_) => None,
+                    }
+                }
             }
         }
         Ok(config)
@@ -336,6 +347,8 @@ pub struct Config {
     pub daily_upper_limit: Option<i32>,
     pub bot_odds_updated: Option<chrono::DateTime<Utc>>,
     pub bot_odds: Option<f32>,
+    pub bot_odds_game_limit: Option<u8>,
+    pub bot_odds_game_counter: Option<u8>,
     pub game_length_seconds: Option<i32>,
     pub lottery_base_prize: Option<i32>,
     pub lottery_ticket_price: Option<i32>,
@@ -355,12 +368,13 @@ impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "**Daily upper limit**: {}\n**Bot odds updated**: {}\n**Bot odds**: {:.2}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n",
+            "**Daily upper limit**: {}\n**Bot odds updated**: {}\n**Bot odds**: {:.2}\n**Bot odds game limit**: {}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n",
             self.daily_upper_limit.unwrap_or(0),
             self.bot_odds_updated
                 .map(|x| x.to_rfc2822())
                 .unwrap_or_else(|| "None".to_string()),
             self.bot_odds.unwrap_or(0.0),
+            self.bot_odds_game_limit.unwrap_or(10),
             self.game_length_seconds.unwrap_or(0),
             self.lottery_base_prize.unwrap_or(0),
             self.lottery_ticket_price.unwrap_or(0),

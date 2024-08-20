@@ -9,6 +9,7 @@ use crate::{
 pub enum ConfigOption {
     DailyLimit,
     BotOdds,
+    BotOddsGameLimit,
     GameLengthSeconds,
     LotteryTicketPrice,
     LotteryBasePrize,
@@ -198,6 +199,17 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .await
                 .unwrap();
             ctx.data().config.write().unwrap().bones_price_force_update = force;
+        }
+        ConfigOption::BotOddsGameLimit => {
+            let limit = value
+                .parse::<u8>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::BotOddsGameLimit, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().bot_odds_game_limit = limit;
         }
     }
     let reply = CreateReply::default().content("Success").ephemeral(true);

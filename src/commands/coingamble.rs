@@ -47,6 +47,8 @@ pub async fn coingamble(
     db.subtract_balances(vec![game_starter.parse().unwrap()], amount)
         .await?;
 
+    ctx.data().config.write().unwrap().bot_odds_game_counter += 1;
+
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let time_to_play = game_length;
     let pot = amount;

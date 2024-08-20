@@ -28,6 +28,8 @@ pub struct Config {
     daily_upper_limit: i32,
     bot_odds: f32,
     bot_odds_updated: Option<chrono::DateTime<chrono::Utc>>,
+    bot_odds_game_limit: u8,
+    bot_odds_game_counter: u8,
     game_length_seconds: i32,
     lottery_ticket_price: i32,
     lottery_base_prize: i32,
@@ -62,6 +64,8 @@ impl Config {
             bones_price_last_was_increase: input.bones_price_last_was_increase,
             bones_price_force_update: input.force_bones_price_update.unwrap_or(false),
             bot_odds_updated: input.bot_odds_updated,
+            bot_odds_game_limit: input.bot_odds_game_limit.unwrap_or(10),
+            bot_odds_game_counter: input.bot_odds_game_counter.unwrap_or(0),
         }
     }
 }

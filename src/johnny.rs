@@ -97,7 +97,7 @@ impl Johnny {
                 self.decay().await;
                 five_minute_counter = tokio::time::Instant::now();
             }
-            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
         }
     }
 
@@ -150,16 +150,17 @@ impl Johnny {
     }
 
     async fn should_update_skewed_odds(&self) -> bool {
-        let last = self.config.read().unwrap().bot_odds_updated;
-
-        if last.is_none() {
-            return true;
-        }
-
-        if chrono::Utc::now().timestamp() - last.unwrap().timestamp() >= 24 * 60 * 60 {
-            return true;
-        }
-        false
+        let (limit, counter) = {
+            let config = match self.config.read() {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::error!("{e}");
+                    return false;
+                }
+            };
+            (config.bot_odds_game_limit, config.bot_odds_game_counter)
+        };
+        counter > limit
     }
 
     pub async fn update_skewed_odds(&self) {
@@ -175,8 +176,17 @@ impl Johnny {
             )
             .await
             .unwrap();
-        self.config.write().unwrap().bot_odds_updated = Some(chrono::Utc::now());
-        self.config.write().unwrap().bot_odds = bot_odds;
+
+        let mut c = match self.config.write() {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!("{e}");
+                return;
+            }
+        };
+        c.bot_odds_updated = Some(chrono::Utc::now());
+        c.bot_odds = bot_odds;
+        c.bot_odds_game_counter = 0;
     }
 
     pub async fn should_trigger_lottery(&self, last: Option<chrono::NaiveDateTime>) -> bool {
