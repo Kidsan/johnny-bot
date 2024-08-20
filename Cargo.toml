@@ -8,12 +8,12 @@ edition = "2021"
 [dependencies]
 base64 = "0.22.1"
 chrono = "0.4.37"
-env_logger = "0.11.3"
 poise = "0.6.1"
 rand = "0.8.5"
 sqlx = { version = "0.7.4", features = ["chrono","sqlite", "runtime-tokio-native-tls"] }
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread", "signal" ]}
 tracing = {version = "0.1.40", features = ["log-always"]}
+tracing-subscriber = "0.3.18"
 
 [dependencies.serenity]
 default-features = false

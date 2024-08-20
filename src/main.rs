@@ -106,8 +106,6 @@ async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
-
     let bot_id = match var("BOT_ID") {
         Ok(id) => id.parse().unwrap(),
         Err(_) => 1049354446578143252,
@@ -123,6 +121,8 @@ async fn main() {
         Err(_) => poise::serenity_prelude::ChannelId::new(1049354446578143252),
     };
     let in_dev = var("DEV_SETTINGS").is_ok();
+
+    tracing_subscriber::fmt().init();
 
     let mut commands = vec![
         commands::help::help(),
