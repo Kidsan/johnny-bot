@@ -260,6 +260,9 @@ async fn main() {
                     "rpsgamble",
                     "buy",
                     "role", // subcommand of buy role but its seen as just "role"
+                    "bones",
+                    "emoji",
+                    "lottery",
                     "daily",
                 ]
                 .contains(&ctx.command().name.as_str())
