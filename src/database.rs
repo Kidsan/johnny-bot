@@ -171,6 +171,7 @@ impl ConfigRow {
             "bones_price_force_update" => ConfigKey::ForceBonesPriceUpdate,
             "bot_odds_game_limit" => ConfigKey::BotOddsGameLimit,
             "lottery_winner" => ConfigKey::LotteryWinner,
+            "force_egg" => ConfigKey::ForceEgg,
             _ => panic!("Invalid config"),
         }
     }
@@ -195,6 +196,7 @@ pub enum ConfigKey {
     ForceBonesPriceUpdate,
     BotOddsGameLimit,
     LotteryWinner,
+    ForceEgg,
 }
 
 impl ConfigKey {
@@ -218,6 +220,7 @@ impl ConfigKey {
             ConfigKey::BonesPriceLastWasIncrease => "bones_price_last_was_increase",
             ConfigKey::ForceBonesPriceUpdate => "bones_price_force_update",
             ConfigKey::LotteryWinner => "lottery_winner",
+            ConfigKey::ForceEgg => "force_egg",
         }
     }
 }
@@ -248,10 +251,12 @@ impl ConfigDatabase for Database {
             bones_price_last_was_increase: None,
             force_bones_price_update: None,
             lottery_winner: None,
+            force_egg: false,
         };
 
         for d in data {
             match d.as_config_key() {
+                ConfigKey::ForceEgg => config.force_egg = d.value.parse().unwrap(),
                 ConfigKey::DailyUpperLimit => {
                     config.daily_upper_limit = Some(d.value.parse().unwrap());
                 }
@@ -383,13 +388,14 @@ pub struct Config {
     pub bones_price_last_was_increase: Option<bool>,
     pub force_bones_price_update: Option<bool>,
     pub lottery_winner: Option<u64>,
+    pub force_egg: bool,
 }
 
 impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "**Daily upper limit**: {}\n**Heads odds updated**: {}\n**Heads odds**: {:.2}\n**Heads odds game limit**: {}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n**Next Lottery Winner**: {}\n",
+            "**Daily upper limit**: {}\n**Heads odds updated**: {}\n**Heads odds**: {:.2}\n**Heads odds game limit**: {}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n**Next Lottery Winner**: {}\n**Force egg:**{}",
             self.daily_upper_limit.unwrap_or(0),
             self.bot_odds_updated
                 .map(|x| x.to_rfc2822())
@@ -411,7 +417,8 @@ impl fmt::Display for Config {
             match self.lottery_winner {
                 Some(x) => format!("<@{x}>"),
                 None => "None".to_string(),
-            }
+            },
+            self.force_egg,
         )
     }
 }

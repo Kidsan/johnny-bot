@@ -1,5 +1,7 @@
 use crate::database::BalanceDatabase;
+use crate::discord::{EGG_ROLE, NICKNAME_LICENCE};
 use crate::{Data, Error};
+use ::serenity::all::{EditMember, RoleId};
 use poise::serenity_prelude as serenity;
 use serenity::Result;
 
@@ -13,6 +15,64 @@ pub async fn event_handler(
         "Got an event in event handler: {:?}",
         event.snake_case_name()
     );
+
+    if let poise::serenity_prelude::FullEvent::GuildMemberUpdate {
+        old_if_available,
+        new,
+        ..
+    } = event
+    {
+        let new_event_member = match new {
+            Some(new) => new,
+            None => {
+                tracing::info!("new member is None, returning early");
+                return Ok(());
+            }
+        };
+        let user = new_event_member.user.clone();
+        let guild = new_event_member.guild_id;
+        let mut member = guild.member(ctx, user.clone()).await.unwrap();
+        if !user
+            .has_role(ctx, new_event_member.guild_id, RoleId::new(EGG_ROLE))
+            .await
+            .unwrap()
+        {
+            if new_event_member.display_name().ends_with("egg")
+                || new_event_member.display_name().ends_with("EGG")
+                    && new_event_member.display_name() != "Barry"
+            {
+                member
+                    .remove_role(ctx, RoleId::new(NICKNAME_LICENCE))
+                    .await
+                    .unwrap();
+                match member.edit(ctx, EditMember::new().nickname("Barry")).await {
+                    Ok(_res) => tracing::info!("success"),
+                    Err(e) => tracing::error!("{e}"),
+                };
+            }
+            return Ok(());
+        };
+
+        let new_nick = new_event_member.display_name();
+        if !new_nick.ends_with("egg") {
+            member
+                .remove_role(ctx, RoleId::new(EGG_ROLE))
+                .await
+                .unwrap();
+            user.dm(
+                ctx,
+                poise::serenity_prelude::CreateMessage::default().content(":chicken:"),
+            )
+            .await
+            .unwrap();
+        }
+
+        tracing::info!(
+            "Got a member update event: {:?} -> {:?}",
+            old_if_available,
+            new
+        );
+    };
 
     if let poise::serenity_prelude::FullEvent::Message { new_message } = event {
         if new_message.author.bot {

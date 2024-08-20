@@ -1,12 +1,20 @@
 use chrono::{Datelike, NaiveTime, TimeDelta, Timelike};
+use rand::seq::SliceRandom;
 use rand::Rng;
-use serenity::all::CreateMessage;
+use serenity::all::{
+    CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, EditMember,
+    EditMessage,
+};
+use serenity::gateway::ShardRunnerInfo;
+use serenity::model::id::ShardId;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use tokio::sync::Mutex;
 
 use poise::serenity_prelude::RoleId;
 
 use crate::database::ConfigKey;
+use crate::discord::EGG_ROLE;
 use crate::{
     database::{self, BalanceDatabase, ConfigDatabase, LotteryDatabase},
     game, Config, RoleDatabase,
@@ -21,8 +29,10 @@ pub struct Johnny {
     price_config: Arc<RwLock<RolePriceConfig>>,
     config: Arc<RwLock<Config>>,
     channel: poise::serenity_prelude::ChannelId,
-    client: Option<Arc<poise::serenity_prelude::Http>>,
+    message_client: Option<Arc<poise::serenity_prelude::Http>>,
     dev_env: bool,
+    shards: Arc<Mutex<HashMap<ShardId, ShardRunnerInfo>>>,
+    egg_channels: Vec<poise::serenity_prelude::ChannelId>,
 }
 
 impl Johnny {
@@ -31,16 +41,22 @@ impl Johnny {
         t: Arc<RwLock<RolePriceConfig>>,
         config: Arc<RwLock<Config>>,
         channel: poise::serenity_prelude::ChannelId,
-        client: Option<Arc<poise::serenity_prelude::Http>>,
+        client: &serenity::Client,
         dev_env: bool,
     ) -> Self {
+        let a = client.shard_manager.runners.clone();
         Self {
             db,
             config,
             price_config: t,
             channel,
-            client,
+            message_client: Some(client.http.clone()),
             dev_env,
+            shards: a,
+            egg_channels: vec![
+                poise::serenity_prelude::ChannelId::from(1128350001328816343),
+                poise::serenity_prelude::ChannelId::from(1224695899796541554),
+            ],
         }
     }
     pub async fn start(&self, signal: std::sync::mpsc::Receiver<()>) {
@@ -67,6 +83,17 @@ impl Johnny {
 
             if self.should_update_skewed_odds().await {
                 self.update_skewed_odds().await;
+            }
+
+            let force_egg = { self.config.read().unwrap().force_egg };
+            if self.should_run_egg(force_egg).await {
+                self.config.write().unwrap().force_egg = false;
+                self.db
+                    .set_config_value(ConfigKey::ForceEgg, "false")
+                    .await
+                    .unwrap();
+                tracing::info!("running egg");
+                self.run_egg().await;
             }
 
             if minute_counter.elapsed().as_secs() >= 60 {
@@ -301,7 +328,7 @@ impl Johnny {
 
         let m = { CreateMessage::new().content(text) };
 
-        if let Some(client) = &self.client {
+        if let Some(client) = &self.message_client {
             self.channel.send_message(client, m).await.unwrap();
         } else {
             tracing::warn!("Discord client not set");
@@ -400,7 +427,7 @@ impl Johnny {
             ))
         };
 
-        if let Some(client) = &self.client {
+        if let Some(client) = &self.message_client {
             self.channel.send_message(client, m).await.unwrap();
         } else {
             tracing::warn!("Discord client not set");
@@ -431,7 +458,7 @@ impl Johnny {
             ))
         };
 
-        if let Some(client) = &self.client {
+        if let Some(client) = &self.message_client {
             self.channel.send_message(client, m).await.unwrap();
             for person in affected {
                 let u = poise::serenity_prelude::UserId::new(person);
@@ -446,6 +473,106 @@ impl Johnny {
         } else {
             tracing::warn!("Discord client not set");
         }
+    }
+
+    async fn should_run_egg(&self, force: bool) -> bool {
+        rand::thread_rng().gen_bool(1.0 / 604800.0) || force
+    }
+
+    async fn run_egg(&self) {
+        let m = {
+            CreateMessage::new().content(":egg:").components(vec![
+                poise::serenity_prelude::CreateActionRow::Buttons(vec![
+                    poise::serenity_prelude::CreateButton::new("accept_egg").label("Yes"),
+                ]),
+            ])
+        };
+        if let Some(client) = &self.message_client {
+            let channel = { self.egg_channels.choose(&mut rand::thread_rng()).unwrap() };
+            let mut sent = channel.send_message(client, m).await.unwrap();
+            let click = match sent
+                .await_component_interaction(
+                    self.shards.try_lock().unwrap().values().nth(0).unwrap(),
+                )
+                .timeout(std::time::Duration::new(60, 0))
+                .await
+            {
+                Some(a) => a,
+                None => {
+                    sent.edit(client, {
+                        EditMessage::default()
+                            .content("No one clicked the egg in time")
+                            .components(vec![])
+                    })
+                    .await
+                    .unwrap();
+                    return;
+                }
+            };
+            let user = click.user.clone();
+            let guild = click.guild_id.unwrap();
+            let mut member = guild.member(client, user.clone()).await.unwrap();
+            let nick = member.display_name();
+            let egged = get_egged_name(nick);
+            match member.add_role(client, RoleId::new(EGG_ROLE)).await {
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::error!("{e}");
+                }
+            }
+
+            match member.edit(client, EditMember::new().nickname(egged)).await {
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::error!("{e}");
+                }
+            }
+
+            match click
+                .create_response(client, {
+                    CreateInteractionResponse::UpdateMessage(
+                        CreateInteractionResponseMessage::default()
+                            .content(format!("{} has been egged", click.user))
+                            .components(vec![]),
+                    )
+                })
+                .await
+            {
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::error!("{e}");
+                }
+            }
+        } else {
+            tracing::warn!("Discord client not set");
+        }
+    }
+}
+
+fn get_egged_name(nick: &str) -> String {
+    // name has to be max 32 characters
+    if nick.len() > 29 {
+        let mut res = nick.chars().take(29).collect::<String>();
+        res.push_str("egg");
+        return res;
+    }
+
+    // find the last vowel
+    let vowels = ['a', 'e', 'i', 'o', 'u'];
+    let mut last_vowel = None;
+    for (i, c) in nick.chars().enumerate() {
+        if vowels.contains(&c) {
+            last_vowel = Some(i);
+        }
+    }
+    // replace from the last vowel to the end with "egg"
+    match last_vowel {
+        Some(i) => {
+            let mut new = nick.chars().take(i).collect::<String>();
+            new.push_str("egg");
+            new
+        }
+        None => format!("{}egg", nick),
     }
 }
 

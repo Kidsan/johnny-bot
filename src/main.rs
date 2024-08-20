@@ -1,6 +1,7 @@
 use crate::database::{ChannelDatabase, RoleDatabase, ShopDatabase};
 mod commands;
 mod database;
+mod discord;
 mod eventhandler;
 mod game;
 mod johnny;
@@ -44,6 +45,7 @@ pub struct Config {
     bones_price_last_was_increase: Option<bool>,
     bones_price_force_update: bool,
     lottery_winner: Option<u64>,
+    force_egg: bool,
 }
 
 impl Config {
@@ -68,6 +70,7 @@ impl Config {
             bot_odds_game_limit: input.bot_odds_game_limit.unwrap_or(10),
             bot_odds_game_counter: input.bot_odds_game_counter.unwrap_or(0),
             lottery_winner: input.lottery_winner,
+            force_egg: input.force_egg,
         }
     }
 }
@@ -321,21 +324,21 @@ async fn main() {
 
     let token = var("DISCORD_TOKEN")
         .expect("Missing `DISCORD_TOKEN` env var, see README for more information.");
-    let intents =
-        serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
+    let intents = serenity::GatewayIntents::non_privileged()
+        | serenity::GatewayIntents::MESSAGE_CONTENT
+        | serenity::GatewayIntents::GUILD_MEMBERS;
 
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
         .await;
 
-    let sender = client.as_ref().unwrap().http.clone();
     let (tx, rx) = mpsc::channel();
     let johnny = johnny::Johnny::new(
         db2,
         rc_clone,
         config_clone,
         den_channel_id,
-        Some(sender),
+        client.as_ref().unwrap(),
         in_dev,
     );
     tokio::spawn(async move {
