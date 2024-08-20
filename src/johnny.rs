@@ -142,7 +142,16 @@ impl Johnny {
 
     pub async fn refresh_config(&self) {
         match self.db.get_config().await {
-            Ok(r) => *self.config.write().unwrap() = Config::from(r),
+            Ok(r) => match self.config.write() {
+                Ok(mut c) => {
+                    let counter = c.bot_odds_game_counter;
+                    *c = Config::from(r);
+                    c.bot_odds_game_counter = counter;
+                }
+                Err(e) => {
+                    tracing::error!("{e}");
+                }
+            },
             Err(e) => {
                 tracing::error!(e);
             }
