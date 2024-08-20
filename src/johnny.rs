@@ -169,7 +169,7 @@ impl Johnny {
             };
             (config.bot_odds_game_limit, config.bot_odds_game_counter)
         };
-        tracing::info!(limit, counter);
+        tracing::debug!(limit, counter);
 
         counter > limit
     }
