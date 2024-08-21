@@ -140,6 +140,7 @@ pub trait RoleDatabase {
 pub trait ConfigDatabase {
     async fn get_config(&self) -> Result<Config, Error>;
     async fn set_config_value(&self, key: ConfigKey, value: &str) -> Result<(), Error>;
+    async fn del_config_value(&self, key: ConfigKey) -> Result<(), Error>;
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -168,6 +169,7 @@ impl ConfigRow {
             "bones_price_last_was_increase" => ConfigKey::BonesPriceLastWasIncrease,
             "bones_price_force_update" => ConfigKey::ForceBonesPriceUpdate,
             "bot_odds_game_limit" => ConfigKey::BotOddsGameLimit,
+            "lottery_winner" => ConfigKey::LotteryWinner,
             _ => panic!("Invalid config"),
         }
     }
@@ -191,6 +193,7 @@ pub enum ConfigKey {
     BonesPriceLastWasIncrease,
     ForceBonesPriceUpdate,
     BotOddsGameLimit,
+    LotteryWinner,
 }
 
 impl ConfigKey {
@@ -213,6 +216,7 @@ impl ConfigKey {
             ConfigKey::BonesPriceMax => "bones_price_max",
             ConfigKey::BonesPriceLastWasIncrease => "bones_price_last_was_increase",
             ConfigKey::ForceBonesPriceUpdate => "bones_price_force_update",
+            ConfigKey::LotteryWinner => "lottery_winner",
         }
     }
 }
@@ -242,6 +246,7 @@ impl ConfigDatabase for Database {
             bones_price_max: 5,
             bones_price_last_was_increase: None,
             force_bones_price_update: None,
+            lottery_winner: None,
         };
 
         for d in data {
@@ -310,6 +315,12 @@ impl ConfigDatabase for Database {
                         Err(_) => None,
                     }
                 }
+                ConfigKey::LotteryWinner => {
+                    config.lottery_winner = match d.value.parse() {
+                        Ok(x) => Some(x),
+                        Err(_) => None,
+                    }
+                }
             }
         }
         Ok(config)
@@ -318,6 +329,14 @@ impl ConfigDatabase for Database {
         sqlx::query("INSERT INTO config (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = $2")
             .bind(key.as_str())
             .bind(value)
+            .execute(&self.connection)
+            .await?;
+        Ok(())
+    }
+
+    async fn del_config_value(&self, key: ConfigKey) -> Result<(), Error> {
+        sqlx::query("DELETE FROM config WHERE key = $1")
+            .bind(key.as_str())
             .execute(&self.connection)
             .await?;
         Ok(())
@@ -362,13 +381,14 @@ pub struct Config {
     pub bones_price_max: i32,
     pub bones_price_last_was_increase: Option<bool>,
     pub force_bones_price_update: Option<bool>,
+    pub lottery_winner: Option<u64>,
 }
 
 impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "**Daily upper limit**: {}\n**Bot odds updated**: {}\n**Bot odds**: {:.2}\n**Bot odds game limit**: {}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n",
+            "**Daily upper limit**: {}\n**Bot odds updated**: {}\n**Bot odds**: {:.2}\n**Bot odds game limit**: {}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n**Next Lottery Winner**: {}\n",
             self.daily_upper_limit.unwrap_or(0),
             self.bot_odds_updated
                 .map(|x| x.to_rfc2822())
@@ -387,6 +407,10 @@ impl fmt::Display for Config {
             self.bones_price_min,
             self.bones_price_max,
             self.force_bones_price_update.unwrap_or(false),
+            match self.lottery_winner {
+                Some(x) => format!("<@{x}>"),
+                None => "None".to_string(),
+            }
         )
     }
 }

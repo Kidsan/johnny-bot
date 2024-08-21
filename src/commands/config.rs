@@ -20,6 +20,7 @@ pub enum ConfigOption {
     BonesPriceMinFluctuation,
     BonesPriceMaxFluctuation,
     ForceBonesPriceUpdate,
+    LotteryWinner,
 }
 
 ///
@@ -210,6 +211,17 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .await
                 .unwrap();
             ctx.data().config.write().unwrap().bot_odds_game_limit = limit;
+        }
+        ConfigOption::LotteryWinner => {
+            let winner = value
+                .parse::<u64>()
+                .map_err(|_| Error::from("Invalid value".to_string()))?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::LotteryWinner, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().lottery_winner = Some(winner);
         }
     }
     let reply = CreateReply::default().content("Success").ephemeral(true);

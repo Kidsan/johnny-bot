@@ -232,7 +232,10 @@ impl Johnny {
             .sum::<i32>()
             + base_prize;
         let lottery = game::Lottery::new(lottery_tickets.clone());
-        let winner = lottery.get_winner();
+        let winner = match self.config.read().unwrap().lottery_winner {
+            Some(x) => x,
+            None => lottery.get_winner(),
+        };
 
         if winner == 0 {
             return;
@@ -266,6 +269,12 @@ impl Johnny {
             .await
             .unwrap();
 
+        self.db
+            .del_config_value(database::ConfigKey::LotteryWinner)
+            .await
+            .unwrap();
+        self.config.write().unwrap().lottery_winner = None;
+
         let losers = lottery_tickets
             .iter()
             .map(|(a, _)| a)
@@ -283,7 +292,10 @@ impl Johnny {
             format!("> Losers: {}\n", text)
         };
 
-        let num_tickets = lottery_tickets.iter().find(|a| a.0 == winner).unwrap().1;
+        let num_tickets = match lottery_tickets.iter().find(|a| a.0 == winner) {
+            Some(a) => a.1,
+            None => 0,
+        };
         let text = format!("> :tada: :tada: WOW! <@{}> just won the lottery!\n> They won **{} <:jbuck:1228663982462865450>** by buying only **{} :tickets:**\n{}> \n> **New lottery starting... NOW**\n> Prize pool: {} <:jbuck:1228663982462865450>\n> Use ***/lottery buy*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
             winner, pot, num_tickets, loser_text, new_base_prize, new_ticket_price);
 

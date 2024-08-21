@@ -43,6 +43,7 @@ pub struct Config {
     bones_price_max: i32,
     bones_price_last_was_increase: Option<bool>,
     bones_price_force_update: bool,
+    lottery_winner: Option<u64>,
 }
 
 impl Config {
@@ -66,6 +67,7 @@ impl Config {
             bot_odds_updated: input.bot_odds_updated,
             bot_odds_game_limit: input.bot_odds_game_limit.unwrap_or(10),
             bot_odds_game_counter: input.bot_odds_game_counter.unwrap_or(0),
+            lottery_winner: input.lottery_winner,
         }
     }
 }
