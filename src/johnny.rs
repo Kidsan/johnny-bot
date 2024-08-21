@@ -175,7 +175,7 @@ impl Johnny {
     }
 
     pub async fn update_skewed_odds(&self) {
-        let bot_odds = rand::thread_rng().gen_range(0.2..=0.7);
+        let bot_odds = rand::thread_rng().gen_range(0.3..=0.7);
         self.db
             .set_config_value(database::ConfigKey::BotOdds, &bot_odds.to_string())
             .await
