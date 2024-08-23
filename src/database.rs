@@ -920,7 +920,7 @@ impl BalanceDatabase for Database {
 
     async fn get_bones_leaderboard(&self) -> Result<Vec<(u64, i32, i32)>, Error> {
         let data = sqlx::query_as::<_, (i64, i32, i32)>(
-            "SELECT id, bones, balance FROM balances ORDER BY bones DESC LIMIT 10",
+            "SELECT id, bones, balance FROM balances WHERE bones > 0 ORDER BY bones DESC LIMIT 10",
         )
         .fetch_all(&self.connection)
         .await?;
