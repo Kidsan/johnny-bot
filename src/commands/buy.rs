@@ -860,7 +860,7 @@ pub async fn bones_status(ctx: Context<'_>) -> Result<(), Error> {
     }
     let formatted_bones_leaderboard = format!("> Bone Holders:\n{}", bones_leaderboard);
     let message = format!(
-        "> **BONE MARKET**\n{status}\n{formatted_price}\n{deadline}\n{formatted_balance}\n{footer}\n{formatted_bones_leaderboard}"
+        "> **BONE MARKET**\n{status}\n{formatted_price}\n{deadline}\n{formatted_balance}\n{formatted_bones_leaderboard}\n{footer}"
     );
     let reply = { CreateReply::default().content(message).reply(true) };
     ctx.send(reply).await?;
