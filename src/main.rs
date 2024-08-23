@@ -35,7 +35,7 @@ pub struct Config {
     lottery_base_prize: i32,
     future_lottery_ticket_price: i32,
     future_lottery_base_prize: i32,
-    side_chance: i32,
+    side_chance: u32,
     community_emoji_price: i32,
     bones_price: i32,
     bones_price_updated: chrono::DateTime<chrono::Utc>,

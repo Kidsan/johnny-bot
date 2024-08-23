@@ -73,6 +73,7 @@ pub trait BalanceDatabase {
     async fn get_crown_time(&self, user_id: u64) -> Result<(u64, f32), Error>;
     async fn update_crown_timer(&self, user_id: u64, hours: f32) -> Result<(), Error>;
     async fn get_bones(&self, user_id: u64) -> Result<i32, Error>;
+    async fn get_bones_leaderboard(&self) -> Result<Vec<(u64, i32, i32)>, Error>;
     async fn decay_bones(&self) -> Result<Vec<u64>, Error>;
     async fn add_bones(&self, user_id: u64, amount: i32) -> Result<i32, Error>;
     async fn remove_bones(&self, user_id: u64, amount: i32) -> Result<i32, Error>;
@@ -373,7 +374,7 @@ pub struct Config {
     pub lottery_ticket_price: Option<i32>,
     pub future_lottery_base_prize: Option<i32>,
     pub future_lottery_ticket_price: Option<i32>,
-    pub side_chance: Option<i32>,
+    pub side_chance: Option<u32>,
     pub community_emoji_price: i32,
     pub bones_price: i32,
     pub bones_price_updated: chrono::DateTime<Utc>,
@@ -388,7 +389,7 @@ impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "**Daily upper limit**: {}\n**Bot odds updated**: {}\n**Bot odds**: {:.2}\n**Bot odds game limit**: {}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n**Next Lottery Winner**: {}\n",
+            "**Daily upper limit**: {}\n**Heads odds updated**: {}\n**Heads odds**: {:.2}\n**Heads odds game limit**: {}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n**Next Lottery Winner**: {}\n",
             self.daily_upper_limit.unwrap_or(0),
             self.bot_odds_updated
                 .map(|x| x.to_rfc2822())
@@ -915,6 +916,18 @@ impl BalanceDatabase for Database {
             .execute(&self.connection)
             .await?;
         Ok(affected.iter().map(|x| x.0 as u64).collect())
+    }
+
+    async fn get_bones_leaderboard(&self) -> Result<Vec<(u64, i32, i32)>, Error> {
+        let data = sqlx::query_as::<_, (i64, i32, i32)>(
+            "SELECT id, bones, balance FROM balances ORDER BY bones DESC LIMIT 10",
+        )
+        .fetch_all(&self.connection)
+        .await?;
+        Ok(data
+            .iter()
+            .map(|(id, bones, balance)| (*id as u64, *bones, *balance))
+            .collect())
     }
 }
 

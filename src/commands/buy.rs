@@ -1,5 +1,8 @@
 use crate::{
-    commands::{lottery::buylotteryticket, robbingevent::buyrobbery},
+    commands::{
+        lottery::buylotteryticket,
+        robbingevent::{buyrobbery, get_discord_name},
+    },
     database::{BalanceDatabase, RoleDatabase, ShopDatabase},
     johnny::is_weekend,
     Context, Error,
@@ -793,6 +796,7 @@ pub async fn list_prices(ctx: Context<'_>) -> Result<(), Error> {
 /// ```
 #[poise::command(slash_command, rename = "bones")]
 pub async fn bones_status(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer().await.unwrap();
     let bones = ctx.data().db.get_bones(ctx.author().id.get()).await?;
     let price = ctx.data().config.read().unwrap().bones_price;
     let status = match is_weekend() {
@@ -834,8 +838,29 @@ pub async fn bones_status(ctx: Context<'_>) -> Result<(), Error> {
     };
     let formatted_price = format!("> Price: **{}** <:jbuck:1228663982462865450>", price);
     let formatted_balance = format!("> {} has: **{}** :bone:", ctx.author(), bones);
+
+    let lb = ctx.data().db.get_bones_leaderboard().await?;
+    let named_players = {
+        let mut map = std::collections::HashMap::new();
+        for (player, _, _) in lb.clone() {
+            let name = get_discord_name(ctx, player).await;
+            map.insert(player, name);
+        }
+        map
+    };
+    let mut bones_leaderboard = lb
+        .iter()
+        .map(|(u, bones, _)| (named_players.get(u).unwrap(), bones))
+        .map(|(u, b)| format!("> :bone: **{}** - {}\n", b, u))
+        .collect::<Vec<String>>()
+        .join("");
+
+    if bones_leaderboard.is_empty() {
+        bones_leaderboard = "> Nobody has any :bone: yet!".to_string();
+    }
+    let formatted_bones_leaderboard = format!("> Bone Holders:\n{}", bones_leaderboard);
     let message = format!(
-        "> **BONE MARKET**\n{status}\n{formatted_price}\n{deadline}\n{formatted_balance}\n{footer}"
+        "> **BONE MARKET**\n{status}\n{formatted_price}\n{deadline}\n{formatted_balance}\n{footer}\n{formatted_bones_leaderboard}"
     );
     let reply = { CreateReply::default().content(message).reply(true) };
     ctx.send(reply).await?;
