@@ -61,7 +61,7 @@ pub struct CoinGame {
     pub tails: Vec<u64>,
     pub amount: i32,
     pub pot: i32,
-    pub side_chance: i32,
+    pub side_chance: u32,
     odds_bot_wins: f32,
 }
 
@@ -79,7 +79,7 @@ impl CoinGame {
         game_starter: u64,
         choice: HeadsOrTail,
         amount: i32,
-        side_chance: i32,
+        side_chance: u32,
         bot_odds: f32,
     ) -> Self {
         let mut heads = vec![];
@@ -134,23 +134,19 @@ impl CoinGame {
         bot_id: u64,
         crown_role_id: u64,
     ) -> CoinGameResult {
-        let (mut heads_odds, mut tails_odds) = (1.0, 1.0);
+        let (heads_odds, tails_odds) = (self.odds_bot_wins, 1.0 - self.odds_bot_wins);
         if self.heads.is_empty() {
-            heads_odds = self.odds_bot_wins;
-            tails_odds = 1.0 - self.odds_bot_wins;
             self.heads.push(bot_id);
             self.players.push(bot_id);
             self.pot += self.pot;
         } else if self.tails.is_empty() {
-            tails_odds = self.odds_bot_wins;
-            heads_odds = 1.0 - self.odds_bot_wins;
             self.tails.push(bot_id);
             self.players.push(bot_id);
             self.pot += self.pot;
         }
         let result = {
             let mut rng = rand::thread_rng();
-            if rng.gen_ratio(self.side_chance.try_into().unwrap(), 100) {
+            if rng.gen_ratio(self.side_chance, 100) {
                 CoinSides::Side
             } else {
                 [
@@ -166,24 +162,6 @@ impl CoinGame {
 
         match result {
             CoinSides::Side => {
-                let leaderboard: Vec<u64> = db
-                    .get_leaderboard()
-                    .await
-                    .unwrap()
-                    .iter()
-                    .map(|(u, _b)| *u)
-                    .collect();
-                if leaderboard.is_empty() {
-                    return CoinGameResult {
-                        result,
-                        prize: 0,
-                        prize_with_multiplier: 0,
-                        leader: None,
-                        johnnys_multiplier: None,
-                        remainder: None,
-                    };
-                };
-
                 let current_pot = {
                     db.get_config()
                         .await
@@ -194,9 +172,13 @@ impl CoinGame {
 
                 let new_pot = current_pot + self.pot;
 
-                db.set_config_value(database::ConfigKey::LotteryBasePrize, &new_pot.to_string())
+                match db
+                    .set_config_value(database::ConfigKey::LotteryBasePrize, &new_pot.to_string())
                     .await
-                    .unwrap();
+                {
+                    Ok(_) => {}
+                    Err(e) => tracing::debug!(e),
+                };
 
                 CoinGameResult {
                     result,
@@ -223,19 +205,24 @@ impl CoinGame {
                 let prize = self.pot / winners.len() as i32;
                 let remainder = self.pot % winners.len() as i32;
                 let prize_with_multiplier = prize + (prize as f32 * johnnys_multiplier) as i32;
-                let leader =
-                    if let Some(user) = db.get_unique_role_holder(crown_role_id).await.unwrap() {
-                        db.award_balances(vec![user.user_id], remainder)
-                            .await
-                            .unwrap();
-                        Some(user.user_id)
-                    } else {
-                        None
+                let leader = if let Ok(Some(user)) = db.get_unique_role_holder(crown_role_id).await
+                {
+                    match db.award_balances(vec![user.user_id], remainder).await {
+                        Ok(_) => {}
+                        Err(e) => tracing::debug!(e),
                     };
+                    Some(user.user_id)
+                } else {
+                    None
+                };
                 if winners[0] != bot_id {
-                    db.award_balances(winners.to_vec(), prize_with_multiplier)
+                    match db
+                        .award_balances(winners.to_vec(), prize_with_multiplier)
                         .await
-                        .unwrap();
+                    {
+                        Ok(_) => {}
+                        Err(e) => tracing::debug!(e),
+                    }
                 }
                 CoinGameResult {
                     result,
@@ -263,7 +250,7 @@ mod tests {
             amount: 100,
             pot: 200,
             side_chance: 0,
-            odds_bot_wins: 1.0,
+            odds_bot_wins: 0.5,
         };
 
         let bot_id = new_user_id();

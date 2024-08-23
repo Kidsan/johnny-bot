@@ -145,7 +145,7 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
         }
         ConfigOption::SideChance => {
             let chance = value
-                .parse::<i32>()
+                .parse::<u32>()
                 .map_err(|_| Error::from("Invalid value".to_string()))?;
             if !(0..=100).contains(&chance) {
                 return Err(Error::from("Chance must be in range 0..=100".to_string()));
