@@ -797,7 +797,6 @@ pub async fn list_prices(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command, rename = "bones")]
 pub async fn bones_status(ctx: Context<'_>) -> Result<(), Error> {
     ctx.defer().await.unwrap();
-    let bones = ctx.data().db.get_bones(ctx.author().id.get()).await?;
     let price = ctx.data().config.read().unwrap().bones_price;
     let status = match is_weekend() {
         true => "> Status: **BUYING TIME :chart_with_upwards_trend: **",
@@ -837,7 +836,6 @@ pub async fn bones_status(ctx: Context<'_>) -> Result<(), Error> {
         false => "> Sell your stock via** /sell bones** command!",
     };
     let formatted_price = format!("> Price: **{}** <:jbuck:1228663982462865450>", price);
-    let formatted_balance = format!("> {} has: **{}** :bone:", ctx.author(), bones);
 
     let lb = ctx.data().db.get_bones_leaderboard().await?;
     let named_players = {
@@ -858,9 +856,9 @@ pub async fn bones_status(ctx: Context<'_>) -> Result<(), Error> {
     if bones_leaderboard.is_empty() {
         bones_leaderboard = "> Nobody has any :bone: yet!".to_string();
     }
-    let formatted_bones_leaderboard = format!("> Bone Holders:\n{}", bones_leaderboard);
+    let formatted_bones_leaderboard = format!("> Bone Holders:\n{}", bones_leaderboard.trim_end());
     let message = format!(
-        "> **BONE MARKET**\n{status}\n{formatted_price}\n{deadline}\n{formatted_balance}\n{formatted_bones_leaderboard}\n{footer}"
+        "> **BONE MARKET**\n{status}\n{formatted_price}\n{deadline}\n{formatted_bones_leaderboard}\n{footer}"
     );
     let reply = { CreateReply::default().content(message).reply(true) };
     ctx.send(reply).await?;
