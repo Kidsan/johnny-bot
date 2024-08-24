@@ -412,8 +412,6 @@ impl Johnny {
             .time()
             .with_second(0)
             .unwrap()
-            .with_minute(0)
-            .unwrap()
             .with_nanosecond(0)
             .unwrap();
         if time == NaiveTime::from_hms_opt(0, 0, 0).unwrap()
