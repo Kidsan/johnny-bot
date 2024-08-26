@@ -4,8 +4,9 @@ use poise::serenity_prelude as serenity;
 use rand::seq::SliceRandom;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-fn option_button(text: String) -> serenity::CreateButton {
+fn option_button(text: String, custom_id: impl Into<String>) -> serenity::CreateButton {
     serenity::CreateButton::new(text.clone())
+        .custom_id(custom_id)
         .label(text)
         .style(poise::serenity_prelude::ButtonStyle::Primary)
 }
@@ -63,7 +64,8 @@ pub async fn giveaway(
     let buttons = options
         .iter()
         .filter(|p| !p.is_empty())
-        .map(|option| option_button(option.to_string()))
+        .enumerate()
+        .map(|(id, option)| option_button(option.to_string(), format!("{option}{id}")))
         .collect();
     let components = vec![serenity::CreateActionRow::Buttons(buttons)];
 
@@ -81,7 +83,15 @@ pub async fn giveaway(
     let id = a.id;
     while let Some(mci) = serenity::ComponentInteractionCollector::new(ctx)
         .channel_id(ctx.channel_id())
-        .custom_ids(options.iter().filter(|p| !p.is_empty()).cloned().collect())
+        .custom_ids(
+            options
+                .iter()
+                .filter(|p| !p.is_empty())
+                .cloned()
+                .enumerate()
+                .map(|(id, option)| format!("{option}{id}"))
+                .collect(),
+        )
         .message_id(id)
         .timeout(std::time::Duration::from_secs(
             (now + (length_minutes * 60) - 1)
