@@ -566,7 +566,7 @@ fn get_egged_name(nick: &str) -> String {
     }
 
     // find the last vowel
-    let vowels = ['a', 'e', 'i', 'o', 'u'];
+    let vowels = ['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U'];
     let mut last_vowel = None;
     for (i, c) in nick.chars().enumerate() {
         if vowels.contains(&c) {
