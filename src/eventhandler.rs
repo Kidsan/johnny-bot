@@ -39,9 +39,10 @@ pub async fn event_handler(
             .unwrap()
             || Some(user.id.get()) != data.config.read().unwrap().just_egged
         {
-            if new_event_member.display_name().ends_with("egg")
-                || new_event_member.display_name().ends_with("EGG")
-                    && new_event_member.display_name() != "Barry"
+            if new_event_member
+                .display_name()
+                .to_lowercase()
+                .ends_with("egg")
             {
                 match member.remove_role(ctx, RoleId::new(NICKNAME_LICENCE)).await {
                     Ok(_res) => tracing::info!("Removed nickname licence"),
@@ -57,7 +58,7 @@ pub async fn event_handler(
         };
 
         let new_nick = new_event_member.display_name();
-        if !new_nick.ends_with("egg") {
+        if !new_nick.to_lowercase().ends_with("egg") {
             match member.remove_role(ctx, RoleId::new(EGG_ROLE)).await {
                 Ok(_res) => tracing::info!("Removed egg role"),
                 Err(e) => tracing::error!("{e}"),
