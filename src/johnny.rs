@@ -540,7 +540,7 @@ impl Johnny {
                 .create_response(client, {
                     CreateInteractionResponse::UpdateMessage(
                         CreateInteractionResponseMessage::default()
-                            .content(format!("{} has been egged", click.user))
+                            .content(":egg:")
                             .components(vec![]),
                     )
                 })
