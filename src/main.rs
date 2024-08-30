@@ -46,6 +46,7 @@ pub struct Config {
     bones_price_force_update: bool,
     lottery_winner: Option<u64>,
     force_egg: bool,
+    just_egged: Option<u64>,
 }
 
 impl Config {
@@ -71,6 +72,7 @@ impl Config {
             bot_odds_game_counter: input.bot_odds_game_counter.unwrap_or(0),
             lottery_winner: input.lottery_winner,
             force_egg: input.force_egg,
+            just_egged: None,
         }
     }
 }

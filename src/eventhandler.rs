@@ -31,11 +31,13 @@ pub async fn event_handler(
         };
         let user = new_event_member.user.clone();
         let guild = new_event_member.guild_id;
+
         let mut member = guild.member(ctx, user.clone()).await.unwrap();
         if !user
             .has_role(ctx, new_event_member.guild_id, RoleId::new(EGG_ROLE))
             .await
             .unwrap()
+            || Some(user.id.get()) != data.config.read().unwrap().just_egged
         {
             if new_event_member.display_name().ends_with("egg")
                 || new_event_member.display_name().ends_with("EGG")

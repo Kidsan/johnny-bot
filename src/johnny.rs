@@ -172,8 +172,10 @@ impl Johnny {
             Ok(r) => match self.config.write() {
                 Ok(mut c) => {
                     let counter = c.bot_odds_game_counter;
+                    let just_egged = c.just_egged;
                     *c = Config::from(r);
                     c.bot_odds_game_counter = counter;
+                    c.just_egged = just_egged;
                 }
                 Err(e) => {
                     tracing::error!("{e}");
@@ -522,6 +524,8 @@ impl Johnny {
                     tracing::error!("{e}");
                 }
             }
+
+            self.config.write().unwrap().just_egged = Some(user.id.get());
 
             match member.edit(client, EditMember::new().nickname(egged)).await {
                 Ok(_) => {
