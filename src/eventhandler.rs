@@ -41,12 +41,13 @@ pub async fn event_handler(
                 || new_event_member.display_name().ends_with("EGG")
                     && new_event_member.display_name() != "Barry"
             {
-                member
-                    .remove_role(ctx, RoleId::new(NICKNAME_LICENCE))
-                    .await
-                    .unwrap();
+                match member.remove_role(ctx, RoleId::new(NICKNAME_LICENCE)).await {
+                    Ok(_res) => tracing::info!("Removed nickname licence"),
+                    Err(e) => tracing::error!("{e}"),
+                }
+
                 match member.edit(ctx, EditMember::new().nickname("Barry")).await {
-                    Ok(_res) => tracing::info!("success"),
+                    Ok(_res) => tracing::info!("set name to Barry"),
                     Err(e) => tracing::error!("{e}"),
                 };
             }
@@ -55,16 +56,21 @@ pub async fn event_handler(
 
         let new_nick = new_event_member.display_name();
         if !new_nick.ends_with("egg") {
-            member
-                .remove_role(ctx, RoleId::new(EGG_ROLE))
+            match member.remove_role(ctx, RoleId::new(EGG_ROLE)).await {
+                Ok(_res) => tracing::info!("Removed egg role"),
+                Err(e) => tracing::error!("{e}"),
+            }
+
+            match user
+                .dm(
+                    ctx,
+                    poise::serenity_prelude::CreateMessage::default().content(":chicken:"),
+                )
                 .await
-                .unwrap();
-            user.dm(
-                ctx,
-                poise::serenity_prelude::CreateMessage::default().content(":chicken:"),
-            )
-            .await
-            .unwrap();
+            {
+                Ok(_res) => tracing::info!("Sent chicken emoji"),
+                Err(e) => tracing::error!("{e}"),
+            }
         }
 
         tracing::info!(

@@ -515,14 +515,18 @@ impl Johnny {
             let nick = member.display_name();
             let egged = get_egged_name(nick);
             match member.add_role(client, RoleId::new(EGG_ROLE)).await {
-                Ok(_) => {}
+                Ok(_) => {
+                    tracing::info!("Assigned egg role");
+                }
                 Err(e) => {
                     tracing::error!("{e}");
                 }
             }
 
             match member.edit(client, EditMember::new().nickname(egged)).await {
-                Ok(_) => {}
+                Ok(_) => {
+                    tracing::info!("Changed nickname");
+                }
                 Err(e) => {
                     tracing::error!("{e}");
                 }
