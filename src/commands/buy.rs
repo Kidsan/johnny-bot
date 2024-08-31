@@ -4,6 +4,7 @@ use crate::{
         robbingevent::{buyrobbery, get_discord_name},
     },
     database::{BalanceDatabase, RoleDatabase, ShopDatabase},
+    discord::JBUCK_EMOJI,
     johnny::is_weekend,
     Context, Error,
 };
@@ -50,9 +51,10 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
             .iter()
             .map(|(role_id, _)| {
                 format!(
-                    "> <@&{}> - {} <:jbuck:1228663982462865450>{}{}",
+                    "> <@&{}> - {} {}{}{}",
                     role_id,
                     roles.get(role_id).unwrap().0,
+                    JBUCK_EMOJI,
                     if uniques.contains(role_id) {
                         if role_id.get() == ctx.data().crown_role_id {
                             if let Some(crown_holder) = &crown_holder {
@@ -76,14 +78,13 @@ pub async fn shop(ctx: Context<'_>) -> Result<(), Error> {
             .collect::<Vec<String>>()
             .join("\n");
         let formatted_role_prices = format!("**Roles for sale:**\n{}", role_prices);
-        let formatted_emoji_prices = format!("**Emoji:**\n> Community Emoji: {} <:jbuck:1228663982462865450>\n> *The oldest of the community emojis gets replaced*\n\n", ctx.data().config.read().unwrap().community_emoji_price);
+        let formatted_emoji_prices = format!("**Emoji:**\n> Community Emoji: {} {}\n> *The oldest of the community emojis gets replaced*\n\n", ctx.data().config.read().unwrap().community_emoji_price, JBUCK_EMOJI);
         let formatted_bones_prices = format!(
-            "**Bones:**\n> Bones: {} <:jbuck:1228663982462865450>\n\n",
-            ctx.data().config.read().unwrap().bones_price
+            "**Bones:**\n> Bones: {} {}\n\n",
+            ctx.data().config.read().unwrap().bones_price,
+            JBUCK_EMOJI
         );
-        let header = String::from(
-            "### <:jbuck:1228663982462865450> Shop <:jbuck:1228663982462865450> ###\n\n",
-        );
+        let header = format!("### {} Shop {} ###\n\n", JBUCK_EMOJI, JBUCK_EMOJI);
         let footer = String::from("\n\nMore info on roles at: https://canary.discord.com/channels/1128350000343167130/1227274968312844320\nTo buy a role use the **/buy role** command.");
 
         CreateReply::default().content(format!("{header}{formatted_bones_prices}{formatted_emoji_prices}{formatted_role_prices}{footer}")).ephemeral(true)
@@ -293,8 +294,9 @@ pub async fn bones(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "You can't afford that many :bone:! You need {} <:jbuck:1228663982462865450>!",
-                    price * amount
+                    "You can't afford that many :bone:! You need {} {}!",
+                    price * amount,
+                    JBUCK_EMOJI
                 ))
                 .ephemeral(true)
         };
@@ -313,9 +315,10 @@ pub async fn bones(
     let reply = {
         CreateReply::default()
             .content(format!(
-                "You have purchased {} :bone: for {} <:jbuck:1228663982462865450>!",
+                "You have purchased {} :bone: for {} {}!",
                 amount,
-                price * amount
+                price * amount,
+                JBUCK_EMOJI
             ))
             .ephemeral(false)
     };
@@ -361,9 +364,10 @@ pub async fn sellbones(
     let reply = {
         CreateReply::default()
             .content(format!(
-                "You have sold {} :bone: for {} <:jbuck:1228663982462865450>!",
+                "You have sold {} :bone: for {} {}!",
                 amount,
-                price * amount
+                price * amount,
+                JBUCK_EMOJI
             ))
             .ephemeral(false)
     };
@@ -426,8 +430,8 @@ pub async fn emoji(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "You can't afford that emoji! It costs {} <:jbuck:1228663982462865450>!",
-                    price
+                    "You can't afford that emoji! It costs {} {}!",
+                    price, JBUCK_EMOJI
                 ))
                 .ephemeral(true)
         };
@@ -477,8 +481,8 @@ pub async fn emoji(
             ctx.data().db.add_community_emoji(&emoji.name).await?;
             let reply = {
                 CreateReply::default().content(format!(
-                    "You have purchased the emoji <:{}:{}> for {} <:jbuck:1228663982462865450>!",
-                    a.name, a.id, price
+                    "You have purchased the emoji <:{}:{}> for {} {}!",
+                    a.name, a.id, price, JBUCK_EMOJI
                 ))
             };
             ctx.send(reply).await?;
@@ -567,8 +571,8 @@ pub async fn role(
         let reply = {
             CreateReply::default()
                 .content(format!(
-                    "You can't afford that role! You need {} <:jbuck:1228663982462865450>!",
-                    price.0
+                    "You can't afford that role! You need {} {}!",
+                    price.0, JBUCK_EMOJI
                 ))
                 .ephemeral(true)
         };
@@ -625,10 +629,11 @@ pub async fn role(
 
     let reply = {
         CreateReply::default().content(format!(
-            "{} purchased {} for {} <:jbuck:1228663982462865450>!",
+            "{} purchased {} for {} {}!",
             ctx.author(),
             role,
-            price.0
+            price.0,
+            JBUCK_EMOJI
         ))
     };
     ctx.send(reply).await?;
@@ -835,7 +840,7 @@ pub async fn bones_status(ctx: Context<'_>) -> Result<(), Error> {
         true => "> Buy more via** /buy bones** command!",
         false => "> Sell your stock via** /sell bones** command!",
     };
-    let formatted_price = format!("> Price: **{}** <:jbuck:1228663982462865450>", price);
+    let formatted_price = format!("> Price: **{}** {}", price, JBUCK_EMOJI);
 
     let lb = ctx.data().db.get_bones_leaderboard().await?;
     let named_players = {

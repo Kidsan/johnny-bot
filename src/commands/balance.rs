@@ -1,5 +1,6 @@
 use crate::commands::robbingevent::week_bounds;
 use crate::database::{BalanceDatabase, LotteryDatabase, RobberyDatabase};
+use crate::discord::JBUCK_EMOJI;
 use crate::{Context, Error};
 use chrono::Datelike;
 
@@ -70,9 +71,10 @@ pub async fn balance(ctx: Context<'_>) -> Result<(), Error> {
     let minutes = (((crown_time.1.fract() * 100.0).round() / 100.0) * 60.0) as i32;
 
     let response = format!(
-        "> **{}'s Balance** \n> \n> **Balance:** {} <:jbuck:1228663982462865450>\n> **Bones**: {} :bone:\n> **Lottery Tickets:** {} :tickets:\n> **Crown Time**: {:0>2}:{:0>2} :clock1:\n> **Robbery Status**: {} :moneybag:",
+        "> **{}'s Balance** \n> \n> **Balance:** {} {}\n> **Bones**: {} :bone:\n> **Lottery Tickets:** {} :tickets:\n> **Crown Time**: {:0>2}:{:0>2} :clock1:\n> **Robbery Status**: {} :moneybag:",
         ctx.author(),
         response,
+        JBUCK_EMOJI,
         bones,
         lottery_tickets,
         hours, minutes,

@@ -2,6 +2,9 @@ use std::time::{self, SystemTime, UNIX_EPOCH};
 
 use crate::{
     database::BalanceDatabase,
+    discord::{
+        DOGE_CRY_EMOJI, DOGE_PRAY_EMOJI, DOGE_TROLL_EMOJI_1, DOGE_TROLL_EMOJI_2, JBUCK_EMOJI,
+    },
     game::{CoinGame, CoinSides, GameError},
     texts::landedside::LANDEDSIDE,
     Context, Error,
@@ -61,8 +64,10 @@ pub async fn coingamble(
     let reply = {
         CreateReply::default()
             .content(format!(
-                "> ### <:jbuck:1228663982462865450> HEADS OR TAILS?\n> **Bet {} <:jbuck:1228663982462865450> **on the correct answer!\n> **Game Ends: **<t:{}:R>",
+                "> ### {} HEADS OR TAILS?\n> **Bet {} {} **on the correct answer!\n> **Game Ends: **<t:{}:R>",
+                JBUCK_EMOJI,
                 amount,
+                JBUCK_EMOJI,
                 now + time_to_play as u64
             ))
             .components(components.clone())
@@ -178,8 +183,10 @@ pub async fn coingamble(
         ])];
         CreateReply::default()
             .content(format!(
-                "> ### <:jbuck:1228663982462865450> HEADS OR TAILS?\n> **Bet {} <:jbuck:1228663982462865450> **on the correct answer!\n> **Game is over!**",
-                amount
+                "> ### {} HEADS OR TAILS?\n> **Bet {} {} **on the correct answer!\n> **Game is over!**",
+                JBUCK_EMOJI,
+                amount,
+                JBUCK_EMOJI
             ))
             .components(components)
     };
@@ -198,8 +205,8 @@ pub async fn coingamble(
                 get_troll_emoji(&mut ctx.data().rng.lock().unwrap())
             ),
             _ => {
-                format!("### Woah, a side coin!\n No way to call a winner here <:dogeTroll:1160530414490886264>\n+ {} <:jbuck:1228663982462865450> added to today's lottery!",
-                    coin_flip_result.prize)
+                format!("### Woah, a side coin!\n No way to call a winner here {}\n+ {} {} added to today's lottery!",
+                   get_troll_emoji(&mut ctx.data().rng.lock().unwrap()), coin_flip_result.prize, JBUCK_EMOJI)
             }
         },
         _ => {
@@ -226,8 +233,8 @@ pub async fn coingamble(
             match coin_flip_result.result {
                 CoinSides::Heads => {
                     picked_heads_users = format!(
-                        "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} <:jbuck:1228663982462865450>!",
-                        picked_heads_users, coin_flip_result.prize
+                        "> {}\n> {} Congrats on {} {}!",
+                        picked_heads_users, DOGE_PRAY_EMOJI, coin_flip_result.prize, JBUCK_EMOJI
                     );
 
                     if coin_flip_result.johnnys_multiplier.unwrap_or(0.0) > 1.0
@@ -239,20 +246,16 @@ pub async fn coingamble(
                             coin_flip_result.prize_with_multiplier - coin_flip_result.prize
                         );
                     }
-                    picked_tails_users = format!(
-                        "> {}\n> <:dogeCrying:1160530365413330974> So sad.",
-                        picked_tails_users
-                    );
+                    picked_tails_users =
+                        format!("> {}\n> {} So sad.", picked_tails_users, DOGE_CRY_EMOJI);
                 }
                 CoinSides::Tails => {
-                    picked_heads_users = format!(
-                        "> {}\n> <:dogeCrying:1160530365413330974> So sad.",
-                        picked_heads_users
-                    );
+                    picked_heads_users =
+                        format!("> {}\n> {} So sad.", picked_heads_users, DOGE_CRY_EMOJI);
                     picked_tails_users = format!(
-                "> {}\n> <:dogePray1:1186283357210947584> Congrats on {} <:jbuck:1228663982462865450>!",
-                picked_tails_users, coin_flip_result.prize
-            );
+                        "> {}\n> {} Congrats on {} {}!",
+                        picked_tails_users, DOGE_CRY_EMOJI, coin_flip_result.prize, JBUCK_EMOJI
+                    );
                     if coin_flip_result.johnnys_multiplier.unwrap_or(0.0) > 1.0
                         && coin_flip_result.prize_with_multiplier - coin_flip_result.prize > 0
                     {
@@ -267,7 +270,8 @@ pub async fn coingamble(
             };
 
             let mut a = format!(
-                "> ### <:jbuck:1228663982462865450> IT WAS {}!\n> \n",
+                "> ### {} IT WAS {}!\n> \n",
+                JBUCK_EMOJI,
                 coin_flip_result.result.to_uppercase()
             );
             a.push_str(&format!("> **Picked Heads**\n{}\n> ", picked_heads_users));
@@ -276,8 +280,9 @@ pub async fn coingamble(
 
             if coin_flip_result.remainder.unwrap_or(0) > 0 {
                 a.push_str(&format!(
-                    "> \n> +{} <:jbuck:1228663982462865450> to <@{}> ||(Crown's Tax)||",
+                    "> \n> +{} {} to <@{}> ||(Crown's Tax)||",
                     coin_flip_result.remainder.unwrap(),
+                    JBUCK_EMOJI,
                     coin_flip_result.leader.unwrap()
                 ));
             }
@@ -339,13 +344,10 @@ fn get_landed_on_side_text(a: &mut rand::rngs::StdRng) -> String {
 }
 
 pub fn get_troll_emoji(a: &mut rand::rngs::StdRng) -> String {
-    let emoji = [
-        "<:dogeTroll:1160530414490886264>",
-        "<:doge:1160530341681954896>",
-    ]
-    .choose(a)
-    .unwrap()
-    .to_string();
+    let emoji = [DOGE_TROLL_EMOJI_1, DOGE_TROLL_EMOJI_2]
+        .choose(a)
+        .unwrap()
+        .to_string();
     emoji
 }
 

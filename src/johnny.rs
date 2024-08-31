@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use poise::serenity_prelude::RoleId;
 
 use crate::database::ConfigKey;
-use crate::discord::EGG_ROLE;
+use crate::discord::{EGG_ROLE, JBUCK_EMOJI};
 use crate::{
     database::{self, BalanceDatabase, ConfigDatabase, LotteryDatabase},
     game, Config, RoleDatabase,
@@ -343,8 +343,8 @@ impl Johnny {
             Some(a) => a.1,
             None => 0,
         };
-        let text = format!("> :tada: :tada: WOW! <@{}> just won the lottery!\n> They won **{} <:jbuck:1228663982462865450>** by buying only **{} :tickets:**\n{}> \n> **New lottery starting... NOW**\n> Prize pool: {} <:jbuck:1228663982462865450>\n> Use ***/lottery buy*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
-            winner, pot, num_tickets, loser_text, new_base_prize, new_ticket_price);
+        let text = format!("> :tada: :tada: WOW! <@{}> just won the lottery!\n> They won **{} {}** by buying only **{} :tickets:**\n{}> \n> **New lottery starting... NOW**\n> Prize pool: {} {}>\n> Use ***/lottery buy*** to purchase a ticket for {} {}",
+            winner, pot, JBUCK_EMOJI, num_tickets, loser_text, new_base_prize, JBUCK_EMOJI, new_ticket_price, JBUCK_EMOJI);
 
         let m = { CreateMessage::new().content(text) };
 
@@ -442,8 +442,8 @@ impl Johnny {
 
         let m = {
             CreateMessage::new().content(format!(
-                ":bone: I just set the bones price to {} <:jbuck:1228663982462865450>",
-                price
+                ":bone: I just set the bones price to {} {}",
+                price, JBUCK_EMOJI
             ))
         };
 
