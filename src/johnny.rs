@@ -380,9 +380,10 @@ impl Johnny {
     }
 
     async fn update_bones_price(&self) {
+        let we = is_weekend();
         let (min, max, old_price, last_was_increase) = {
             let config = self.config.read().unwrap();
-            let a = if is_weekend() {
+            let a = if we {
                 (25, None)
             } else {
                 (config.bones_price, config.bones_price_last_was_increase)
@@ -396,6 +397,9 @@ impl Johnny {
         let mut change = min;
         if min < max {
             change = rand::thread_rng().gen_range(min..=max);
+        }
+        if we {
+            change /= 2;
         }
 
         let odds: f64;
