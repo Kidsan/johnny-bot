@@ -85,13 +85,31 @@ impl Johnny {
                 self.update_skewed_odds().await;
             }
 
-            let force_egg = { self.config.read().unwrap().force_egg };
+            let force_egg = {
+                match self.config.read() {
+                    Ok(c) => c.force_egg,
+                    Err(e) => {
+                        tracing::error!("{e}");
+                        false
+                    }
+                }
+            };
             if self.should_run_egg(force_egg).await {
-                self.config.write().unwrap().force_egg = false;
-                self.db
-                    .set_config_value(ConfigKey::ForceEgg, "false")
-                    .await
-                    .unwrap();
+                match self.config.write() {
+                    Ok(mut c) => {
+                        c.force_egg = false;
+                    }
+                    Err(e) => {
+                        tracing::error!("{e}");
+                    }
+                }
+                match self.db.set_config_value(ConfigKey::ForceEgg, "false").await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        tracing::error!("{e}");
+                    }
+                }
+
                 tracing::info!("running egg");
                 self.run_egg().await;
             }
