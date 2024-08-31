@@ -98,7 +98,7 @@ pub async fn tickets(ctx: Context<'_>) -> Result<(), Error> {
     a.push(format!("> **Total sold:** {} :tickets:", total));
 
     a.push(format!(
-        "> Use ***/lottery buy*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
+        "> Use ***/buy lottery*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
         price
     ));
 
