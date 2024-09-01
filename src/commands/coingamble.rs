@@ -254,7 +254,7 @@ pub async fn coingamble(
                         format!("> {}\n> {} So sad.", picked_heads_users, DOGE_CRY_EMOJI);
                     picked_tails_users = format!(
                         "> {}\n> {} Congrats on {} {}!",
-                        picked_tails_users, DOGE_CRY_EMOJI, coin_flip_result.prize, JBUCK_EMOJI
+                        picked_tails_users, DOGE_PRAY_EMOJI, coin_flip_result.prize, JBUCK_EMOJI
                     );
                     if coin_flip_result.johnnys_multiplier.unwrap_or(0.0) > 1.0
                         && coin_flip_result.prize_with_multiplier - coin_flip_result.prize > 0
