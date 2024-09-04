@@ -45,6 +45,16 @@ impl Johnny {
         dev_env: bool,
     ) -> Self {
         let a = client.shard_manager.runners.clone();
+
+        let channels = match dev_env {
+            true => vec![poise::serenity_prelude::ChannelId::from(
+                1049453856620302386,
+            )], // dev env
+            false => vec![
+                poise::serenity_prelude::ChannelId::from(1128350001328816343),
+                poise::serenity_prelude::ChannelId::from(1224695899796541554),
+            ],
+        };
         Self {
             db,
             config,
@@ -53,10 +63,7 @@ impl Johnny {
             message_client: Some(client.http.clone()),
             dev_env,
             shards: a,
-            egg_channels: vec![
-                poise::serenity_prelude::ChannelId::from(1128350001328816343),
-                poise::serenity_prelude::ChannelId::from(1224695899796541554),
-            ],
+            egg_channels: channels,
         }
     }
     pub async fn start(&self, signal: std::sync::mpsc::Receiver<()>) {
@@ -538,18 +545,16 @@ impl Johnny {
             let mut member = guild.member(client, user.clone()).await.unwrap();
             let nick = member.display_name();
             let egged = get_egged_name(nick);
-            match member.add_role(client, RoleId::new(EGG_ROLE)).await {
-                Ok(_) => {
-                    tracing::info!("Assigned egg role");
-                }
-                Err(e) => {
-                    tracing::error!("{e}");
-                }
-            }
 
             self.config.write().unwrap().just_egged = Some(user.id.get());
 
-            match member.edit(client, EditMember::new().nickname(egged)).await {
+            let mut roles = member.roles.clone();
+            roles.push(RoleId::new(EGG_ROLE));
+
+            match member
+                .edit(client, EditMember::new().nickname(egged).roles(roles))
+                .await
+            {
                 Ok(_) => {
                     tracing::info!("Changed nickname");
                 }

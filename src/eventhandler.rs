@@ -19,7 +19,7 @@ pub async fn event_handler(
     if let poise::serenity_prelude::FullEvent::GuildMemberUpdate {
         old_if_available,
         new,
-        ..
+        event,
     } = event
     {
         let new_event_member = match new {
@@ -33,22 +33,20 @@ pub async fn event_handler(
         let guild = new_event_member.guild_id;
 
         let mut member = guild.member(ctx, user.clone()).await.unwrap();
-        if !user
-            .has_role(ctx, new_event_member.guild_id, RoleId::new(EGG_ROLE))
-            .await
-            .unwrap()
-            || Some(user.id.get()) != data.config.read().unwrap().just_egged
-        {
+        if !event.roles.contains(&RoleId::new(EGG_ROLE)) {
+            tracing::info!("doesnt have role");
             if new_event_member
                 .display_name()
                 .to_lowercase()
                 .ends_with("egg")
             {
+                tracing::info!("ends with egg, removing nickname licence");
                 match member.remove_role(ctx, RoleId::new(NICKNAME_LICENCE)).await {
                     Ok(_res) => tracing::info!("Removed nickname licence"),
                     Err(e) => tracing::error!("{e}"),
                 }
 
+                tracing::info!("Barry'd");
                 match member.edit(ctx, EditMember::new().nickname("Barry")).await {
                     Ok(_res) => tracing::info!("set name to Barry"),
                     Err(e) => tracing::error!("{e}"),
@@ -57,13 +55,16 @@ pub async fn event_handler(
             return Ok(());
         };
 
+        tracing::info!("has role");
         let new_nick = new_event_member.display_name();
         if !new_nick.to_lowercase().ends_with("egg") {
+            tracing::info!("doesn't end with egg, removing Egg Role");
             match member.remove_role(ctx, RoleId::new(EGG_ROLE)).await {
                 Ok(_res) => tracing::info!("Removed egg role"),
                 Err(e) => tracing::error!("{e}"),
             }
 
+            tracing::info!("Removed egg role");
             match user
                 .dm(
                     ctx,
@@ -81,6 +82,7 @@ pub async fn event_handler(
             old_if_available,
             new
         );
+        return Ok(());
     };
 
     if let poise::serenity_prelude::FullEvent::Message { new_message } = event {

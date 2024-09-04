@@ -199,6 +199,7 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
             ctx.data().config.write().unwrap().lottery_winner = Some(winner);
         }
         ConfigOption::ForceEgg => {
+            tracing::info!("force egg");
             let force = parse_value::<bool>(&value)?;
             ctx.data()
                 .db
