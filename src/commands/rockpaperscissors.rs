@@ -370,17 +370,17 @@ pub async fn rpsgamble(
 
 fn new_rock_button() -> serenity::CreateButton {
     serenity::CreateButton::new("rock")
-        .label("Rock")
+        .label("🗿")
         .style(poise::serenity_prelude::ButtonStyle::Primary)
 }
 fn new_paper_button() -> serenity::CreateButton {
     serenity::CreateButton::new("paper")
-        .label("Paper")
+        .label("🧻")
         .style(poise::serenity_prelude::ButtonStyle::Primary)
 }
 fn new_scissors_button() -> serenity::CreateButton {
     serenity::CreateButton::new("scissors")
-        .label("Scissors")
+        .label("✂️")
         .style(poise::serenity_prelude::ButtonStyle::Primary)
 }
 
