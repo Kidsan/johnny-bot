@@ -512,9 +512,9 @@ impl Johnny {
 
     async fn run_egg(&self) {
         let m = {
-            CreateMessage::new().content(":egg:").components(vec![
+            CreateMessage::new().content("").components(vec![
                 poise::serenity_prelude::CreateActionRow::Buttons(vec![
-                    poise::serenity_prelude::CreateButton::new("accept_egg").label("Yes"),
+                    poise::serenity_prelude::CreateButton::new("accept_egg").label("🥚"),
                 ]),
             ])
         };
