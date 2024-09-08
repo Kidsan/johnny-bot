@@ -166,6 +166,7 @@ async fn main() {
         commands::gamble::gamble(),
         commands::report::report(),
         commands::report::reports(),
+        commands::report::deletereport(),
     ];
 
     if var("MOUNT_ALL").is_ok() {

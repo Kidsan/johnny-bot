@@ -490,6 +490,14 @@ impl Database {
             .map(|(id, user_id, desc, link)| (*id, *user_id as u64, desc.clone(), link.clone()))
             .collect())
     }
+
+    pub async fn delete_report(&self, report_id: i64) -> Result<(), Error> {
+        sqlx::query("DELETE FROM reports WHERE id = $1")
+            .bind(report_id)
+            .execute(&self.connection)
+            .await?;
+        Ok(())
+    }
 }
 
 impl RobberyDatabase for Database {

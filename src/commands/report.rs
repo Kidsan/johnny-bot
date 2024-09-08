@@ -65,3 +65,28 @@ pub async fn reports(ctx: Context<'_>) -> Result<(), Error> {
     ctx.send(reply).await?;
     Ok(())
 }
+
+///
+/// Delete a report
+///
+/// Enter `/deletereport <id>` to delete the report
+/// ```
+/// /deleteReport 1
+/// ```
+#[poise::command(
+    slash_command,
+    category = "Admin",
+    hide_in_help,
+    default_member_permissions = "ADMINISTRATOR"
+)]
+pub async fn deletereport(ctx: Context<'_>, id: i64) -> Result<(), Error> {
+    ctx.data().db.delete_report(id).await?;
+
+    let reply = {
+        CreateReply::default()
+            .content("Report deleted")
+            .ephemeral(true)
+    };
+    ctx.send(reply).await?;
+    Ok(())
+}
