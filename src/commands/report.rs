@@ -15,7 +15,7 @@ pub async fn report(
     #[min_length = 5]
     #[max_length = 50]
     issue: String,
-    #[description = "Optional link to relavant discord message"] link: Option<String>,
+    #[description = "Optional link to relevant discord message"] link: Option<String>,
 ) -> Result<(), Error> {
     ctx.data()
         .db
