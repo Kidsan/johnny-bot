@@ -493,13 +493,19 @@ impl Johnny {
             self.channel.send_message(client, m).await.unwrap();
             for person in affected {
                 let u = poise::serenity_prelude::UserId::new(person);
-                u.dm(
-                    client,
-                    poise::serenity_prelude::CreateMessage::default()
-                        .content("Oh no, your bones expired!"),
-                )
-                .await
-                .unwrap();
+                match u
+                    .dm(
+                        client,
+                        poise::serenity_prelude::CreateMessage::default()
+                            .content("Oh no, your bones expired!"),
+                    )
+                    .await
+                {
+                    Ok(_) => {}
+                    Err(e) => {
+                        tracing::error!("Error when dm'ing {person}: {e}");
+                    }
+                }
             }
         } else {
             tracing::warn!("Discord client not set");
