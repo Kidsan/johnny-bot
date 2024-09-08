@@ -18,6 +18,7 @@ pub mod lottery;
 pub mod paidchannels;
 pub mod register;
 pub mod removebucks;
+pub mod report;
 pub mod robbingevent;
 pub mod rockpaperscissors;
 pub mod say;

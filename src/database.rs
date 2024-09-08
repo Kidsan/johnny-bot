@@ -463,6 +463,33 @@ impl Database {
         self.connection.close().await;
         Ok(())
     }
+
+    pub async fn save_report(
+        &self,
+        user_id: u64,
+        issue: String,
+        link: Option<String>,
+    ) -> Result<(), Error> {
+        sqlx::query("INSERT INTO reports (user_id, description, link) VALUES ($1, $2, $3)")
+            .bind(user_id as i64)
+            .bind(issue)
+            .bind(link)
+            .execute(&self.connection)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_reports(&self) -> Result<Vec<(i64, u64, String, Option<String>)>, Error> {
+        let data = sqlx::query_as::<_, (i64, i64, String, Option<String>)>(
+            "SELECT id, user_id, description, link FROM reports",
+        )
+        .fetch_all(&self.connection)
+        .await?;
+        Ok(data
+            .iter()
+            .map(|(id, user_id, desc, link)| (*id, *user_id as u64, desc.clone(), link.clone()))
+            .collect())
+    }
 }
 
 impl RobberyDatabase for Database {
