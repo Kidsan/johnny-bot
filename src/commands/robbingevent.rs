@@ -215,7 +215,7 @@ pub async fn wrapped_robbing_event(
         ),
     ])];
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let time_to_play = { ctx.data().config.read().unwrap().game_length_seconds };
+    let time_to_play = { ctx.data().config.read().unwrap().robbery_length_seconds };
 
     ctx.serenity_context()
         .shard

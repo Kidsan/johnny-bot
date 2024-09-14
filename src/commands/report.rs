@@ -13,7 +13,7 @@ pub async fn report(
     ctx: Context<'_>,
     #[description = "What is your issue?"]
     #[min_length = 5]
-    #[max_length = 50]
+    #[max_length = 100]
     issue: String,
     #[description = "Optional link to relevant discord message"] link: Option<String>,
 ) -> Result<(), Error> {

@@ -20,7 +20,7 @@ pub async fn give(
     #[description = "How much to send"]
     amount: i32,
 ) -> Result<(), Error> {
-    if recipient.id.to_string() == ctx.author().id.to_string() {
+    if recipient.id.get() == ctx.author().id.get() {
         let reply = {
             CreateReply::default()
                 .content("Don't send money to yourself..")
@@ -36,11 +36,11 @@ pub async fn give(
                 .ephemeral(true)
         };
         ctx.send(reply).await?;
-        return Err("You can't afford to do that".into());
+        return Err("You can't send money to bots.".into());
     }
-    let sender = ctx.author().id.to_string();
+    let sender = ctx.author().id.get();
     let db = &ctx.data().db;
-    let sender_balance = ctx.data().db.get_balance(ctx.author().id.get()).await?;
+    let sender_balance = ctx.data().db.get_balance(sender).await?;
     let recipient_id = recipient.id.get();
     if sender_balance < amount {
         let reply = {
@@ -59,8 +59,7 @@ pub async fn give(
     // round tax up to the nearest integer
     let tax = tax.ceil() as i32;
 
-    db.subtract_balances(vec![sender.parse().unwrap()], amount)
-        .await?;
+    db.subtract_balances(vec![sender], amount).await?;
     db.award_balances(vec![recipient_id], amount - tax).await?;
 
     let tax_msg = if let Some(user) = award_role_holder(ctx, tax).await? {

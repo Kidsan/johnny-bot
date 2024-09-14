@@ -172,6 +172,7 @@ impl ConfigRow {
             "bot_odds_game_limit" => ConfigKey::BotOddsGameLimit,
             "lottery_winner" => ConfigKey::LotteryWinner,
             "force_egg" => ConfigKey::ForceEgg,
+            "robbery_length_seconds" => ConfigKey::RobberyLengthSeconds,
             _ => panic!("Invalid config"),
         }
     }
@@ -197,6 +198,7 @@ pub enum ConfigKey {
     BotOddsGameLimit,
     LotteryWinner,
     ForceEgg,
+    RobberyLengthSeconds,
 }
 
 impl ConfigKey {
@@ -221,6 +223,7 @@ impl ConfigKey {
             ConfigKey::ForceBonesPriceUpdate => "bones_price_force_update",
             ConfigKey::LotteryWinner => "lottery_winner",
             ConfigKey::ForceEgg => "force_egg",
+            ConfigKey::RobberyLengthSeconds => "robbery_length_seconds",
         }
     }
 }
@@ -252,6 +255,7 @@ impl ConfigDatabase for Database {
             force_bones_price_update: None,
             lottery_winner: None,
             force_egg: false,
+            robbery_length_seconds: None,
         };
 
         for d in data {
@@ -327,6 +331,9 @@ impl ConfigDatabase for Database {
                         Err(_) => None,
                     }
                 }
+                ConfigKey::RobberyLengthSeconds => {
+                    config.robbery_length_seconds = Some(d.value.parse().unwrap())
+                }
             }
         }
         Ok(config)
@@ -389,6 +396,7 @@ pub struct Config {
     pub force_bones_price_update: Option<bool>,
     pub lottery_winner: Option<u64>,
     pub force_egg: bool,
+    pub robbery_length_seconds: Option<i8>,
 }
 
 impl fmt::Display for Config {
@@ -733,7 +741,7 @@ impl BalanceDatabase for Database {
         Ok(result)
     }
 
-    #[tracing::instrument(level = "debug")]
+    #[tracing::instrument(level = "info")]
     async fn award_balances(&self, user_ids: Vec<u64>, award: i32) -> Result<(), Error> {
         if user_ids.is_empty() {
             return Ok(());

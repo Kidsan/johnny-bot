@@ -11,6 +11,7 @@ pub enum ConfigOption {
     BotOdds,
     BotOddsGameLimit,
     GameLengthSeconds,
+    RobberyLengthSeconds,
     LotteryTicketPrice,
     LotteryBasePrize,
     FutureLotteryTicketPrice,
@@ -207,6 +208,15 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .await
                 .unwrap();
             ctx.data().config.write().unwrap().force_egg = force;
+        }
+        ConfigOption::RobberyLengthSeconds => {
+            let length = parse_value::<i8>(&value)?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::RobberyLengthSeconds, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().robbery_length_seconds = length;
         }
     }
     let reply = CreateReply::default().content("Success").ephemeral(true);
