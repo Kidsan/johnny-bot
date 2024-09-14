@@ -2,7 +2,7 @@ use crate::{Context, Error};
 use poise::serenity_prelude as serenity;
 use poise::CreateReply;
 
-const WHITE_LISTED: [&str; 16] = [
+const WHITE_LISTED: [&str; 17] = [
     "help",
     "balance",
     "leaderboard",
@@ -19,6 +19,7 @@ const WHITE_LISTED: [&str; 16] = [
     "shop",
     "lottery",
     "report",
+    "robbery",
 ];
 
 pub async fn complete_help<'a>(

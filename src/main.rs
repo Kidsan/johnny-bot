@@ -169,6 +169,7 @@ async fn main() {
         commands::report::report(),
         commands::report::reports(),
         commands::report::deletereport(),
+        commands::robbingevent::buyrobbery(),
     ];
 
     if var("MOUNT_ALL").is_ok() {

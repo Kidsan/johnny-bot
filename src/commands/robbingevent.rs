@@ -75,9 +75,9 @@ pub async fn robbingevent(ctx: Context<'_>) -> Result<(), Error> {
 }
 
 ///
-/// pay 10 J-Bucks to start a robbing event
+/// start a robbing event
 ///
-/// Enter `/buy robbery` to start a robbing event. Event costs 10 JBucks This will randomly select 4 players from the leaderboard and ask the chat to vote on who to rob from.
+/// Enter `/robbery` to start a robbing event. This will randomly select 4 players from the leaderboard and ask the chat to vote on who to rob from.
 /// Requires that there be 4 players on the leaderboard. Will fail if one of the chosen players has
 /// 0 bucks
 /// ```
@@ -123,23 +123,6 @@ pub async fn buyrobbery(ctx: Context<'_>) -> Result<(), Error> {
         .lock()
         .unwrap()
         .remove(&(ctx.author().id.get()));
-    let user_balance = ctx.data().db.get_balance(ctx.author().id.get()).await?;
-    if user_balance < 10 {
-        let reply = {
-            poise::CreateReply::default()
-                .content(format!(
-                    "You can't afford to do that!\nYour balance is only {} J-Buck(s)",
-                    user_balance
-                ))
-                .ephemeral(true)
-        };
-        ctx.send(reply).await?;
-        return Err("can't afford to do that".into());
-    }
-    ctx.data()
-        .db
-        .subtract_balances(vec![ctx.author().id.get()], 10)
-        .await?;
 
     let reply = {
         poise::CreateReply::default()

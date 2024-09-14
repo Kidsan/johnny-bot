@@ -208,7 +208,7 @@ pub async fn incrementroleprice(ctx: Context<'_>, role_id: String) -> Result<(),
 /// ```
 #[poise::command(
     slash_command,
-    subcommands("role", "emoji", "bones", "buyrobbery", "buylotteryticket"),
+    subcommands("role", "emoji", "bones", "buylotteryticket"),
     subcommand_required
 )]
 pub async fn buy(_: Context<'_>) -> Result<(), Error> {
