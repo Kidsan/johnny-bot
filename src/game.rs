@@ -146,7 +146,7 @@ impl CoinGame {
         }
         let result = {
             let mut rng = rand::thread_rng();
-            if rng.gen_ratio(self.side_chance, 100) {
+            if rng.gen_bool(self.side_chance as f64 / 100.0) {
                 CoinSides::Side
             } else {
                 [
