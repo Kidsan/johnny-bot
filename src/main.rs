@@ -15,7 +15,6 @@ use std::{
     collections::{HashMap, HashSet},
     env::var,
     sync::{Arc, Mutex},
-    time::Duration,
 };
 
 // Types used by all command functions

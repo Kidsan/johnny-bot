@@ -1,8 +1,5 @@
 use crate::{
-    commands::{
-        lottery::buylotteryticket,
-        robbingevent::{buyrobbery, get_discord_name},
-    },
+    commands::{lottery::buylotteryticket, robbingevent::get_discord_name},
     database::{BalanceDatabase, RoleDatabase, ShopDatabase},
     discord::JBUCK_EMOJI,
     johnny::is_weekend,
