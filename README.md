@@ -23,11 +23,15 @@ Commands:
   /daily              Claim your daily J-Bucks
   /bury               Bury some money
   /leaderboard        View Leaderboard
-  /buyrobbery         pay 10 J-Bucks to start a robbing event
   /rpsgamble          Play a friendly game of Rock, Paper, Scissors with someone
   /buy                Buy something with your JBucks
   /shop               List the items for sale in the shop
   /crownleaderboard   View Crown Leaderboard
+  /lottery            Commands relating to the lottery
+  /bones              Get the status of the bones market
+  /sell               Sell something for JBucks
+  /report             report an issue
+  /robbery            start a robbing event
 
 Awooo
 ```
