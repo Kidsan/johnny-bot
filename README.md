@@ -2,6 +2,9 @@
 
 A discord bot for gambling with Johnny Bucks
 
+Development of this application has moved to a private forgejo instance. This
+repository now serves as a public mirror.
+
 ## Usage
 
 1. Configure with a discord token. Some other configuration is required for optional features.
