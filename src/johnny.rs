@@ -350,7 +350,7 @@ impl Johnny {
             Some(a) => a.1,
             None => 0,
         };
-        let text = format!("> :tada: :tada: WOW! <@{}> just won the lottery!\n> They won **{} {}** by buying only **{} :tickets:**\n{}> \n> **New lottery starting... NOW**\n> Prize pool: {} {}\n> Use ***/lottery buy*** to purchase a ticket for {} {}",
+        let text = format!("> :tada: :tada: WOW! <@{}> just won the lottery!\n> They won **{} {}** by buying only **{} :tickets:**\n{}> \n> **New lottery starting... NOW**\n> Prize pool: {} {}\n> Use ***/buy lottery*** to purchase a ticket for {} {}",
             winner, pot, JBUCK_EMOJI, num_tickets, loser_text, new_base_prize, JBUCK_EMOJI, new_ticket_price, JBUCK_EMOJI);
 
         let m = { CreateMessage::new().content(text) };
