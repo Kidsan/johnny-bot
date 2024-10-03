@@ -506,6 +506,15 @@ impl Database {
             .await?;
         Ok(())
     }
+
+    pub async fn get_random_user(&self) -> Result<u64, Error> {
+        let data = sqlx::query_as::<_, Balance>(
+            "SELECT id, balance FROM balances ORDER BY RANDOM() LIMIT 1",
+        )
+        .fetch_one(&self.connection)
+        .await?;
+        Ok(data.balance as u64)
+    }
 }
 
 impl RobberyDatabase for Database {

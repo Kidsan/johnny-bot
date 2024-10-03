@@ -2,8 +2,8 @@ use chrono::{Datelike, NaiveTime, TimeDelta, Timelike};
 use rand::seq::SliceRandom;
 use rand::Rng;
 use serenity::all::{
-    CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, EditMember,
-    EditMessage,
+    ComponentInteraction, CreateInteractionResponse, CreateInteractionResponseMessage,
+    CreateMessage, EditMember, EditMessage, User, UserId,
 };
 use serenity::gateway::ShardRunnerInfo;
 use serenity::model::id::ShardId;
@@ -15,6 +15,7 @@ use poise::serenity_prelude::RoleId;
 
 use crate::database::ConfigKey;
 use crate::discord::{EGG_ROLE, JBUCK_EMOJI};
+use crate::Error;
 use crate::{
     database::{self, BalanceDatabase, ConfigDatabase, LotteryDatabase},
     game, Config, RoleDatabase,
@@ -516,6 +517,22 @@ impl Johnny {
         rand::thread_rng().gen_bool(1.0 / 604800.0) || force
     }
 
+    async fn shame(&self, user: UserId, c: ComponentInteraction) -> Result<(), serenity::Error> {
+        if let Some(client) = &self.message_client {
+            c.create_response(client, {
+                CreateInteractionResponse::UpdateMessage(
+                    CreateInteractionResponseMessage::default()
+                        .content(format!("{} is an egg and poor", user))
+                        .components(vec![]),
+                )
+            })
+            .await
+        } else {
+            tracing::warn!("Discord client not set");
+            Ok(())
+        }
+    }
+
     async fn run_egg(&self) {
         let m = {
             CreateMessage::new().content("").components(vec![
@@ -555,6 +572,42 @@ impl Johnny {
             self.config.write().unwrap().just_egged = Some(user.id.get());
 
             let mut roles = member.roles.clone();
+            if roles.contains(&RoleId::new(EGG_ROLE)) {
+                let balance = self.db.get_balance(user.id.get()).await.unwrap();
+                if balance > 1 {
+                    let amount = rand::thread_rng().gen_range(1..=balance);
+                    let recipent = self.db.get_random_user().await.unwrap();
+                    self.db
+                        .award_balances(vec![recipent], amount)
+                        .await
+                        .unwrap();
+                    self.db
+                        .subtract_balances(vec![user.id.get()], amount)
+                        .await
+                        .unwrap();
+                    match click
+                        .create_response(client, {
+                            CreateInteractionResponse::UpdateMessage(
+                                CreateInteractionResponseMessage::default()
+                                    .content(format!(
+                                        "{} is an egg and gave {} {} to <@{}>!",
+                                        user, amount, JBUCK_EMOJI, recipent
+                                    ))
+                                    .components(vec![]),
+                            )
+                        })
+                        .await
+                    {
+                        Ok(_) => {}
+                        Err(e) => {
+                            tracing::error!("{e}");
+                        }
+                    }
+                } else {
+                    self.shame(user.id, click).await.unwrap();
+                }
+                return;
+            }
             roles.push(RoleId::new(EGG_ROLE));
 
             match member
