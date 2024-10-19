@@ -2,8 +2,11 @@
 
 A discord bot for gambling with Johnny Bucks
 
-Development of this application has moved to a private forgejo instance. This
-repository now serves as a public mirror.
+<a href="https://codeberg.org/kidsan/johnny-bot">
+    <img alt="Get it on Codeberg" src="https://get-it-on.codeberg.org/get-it-on-neon-blue.png" height="60">
+</a>
+
+Development of this application has moved to [Codeberg](https://codeberg.org/kidsan/johnny-bot)
 
 ## Usage
 
