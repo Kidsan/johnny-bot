@@ -45,7 +45,7 @@
 
 
         devShell = with pkgs; mkShell {
-          LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath [ pkgs.openssl ];
+          # LD_LIBRARY_PATH = nixpkgs.lib.makeLibraryPath [ pkgs.openssl ];
           buildInputs = [
             python3
             doctl
