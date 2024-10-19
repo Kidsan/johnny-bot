@@ -235,6 +235,10 @@ impl CoinGame {
             }
         }
     }
+
+    pub fn has_player(&self, player: u64) -> bool {
+        self.players.contains(&player)
+    }
 }
 
 #[cfg(test)]

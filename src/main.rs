@@ -93,6 +93,7 @@ pub struct Data {
     crown_role_id: u64,
     active_checks: Mutex<HashSet<u64>>,
     config: Arc<RwLock<Config>>,
+    cursed_player: Option<u64>,
 }
 
 async fn on_error(error: poise::FrameworkError<'_, Data, Error>) {
@@ -129,6 +130,11 @@ async fn main() {
         Err(_) => poise::serenity_prelude::ChannelId::new(1049354446578143252),
     };
     let in_dev = var("DEV_SETTINGS").is_ok();
+
+    let cursed: Option<u64> = match var("CURSED_PLAYER_ID") {
+        Ok(id) => Some(id.parse().unwrap()),
+        Err(_) => None,
+    };
 
     tracing_subscriber::fmt().init();
 
@@ -312,6 +318,7 @@ async fn main() {
                     crown_role_id,
                     active_checks: Mutex::new(HashSet::new()),
                     config,
+                    cursed_player: cursed,
                 })
             })
         })

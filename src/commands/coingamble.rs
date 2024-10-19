@@ -193,6 +193,15 @@ pub async fn coingamble(
 
     a.edit(ctx, reply).await?;
 
+    let has_player = if let Some(p) = ctx.data().cursed_player {
+        coingame.has_player(p)
+    } else {
+        false
+    };
+    if has_player {
+        coingame.side_chance = 50;
+    }
+
     let coin_flip_result = coingame
         .get_winner(&ctx.data().db, ctx.data().bot_id, ctx.data().crown_role_id)
         .await;
@@ -201,12 +210,16 @@ pub async fn coingamble(
         CoinSides::Side => match coin_flip_result.prize {
             0 => format!(
                 "{} {}",
-                get_landed_on_side_text(&mut ctx.data().rng.lock().unwrap()),
+                get_landed_on_side_text(&mut ctx.data().rng.lock().unwrap(), has_player),
                 get_troll_emoji(&mut ctx.data().rng.lock().unwrap())
             ),
             _ => {
-                format!("### Woah, a side coin!\n No way to call a winner here {}\n+ {} {} added to today's lottery!",
-                   get_troll_emoji(&mut ctx.data().rng.lock().unwrap()), coin_flip_result.prize, JBUCK_EMOJI)
+                let detected = match has_player {
+                    true => " *greg detected* ".to_owned(),
+                    false => " ".to_owned(),
+                };
+                format!("###{}Woah, a side coin!\n No way to call a winner here {}\n+ {} {} added to today's lottery!",
+                   detected, get_troll_emoji(&mut ctx.data().rng.lock().unwrap()), coin_flip_result.prize, JBUCK_EMOJI)
             }
         },
         _ => {
@@ -339,7 +352,10 @@ fn new_tails_button() -> serenity::CreateButton {
         .label("Tails")
         .style(poise::serenity_prelude::ButtonStyle::Primary)
 }
-fn get_landed_on_side_text(a: &mut rand::rngs::StdRng) -> String {
+fn get_landed_on_side_text(a: &mut rand::rngs::StdRng, has_player: bool) -> String {
+    if has_player {
+        return "*greg detected* ".to_owned() + LANDEDSIDE.choose(a).unwrap().to_string().as_str();
+    }
     LANDEDSIDE.choose(a).unwrap().to_string()
 }
 
