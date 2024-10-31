@@ -123,10 +123,12 @@ impl Johnny {
 
             let (deadline, c) = {
                 let config = self.config.read().unwrap();
-                (config.unghost_time, config.ghost_channel_id.unwrap())
+                (config.unghost_time, config.ghost_channel_id)
             };
-            let channel_id = poise::serenity_prelude::ChannelId::from(c);
-            self.unghost_channel(deadline, channel_id).await;
+            if let Some(chan_id) = c {
+                let c = poise::serenity_prelude::ChannelId::from(chan_id);
+                self.unghost_channel(deadline, c).await;
+            }
 
             if minute_counter.elapsed().as_secs() >= 60 {
                 self.refresh_config().await;
