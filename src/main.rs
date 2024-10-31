@@ -49,7 +49,7 @@ pub struct Config {
     force_egg: bool,
     just_egged: Option<u64>,
     ghost_channel_id: Option<u64>,
-    ghost_channel_length: Option<u8>,
+    ghost_channel_length: Option<u32>,
     ghost_channel_odds: Option<u8>,
     unghost_time: Option<time::Instant>,
 }

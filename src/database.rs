@@ -419,7 +419,7 @@ pub struct Config {
     pub force_egg: bool,
     pub robbery_length_seconds: Option<i8>,
     pub ghost_channel_id: Option<u64>,
-    pub ghost_channel_length: Option<u8>,
+    pub ghost_channel_length: Option<u32>,
     pub ghost_channel_odds: Option<u8>,
 }
 
@@ -427,7 +427,7 @@ impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "**Daily upper limit**: {}\n**Heads odds updated**: {}\n**Heads odds**: {:.2}\n**Heads odds game limit**: {}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n**Next Lottery Winner**: {}\n**Force egg:**{}",
+            "**Daily upper limit**: {}\n**Heads odds updated**: {}\n**Heads odds**: {:.2}\n**Heads odds game limit**: {}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n**Next Lottery Winner**: {}\n**Force egg:**{}\n**Ghost channel: **{}\n**Ghost channel odds:** {} %\n **Ghost channel length **: {} (minutes)\n",
             self.daily_upper_limit.unwrap_or(0),
             self.bot_odds_updated
                 .map(|x| x.to_rfc2822())
@@ -451,6 +451,12 @@ impl fmt::Display for Config {
                 None => "None".to_string(),
             },
             self.force_egg,
+            match self.ghost_channel_id {
+                Some(x) => format!("<#{}>", x),
+                None => "None".to_string(),
+            },
+        self.ghost_channel_odds.unwrap_or(0),
+        self.ghost_channel_length.unwrap_or(0),
         )
     }
 }
