@@ -173,6 +173,9 @@ impl ConfigRow {
             "lottery_winner" => ConfigKey::LotteryWinner,
             "force_egg" => ConfigKey::ForceEgg,
             "robbery_length_seconds" => ConfigKey::RobberyLengthSeconds,
+            "ghost_channel_odds" => ConfigKey::GhostChannelOdds,
+            "ghost_channel_length" => ConfigKey::GhostChannelLength,
+            "ghost_channel_id" => ConfigKey::GhostChannelId,
             _ => panic!("Invalid config"),
         }
     }
@@ -199,6 +202,9 @@ pub enum ConfigKey {
     LotteryWinner,
     ForceEgg,
     RobberyLengthSeconds,
+    GhostChannelOdds,
+    GhostChannelLength,
+    GhostChannelId,
 }
 
 impl ConfigKey {
@@ -224,6 +230,9 @@ impl ConfigKey {
             ConfigKey::LotteryWinner => "lottery_winner",
             ConfigKey::ForceEgg => "force_egg",
             ConfigKey::RobberyLengthSeconds => "robbery_length_seconds",
+            ConfigKey::GhostChannelOdds => "ghost_channel_odds",
+            ConfigKey::GhostChannelLength => "ghost_channel_length",
+            ConfigKey::GhostChannelId => "ghost_channel_id",
         }
     }
 }
@@ -256,6 +265,9 @@ impl ConfigDatabase for Database {
             lottery_winner: None,
             force_egg: false,
             robbery_length_seconds: None,
+            ghost_channel_id: None,
+            ghost_channel_length: None,
+            ghost_channel_odds: None,
         };
 
         for d in data {
@@ -334,6 +346,15 @@ impl ConfigDatabase for Database {
                 ConfigKey::RobberyLengthSeconds => {
                     config.robbery_length_seconds = Some(d.value.parse().unwrap())
                 }
+                ConfigKey::GhostChannelOdds => {
+                    config.ghost_channel_odds = Some(d.value.parse().unwrap())
+                }
+                ConfigKey::GhostChannelLength => {
+                    config.ghost_channel_length = Some(d.value.parse().unwrap())
+                }
+                ConfigKey::GhostChannelId => {
+                    config.ghost_channel_id = Some(d.value.parse().unwrap())
+                }
             }
         }
         Ok(config)
@@ -397,6 +418,9 @@ pub struct Config {
     pub lottery_winner: Option<u64>,
     pub force_egg: bool,
     pub robbery_length_seconds: Option<i8>,
+    pub ghost_channel_id: Option<u64>,
+    pub ghost_channel_length: Option<u8>,
+    pub ghost_channel_odds: Option<u8>,
 }
 
 impl fmt::Display for Config {

@@ -11,6 +11,7 @@ use database::ConfigDatabase;
 use poise::{serenity_prelude as serenity, CreateReply};
 use std::sync::mpsc;
 use std::sync::RwLock;
+use std::time;
 use std::{
     collections::{HashMap, HashSet},
     env::var,
@@ -47,6 +48,10 @@ pub struct Config {
     lottery_winner: Option<u64>,
     force_egg: bool,
     just_egged: Option<u64>,
+    ghost_channel_id: Option<u64>,
+    ghost_channel_length: Option<u8>,
+    ghost_channel_odds: Option<u8>,
+    unghost_time: Option<time::Instant>,
 }
 
 impl Config {
@@ -74,6 +79,10 @@ impl Config {
             lottery_winner: input.lottery_winner,
             force_egg: input.force_egg,
             just_egged: None,
+            ghost_channel_id: input.ghost_channel_id,
+            ghost_channel_length: input.ghost_channel_length,
+            ghost_channel_odds: input.ghost_channel_odds,
+            unghost_time: None,
         }
     }
 }

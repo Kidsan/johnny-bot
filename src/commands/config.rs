@@ -23,6 +23,9 @@ pub enum ConfigOption {
     ForceBonesPriceUpdate,
     LotteryWinner,
     ForceEgg,
+    GhostChannelId,
+    GhostChannelLength,
+    GhostChannelOdds,
 }
 
 ///
@@ -217,6 +220,33 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .await
                 .unwrap();
             ctx.data().config.write().unwrap().robbery_length_seconds = length;
+        }
+        ConfigOption::GhostChannelId => {
+            let id = parse_value::<u64>(&value)?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::GhostChannelId, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().ghost_channel_id = Some(id);
+        }
+        ConfigOption::GhostChannelLength => {
+            let length = parse_value::<u8>(&value)?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::GhostChannelLength, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().ghost_channel_length = Some(length);
+        }
+        ConfigOption::GhostChannelOdds => {
+            let odds = parse_value::<u8>(&value)?;
+            ctx.data()
+                .db
+                .set_config_value(database::ConfigKey::GhostChannelOdds, value.as_str())
+                .await
+                .unwrap();
+            ctx.data().config.write().unwrap().ghost_channel_odds = Some(odds);
         }
     }
     let reply = CreateReply::default().content("Success").ephemeral(true);

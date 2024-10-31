@@ -2,8 +2,8 @@ use chrono::{Datelike, NaiveTime, TimeDelta, Timelike};
 use rand::seq::SliceRandom;
 use rand::Rng;
 use serenity::all::{
-    CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, EditMember,
-    EditMessage,
+    CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, EditChannel,
+    EditMember, EditMessage, PermissionOverwrite, PermissionOverwriteType, Permissions,
 };
 use serenity::gateway::ShardRunnerInfo;
 use serenity::model::id::ShardId;
@@ -121,6 +121,13 @@ impl Johnny {
                 self.run_egg().await;
             }
 
+            let (deadline, c) = {
+                let config = self.config.read().unwrap();
+                (config.unghost_time, config.ghost_channel_id.unwrap())
+            };
+            let channel_id = poise::serenity_prelude::ChannelId::from(c);
+            self.unghost_channel(deadline, channel_id).await;
+
             if minute_counter.elapsed().as_secs() >= 60 {
                 self.refresh_config().await;
                 let (bones_price_updated, force) = {
@@ -198,9 +205,11 @@ impl Johnny {
                 Ok(mut c) => {
                     let counter = c.bot_odds_game_counter;
                     let just_egged = c.just_egged;
+                    let unghost = c.unghost_time;
                     *c = Config::from(r);
                     c.bot_odds_game_counter = counter;
                     c.just_egged = just_egged;
+                    c.unghost_time = unghost;
                 }
                 Err(e) => {
                     tracing::error!("{e}");
@@ -586,6 +595,47 @@ impl Johnny {
             }
         } else {
             tracing::warn!("Discord client not set");
+        }
+    }
+
+    async fn unghost_channel(
+        &self,
+        deadline: Option<std::time::Instant>,
+        channel_id: serenity::model::id::ChannelId,
+    ) {
+        if let Some(t) = deadline {
+            if t < std::time::Instant::now() {
+                if let Some(client) = &self.message_client {
+                    let g = channel_id
+                        .to_channel(client)
+                        .await
+                        .unwrap()
+                        .guild()
+                        .unwrap()
+                        .guild_id
+                        .everyone_role();
+
+                    match channel_id
+                        .edit(
+                            client,
+                            EditChannel::new().permissions(vec![PermissionOverwrite {
+                                allow: Permissions::SEND_MESSAGES,
+                                deny: Permissions::empty(),
+                                kind: PermissionOverwriteType::Role(g),
+                            }]),
+                        )
+                        .await
+                    {
+                        Ok(_) => println!("Channel was unprivated"),
+                        Err(e) => {
+                            dbg!("Error unprivating channel", e);
+                        }
+                    }
+                }
+                {
+                    self.config.write().unwrap().unghost_time = None;
+                }
+            }
         }
     }
 }

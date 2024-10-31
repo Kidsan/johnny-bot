@@ -1,8 +1,11 @@
 use crate::database::BalanceDatabase;
 use crate::discord::{EGG_ROLE, NICKNAME_LICENCE};
 use crate::{Data, Error};
-use ::serenity::all::{EditMember, RoleId};
+use ::serenity::all::{
+    EditChannel, EditMember, PermissionOverwrite, PermissionOverwriteType, Permissions, RoleId,
+};
 use poise::serenity_prelude as serenity;
+use rand::Rng;
 use serenity::Result;
 
 pub async fn event_handler(
@@ -134,6 +137,44 @@ pub async fn event_handler(
 
             tracing::info!("Found message in paid channel, price is {}", price);
             return Ok(());
+        } else if data.config.read().unwrap().ghost_channel_id.is_some()
+            && (data.config.read().unwrap().ghost_channel_id.unwrap()
+                == new_message.channel_id.get())
+        {
+            let (odds, length) = {
+                let config = data.config.read().unwrap();
+                (
+                    config.ghost_channel_odds.unwrap(),
+                    config.ghost_channel_length.unwrap(),
+                )
+            };
+            if rand::thread_rng().gen_bool(odds as f64 / 100.0) {
+                println!("yap");
+                let role = new_message.guild_id.unwrap().everyone_role();
+                match new_message
+                    .channel_id
+                    .edit(
+                        ctx,
+                        EditChannel::new().permissions(vec![PermissionOverwrite {
+                            allow: Permissions::empty(),
+                            deny: Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES,
+                            kind: PermissionOverwriteType::Role(role),
+                        }]),
+                    )
+                    .await
+                {
+                    Ok(_) => println!("Channel was privated"),
+                    Err(e) => {
+                        dbg!("Error privating channel", e);
+                    }
+                }
+                {
+                    data.config.write().unwrap().unghost_time = Some(
+                        std::time::Instant::now()
+                            + std::time::Duration::from_secs(length as u64 * 60),
+                    )
+                }
+            }
         }
     }
     Ok(())
