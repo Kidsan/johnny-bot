@@ -48,25 +48,26 @@ pub async fn giveaway(
 
     let played = std::sync::Mutex::new(std::collections::HashSet::new());
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let mut options = [
+    let options = [
         option.clone(),
         option2.unwrap_or_default(),
         option3.unwrap_or_default(),
         option4.unwrap_or_default(),
     ];
-    {
-        let mut rng = rand::thread_rng();
-        options.shuffle(&mut rng);
-        options.shuffle(&mut rng);
-        options.shuffle(&mut rng);
-    }
 
-    let buttons = options
+    let mut buttons: Vec<serenity::CreateButton> = options
         .iter()
         .filter(|p| !p.is_empty())
         .enumerate()
         .map(|(id, option)| option_button(option.to_string(), format!("{option}{id}")))
         .collect();
+    {
+        let mut rng = rand::thread_rng();
+        buttons.shuffle(&mut rng);
+        buttons.shuffle(&mut rng);
+        buttons.shuffle(&mut rng);
+    }
+
     let components = vec![serenity::CreateActionRow::Buttons(buttons)];
 
     let reply = {
@@ -113,7 +114,7 @@ pub async fn giveaway(
         }
 
         played.lock().unwrap().insert(mci.user.id);
-        if mci.data.custom_id == option {
+        if mci.data.custom_id == format!("{}0", option) {
             ctx.data()
                 .db
                 .award_balances(vec![mci.user.id.into()], amount)
