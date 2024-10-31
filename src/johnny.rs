@@ -557,24 +557,33 @@ impl Johnny {
             };
             let user = click.user.clone();
             let guild = click.guild_id.unwrap();
-            let mut member = guild.member(client, user.clone()).await.unwrap();
+            let mut member = match guild.member(client, user.clone()).await {
+                Ok(a) => a,
+                Err(e) => {
+                    tracing::error!("{e}");
+                    return;
+                }
+            };
             let nick = member.display_name();
             let egged = get_egged_name(nick);
 
-            self.config.write().unwrap().just_egged = Some(user.id.get());
-
             let mut roles = member.roles.clone();
-            roles.push(RoleId::new(EGG_ROLE));
 
-            match member
-                .edit(client, EditMember::new().nickname(egged).roles(roles))
-                .await
-            {
-                Ok(_) => {
-                    tracing::info!("Changed nickname");
-                }
-                Err(e) => {
-                    tracing::error!("{e}");
+            if !roles.contains(&RoleId::new(EGG_ROLE)) {
+                roles.push(RoleId::new(EGG_ROLE));
+
+                self.config.write().unwrap().just_egged = Some(user.id.get());
+
+                match member
+                    .edit(client, EditMember::new().nickname(egged).roles(roles))
+                    .await
+                {
+                    Ok(_) => {
+                        tracing::info!("Changed nickname");
+                    }
+                    Err(e) => {
+                        tracing::error!("{e}");
+                    }
                 }
             }
 
