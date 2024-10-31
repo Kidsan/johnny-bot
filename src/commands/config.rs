@@ -231,7 +231,7 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
             ctx.data().config.write().unwrap().ghost_channel_id = Some(id);
         }
         ConfigOption::GhostChannelLength => {
-            let length = parse_value::<u8>(&value)?;
+            let length = parse_value::<u32>(&value)?;
             ctx.data()
                 .db
                 .set_config_value(database::ConfigKey::GhostChannelLength, value.as_str())
