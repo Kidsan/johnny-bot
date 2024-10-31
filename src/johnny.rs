@@ -611,11 +611,11 @@ impl Johnny {
 
     async fn unghost_channel(
         &self,
-        deadline: Option<std::time::Instant>,
+        deadline: Option<chrono::DateTime<chrono::Utc>>,
         channel_id: serenity::model::id::ChannelId,
     ) {
         if let Some(t) = deadline {
-            if t < std::time::Instant::now() {
+            if t < chrono::Utc::now() {
                 if let Some(client) = &self.message_client {
                     let g = channel_id
                         .to_channel(client)
@@ -640,11 +640,23 @@ impl Johnny {
                         Ok(_) => println!("Channel was unprivated"),
                         Err(e) => {
                             dbg!("Error unprivating channel", e);
+                            return;
                         }
                     }
                 }
                 {
-                    self.config.write().unwrap().unghost_time = None;
+                    match self
+                        .db
+                        .del_config_value(database::ConfigKey::UnghostTime)
+                        .await
+                    {
+                        Ok(_) => {
+                            self.config.write().unwrap().unghost_time = None;
+                        }
+                        Err(e) => {
+                            tracing::error!("{e}");
+                        }
+                    }
                 }
             }
         }

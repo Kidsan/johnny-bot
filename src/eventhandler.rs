@@ -1,4 +1,6 @@
-use crate::database::BalanceDatabase;
+use std::ops::Add;
+
+use crate::database::{self, BalanceDatabase, ConfigDatabase};
 use crate::discord::{EGG_ROLE, NICKNAME_LICENCE};
 use crate::{Data, Error};
 use ::serenity::all::{
@@ -169,10 +171,15 @@ pub async fn event_handler(
                     }
                 }
                 {
-                    data.config.write().unwrap().unghost_time = Some(
-                        std::time::Instant::now()
-                            + std::time::Duration::from_secs(length as u64 * 60),
-                    )
+                    let deadline = chrono::Utc::now() + chrono::Duration::minutes(length.into());
+                    data.db
+                        .set_config_value(
+                            database::ConfigKey::UnghostTime,
+                            &deadline.timestamp().to_string(),
+                        )
+                        .await
+                        .unwrap();
+                    data.config.write().unwrap().unghost_time = Some(deadline)
                 }
             }
         }

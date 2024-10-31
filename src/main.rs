@@ -51,7 +51,7 @@ pub struct Config {
     ghost_channel_id: Option<u64>,
     ghost_channel_length: Option<u32>,
     ghost_channel_odds: Option<u8>,
-    unghost_time: Option<time::Instant>,
+    unghost_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl Config {
@@ -82,7 +82,7 @@ impl Config {
             ghost_channel_id: input.ghost_channel_id,
             ghost_channel_length: input.ghost_channel_length,
             ghost_channel_odds: input.ghost_channel_odds,
-            unghost_time: None,
+            unghost_time: input.unghost_time,
         }
     }
 }

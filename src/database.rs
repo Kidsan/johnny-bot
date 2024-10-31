@@ -176,6 +176,7 @@ impl ConfigRow {
             "ghost_channel_odds" => ConfigKey::GhostChannelOdds,
             "ghost_channel_length" => ConfigKey::GhostChannelLength,
             "ghost_channel_id" => ConfigKey::GhostChannelId,
+            "unghost_time" => ConfigKey::UnghostTime,
             _ => panic!("Invalid config"),
         }
     }
@@ -205,6 +206,7 @@ pub enum ConfigKey {
     GhostChannelOdds,
     GhostChannelLength,
     GhostChannelId,
+    UnghostTime,
 }
 
 impl ConfigKey {
@@ -233,6 +235,7 @@ impl ConfigKey {
             ConfigKey::GhostChannelOdds => "ghost_channel_odds",
             ConfigKey::GhostChannelLength => "ghost_channel_length",
             ConfigKey::GhostChannelId => "ghost_channel_id",
+            ConfigKey::UnghostTime => "unghost_time",
         }
     }
 }
@@ -268,6 +271,7 @@ impl ConfigDatabase for Database {
             ghost_channel_id: None,
             ghost_channel_length: None,
             ghost_channel_odds: None,
+            unghost_time: None,
         };
 
         for d in data {
@@ -355,6 +359,14 @@ impl ConfigDatabase for Database {
                 ConfigKey::GhostChannelId => {
                     config.ghost_channel_id = Some(d.value.parse().unwrap())
                 }
+                ConfigKey::UnghostTime => {
+                    match chrono::DateTime::from_timestamp(d.value.parse().unwrap(), 0) {
+                        Some(a) => {
+                            config.unghost_time = Some(a);
+                        }
+                        None => {}
+                    }
+                }
             }
         }
         Ok(config)
@@ -421,6 +433,7 @@ pub struct Config {
     pub ghost_channel_id: Option<u64>,
     pub ghost_channel_length: Option<u32>,
     pub ghost_channel_odds: Option<u8>,
+    pub unghost_time: Option<chrono::DateTime<Utc>>,
 }
 
 impl fmt::Display for Config {
