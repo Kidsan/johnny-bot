@@ -798,7 +798,13 @@ pub async fn list_prices(ctx: Context<'_>) -> Result<(), Error> {
 /// ```
 #[poise::command(slash_command, rename = "bones")]
 pub async fn bones_status(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.defer().await.unwrap();
+    match ctx.defer().await {
+        Ok(_) => {}
+        Err(e) => {
+            tracing::debug!("{e}");
+            return Err(e.into());
+        }
+    }
     let price = ctx.data().config.read().unwrap().bones_price;
     let status = match is_weekend() {
         true => "> Status: **BUYING TIME :chart_with_upwards_trend: **",

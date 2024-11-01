@@ -584,7 +584,7 @@ impl Johnny {
                         tracing::info!("Changed nickname");
                     }
                     Err(e) => {
-                        tracing::error!("{e}");
+                        tracing::error!("error updating guid member: {e}");
                     }
                 }
             }
