@@ -16,6 +16,7 @@ pub mod help;
 pub mod leaderboard;
 pub mod lottery;
 pub mod paidchannels;
+pub mod quit;
 pub mod register;
 pub mod removebucks;
 pub mod report;
