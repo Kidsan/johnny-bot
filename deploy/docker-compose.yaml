@@ -1,0 +1,24 @@
+services:
+  johnny:
+    image: registry.digitalocean.com/johnnybot/bot:latest
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    volumes:
+      - ./data:/data
+    env_file:
+      - path: ./default.env
+        required: true
+  promtail:
+    image: grafana/promtail:latest
+    restart: always
+    env_file:
+      - path: ./promtail/promtail.env
+        required: true
+    command: -config.expand-env=true -config.file=/etc/promtail/config.yml
+    volumes:
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers
+      - ./promtail:/etc/promtail
