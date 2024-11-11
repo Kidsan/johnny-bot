@@ -56,6 +56,7 @@
             bashInteractive
             cargo-watch
             sqlx-cli
+            opentofu
           ];
           # RUST_SRC_PATH = rustPlatform.rustLibSrc;
           shellHook = ''

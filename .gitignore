@@ -4,3 +4,7 @@ result
 johnny.db
 /data
 login.nu
+*.tfvars
+*.tfstate*
+.terraform/
+.terraform.lock.hcl
