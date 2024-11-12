@@ -105,8 +105,14 @@ pub async fn event_handler(
             let balance: i32 = data.db.get_balance(new_message.author.id.get()).await?;
 
             if balance < price {
-                new_message.delete(ctx).await?;
-                new_message
+                match new_message.delete(ctx).await {
+                    Ok(_) => tracing::debug!("deleted message in paid channel due to insufficient funds"),
+                    Err(e) => {
+                        tracing::error!("Error deleting message in paid chennel: {e}");
+                        return Err(e.into());
+                    },
+                };
+                match new_message
                 .author
                 .dm(
                     ctx,
@@ -116,7 +122,10 @@ pub async fn event_handler(
                         balance,
                     )),
                 )
-                .await?;
+                .await {
+                    Ok(_) => tracing::debug!("sent message deletion dm"),
+                    Err(e) => tracing::error!("Error sending deletion dm: {e}"),
+                };
                 return Ok(());
             }
 
@@ -124,7 +133,7 @@ pub async fn event_handler(
                 .subtract_balances(vec![new_message.author.id.get()], price)
                 .await?;
 
-            new_message
+            match new_message
                 .author
                 .dm(
                     ctx,
@@ -135,7 +144,13 @@ pub async fn event_handler(
                         balance - price,
                     )),
                 )
-                .await?;
+                .await{
+                    Ok(_) => tracing::debug!("Sent paid message payment dm"),
+                    Err(e) => {
+                        tracing::error!("Error dm'ing user for paid message: {e}");
+                        return Err(e.into());
+                }
+                };
 
             tracing::info!("Found message in paid channel, price is {}", price);
             return Ok(());
