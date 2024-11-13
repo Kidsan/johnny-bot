@@ -562,7 +562,7 @@ impl Johnny {
             let mut member = match guild.member(client, user.clone()).await {
                 Ok(a) => a,
                 Err(e) => {
-                    tracing::error!("{e}");
+                    tracing::error!("Error getting user who clicked egg: {e}");
                     return;
                 }
             };
@@ -584,7 +584,7 @@ impl Johnny {
                         tracing::info!("Changed nickname");
                     }
                     Err(e) => {
-                        tracing::error!("error updating guid member: {e}");
+                        tracing::error!("error updating guild member : {e}");
                     }
                 }
             }
@@ -601,7 +601,7 @@ impl Johnny {
             {
                 Ok(_) => {}
                 Err(e) => {
-                    tracing::error!("{e}");
+                    tracing::error!("Error setting egg as message: {e}");
                 }
             }
         } else {

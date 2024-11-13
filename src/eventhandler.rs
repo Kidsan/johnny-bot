@@ -16,7 +16,7 @@ pub async fn event_handler(
     _framework: poise::FrameworkContext<'_, Data, Error>,
     data: &Data,
 ) -> Result<(), Error> {
-    tracing::info!(
+    tracing::debug!(
         "Got an event in event handler: {:?}",
         event.snake_case_name()
     );
@@ -78,11 +78,11 @@ pub async fn event_handler(
                 .await
             {
                 Ok(_res) => tracing::info!("Sent chicken emoji"),
-                Err(e) => tracing::error!("{e}"),
+                Err(e) => tracing::error!("Error sending chicken emoji: {e}"),
             }
         }
 
-        tracing::info!(
+        tracing::debug!(
             "Got a member update event: {:?} -> {:?}",
             old_if_available,
             new
@@ -106,11 +106,13 @@ pub async fn event_handler(
 
             if balance < price {
                 match new_message.delete(ctx).await {
-                    Ok(_) => tracing::debug!("deleted message in paid channel due to insufficient funds"),
+                    Ok(_) => {
+                        tracing::debug!("deleted message in paid channel due to insufficient funds")
+                    }
                     Err(e) => {
                         tracing::error!("Error deleting message in paid chennel: {e}");
                         return Err(e.into());
-                    },
+                    }
                 };
                 match new_message
                 .author
