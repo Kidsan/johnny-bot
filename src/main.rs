@@ -11,7 +11,6 @@ use database::ConfigDatabase;
 use poise::{serenity_prelude as serenity, CreateReply};
 use std::sync::mpsc;
 use std::sync::RwLock;
-use std::time;
 use std::{
     collections::{HashMap, HashSet},
     env::var,

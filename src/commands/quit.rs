@@ -1,6 +1,4 @@
-use crate::database::BalanceDatabase;
 use crate::{Context, Error};
-use poise::serenity_prelude::User;
 use poise::CreateReply;
 ///
 /// restart the bot
@@ -20,5 +18,4 @@ pub async fn quit(ctx: Context<'_>) -> Result<(), Error> {
     let reply = { CreateReply::default().content("success").ephemeral(true) };
     ctx.send(reply).await?;
     std::process::exit(1);
-    Ok(())
 }

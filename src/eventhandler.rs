@@ -1,5 +1,3 @@
-use std::ops::Add;
-
 use crate::database::{self, BalanceDatabase, ConfigDatabase};
 use crate::discord::{EGG_ROLE, NICKNAME_LICENCE};
 use crate::{Data, Error};
