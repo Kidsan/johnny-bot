@@ -8,3 +8,4 @@ login.nu
 *.tfstate*
 .terraform/
 .terraform.lock.hcl
+resources/

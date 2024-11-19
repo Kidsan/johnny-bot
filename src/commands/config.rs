@@ -26,6 +26,7 @@ pub enum ConfigOption {
     GhostChannelId,
     GhostChannelLength,
     GhostChannelOdds,
+    VoiceChannelCelebrationAmount,
 }
 
 ///
@@ -247,6 +248,22 @@ pub async fn set(ctx: Context<'_>, option: ConfigOption, value: String) -> Resul
                 .await
                 .unwrap();
             ctx.data().config.write().unwrap().ghost_channel_odds = Some(odds);
+        }
+        ConfigOption::VoiceChannelCelebrationAmount => {
+            let amount = parse_value::<i32>(&value)?;
+            ctx.data()
+                .db
+                .set_config_value(
+                    database::ConfigKey::VoiceChannelCelebrationAmount,
+                    value.as_str(),
+                )
+                .await
+                .unwrap();
+            ctx.data()
+                .config
+                .write()
+                .unwrap()
+                .voice_channel_celebration_amount = amount;
         }
     }
     let reply = CreateReply::default().content("Success").ephemeral(true);

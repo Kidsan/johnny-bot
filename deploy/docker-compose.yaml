@@ -8,6 +8,7 @@ services:
         tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
     volumes:
       - ./data:/data
+      - ./resources:/resources
     env_file:
       - path: ./default.env
         required: true

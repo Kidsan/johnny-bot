@@ -27,7 +27,10 @@
             version = if (self ? rev) then self.shortRev else "dirty";
             cargoLock.lockFile = ./Cargo.lock;
             src = pkgs.lib.cleanSource ./.;
-            buildInputs = [ pkgs.openssl ];
+            buildInputs = [
+              pkgs.openssl
+              pkgs.libopus
+            ];
             nativeBuildInputs = [
               pkgs.pkg-config
             ];
@@ -57,6 +60,7 @@
             cargo-watch
             sqlx-cli
             opentofu
+            libopus
           ];
           # RUST_SRC_PATH = rustPlatform.rustLibSrc;
           shellHook = ''

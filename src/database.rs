@@ -177,6 +177,7 @@ impl ConfigRow {
             "ghost_channel_length" => ConfigKey::GhostChannelLength,
             "ghost_channel_id" => ConfigKey::GhostChannelId,
             "unghost_time" => ConfigKey::UnghostTime,
+            "voice_channel_celebration_amount" => ConfigKey::VoiceChannelCelebrationAmount,
             _ => panic!("Invalid config"),
         }
     }
@@ -207,6 +208,7 @@ pub enum ConfigKey {
     GhostChannelLength,
     GhostChannelId,
     UnghostTime,
+    VoiceChannelCelebrationAmount,
 }
 
 impl ConfigKey {
@@ -236,6 +238,7 @@ impl ConfigKey {
             ConfigKey::GhostChannelLength => "ghost_channel_length",
             ConfigKey::GhostChannelId => "ghost_channel_id",
             ConfigKey::UnghostTime => "unghost_time",
+            ConfigKey::VoiceChannelCelebrationAmount => "voice_channel_celebration_amount",
         }
     }
 }
@@ -272,6 +275,7 @@ impl ConfigDatabase for Database {
             ghost_channel_length: None,
             ghost_channel_odds: None,
             unghost_time: None,
+            voice_channel_celebration_amount: 1000,
         };
 
         for d in data {
@@ -367,6 +371,9 @@ impl ConfigDatabase for Database {
                         None => {}
                     }
                 }
+                ConfigKey::VoiceChannelCelebrationAmount => {
+                    config.voice_channel_celebration_amount = d.value.parse().unwrap();
+                }
             }
         }
         Ok(config)
@@ -434,13 +441,14 @@ pub struct Config {
     pub ghost_channel_length: Option<u32>,
     pub ghost_channel_odds: Option<u8>,
     pub unghost_time: Option<chrono::DateTime<Utc>>,
+    pub voice_channel_celebration_amount: i32,
 }
 
 impl fmt::Display for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "**Daily upper limit**: {}\n**Heads odds updated**: {}\n**Heads odds**: {:.2}\n**Heads odds game limit**: {}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n**Next Lottery Winner**: {}\n**Force egg:**{}\n**Ghost channel: **{}\n**Ghost channel odds:** {} %\n **Ghost channel length **: {} (minutes)\n",
+            "**Daily upper limit**: {}\n**Heads odds updated**: {}\n**Heads odds**: {:.2}\n**Heads odds game limit**: {}\n**Game length seconds**: {}\n**Lottery base prize**: {}\n**Lottery ticket price**: {}\n**Future lottery base prize**: {}\n**Future lottery ticket price**: {}\n**Side chance**: {}\n**Bones price**: {}\n**Bones price updated**: {}\n**Community emoji price**: {}\n**Bones price min change**: {}\n**Bones price max change**: {}\n**Bones price force update**: {}\n**Next Lottery Winner**: {}\n**Force egg:**{}\n**Ghost channel: **{}\n**Ghost channel odds:** {} %\n **Ghost channel length **: {} (minutes)\n **Obnoxious celebration amount**: {}\n",
             self.daily_upper_limit.unwrap_or(0),
             self.bot_odds_updated
                 .map(|x| x.to_rfc2822())
@@ -470,6 +478,7 @@ impl fmt::Display for Config {
             },
         self.ghost_channel_odds.unwrap_or(0),
         self.ghost_channel_length.unwrap_or(0),
+        self.voice_channel_celebration_amount,
         )
     }
 }

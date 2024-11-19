@@ -17,6 +17,17 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use reqwest::Client as HttpClient;
+use songbird::SerenityInit;
+
+use serenity::prelude::TypeMapKey;
+
+struct HttpKey;
+
+impl TypeMapKey for HttpKey {
+    type Value = HttpClient;
+}
+
 // Types used by all command functions
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
@@ -51,6 +62,7 @@ pub struct Config {
     ghost_channel_length: Option<u32>,
     ghost_channel_odds: Option<u8>,
     unghost_time: Option<chrono::DateTime<chrono::Utc>>,
+    voice_channel_celebration_amount: i32,
 }
 
 impl Config {
@@ -82,6 +94,7 @@ impl Config {
             ghost_channel_length: input.ghost_channel_length,
             ghost_channel_odds: input.ghost_channel_odds,
             unghost_time: input.unghost_time,
+            voice_channel_celebration_amount: input.voice_channel_celebration_amount,
         }
     }
 }
@@ -342,6 +355,8 @@ async fn main() {
 
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
+        .register_songbird()
+        .type_map_insert::<HttpKey>(HttpClient::new())
         .await;
 
     let (tx, rx) = mpsc::channel();

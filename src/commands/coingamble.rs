@@ -1,4 +1,7 @@
-use std::time::{self, SystemTime, UNIX_EPOCH};
+use std::{
+    path::PathBuf,
+    time::{self, SystemTime, UNIX_EPOCH},
+};
 
 use crate::{
     database::BalanceDatabase,
@@ -10,7 +13,27 @@ use crate::{
     Context, Error,
 };
 use poise::{serenity_prelude as serenity, CreateReply};
-use rand::seq::SliceRandom;
+use rand::seq::{IteratorRandom, SliceRandom};
+use serenity::async_trait;
+use songbird::{
+    events::{Event, EventContext, EventHandler as VoiceEventHandler, TrackEvent},
+    input::{cached::Memory, File, Input},
+    Songbird,
+};
+
+struct SongEndNotifier {
+    m: std::sync::Arc<Songbird>,
+    g: serenity::GuildId,
+}
+
+#[async_trait]
+impl VoiceEventHandler for SongEndNotifier {
+    async fn act(&self, _ctx: &EventContext<'_>) -> Option<Event> {
+        let _ = self.m.remove(self.g).await;
+        None
+    }
+}
+
 ///
 /// Start a coin gamble
 ///
@@ -198,13 +221,15 @@ pub async fn coingamble(
     } else {
         false
     };
+
     if has_player {
         coingame.side_chance = 50;
     }
-
     let coin_flip_result = coingame
         .get_winner(&ctx.data().db, ctx.data().bot_id, ctx.data().crown_role_id)
         .await;
+
+    let mut winners = vec![];
 
     let msg = match coin_flip_result.result {
         CoinSides::Side => match coin_flip_result.prize {
@@ -245,6 +270,7 @@ pub async fn coingamble(
             }
             match coin_flip_result.result {
                 CoinSides::Heads => {
+                    winners = coingame.heads.clone();
                     picked_heads_users = format!(
                         "> {}\n> {} Congrats on {} {}!",
                         picked_heads_users, DOGE_PRAY_EMOJI, coin_flip_result.prize, JBUCK_EMOJI
@@ -263,6 +289,7 @@ pub async fn coingamble(
                         format!("> {}\n> {} So sad.", picked_tails_users, DOGE_CRY_EMOJI);
                 }
                 CoinSides::Tails => {
+                    winners = coingame.tails.clone();
                     picked_heads_users =
                         format!("> {}\n> {} So sad.", picked_heads_users, DOGE_CRY_EMOJI);
                     picked_tails_users = format!(
@@ -309,7 +336,88 @@ pub async fn coingamble(
             .allowed_mentions(serenity::CreateAllowedMentions::new().empty_users())
     };
     ctx.send(message).await?;
+
+    if winners.get(0).unwrap() == &ctx.data().bot_id {
+        tracing::info!("bot won");
+        return Ok(());
+    }
+
+    if coin_flip_result.prize
+        > ctx
+            .data()
+            .config
+            .read()
+            .unwrap()
+            .voice_channel_celebration_amount
+    {
+        play_obnoxious_celebration(ctx).await;
+    }
+
     Ok(())
+}
+
+async fn play_obnoxious_celebration(ctx: Context<'_>) {
+    let (guild_id, channel_id) = {
+        let guild = ctx.guild().unwrap();
+        let voice_states = guild.voice_states.clone();
+        if voice_states.is_empty() {
+            tracing::warn!("Nobody in a voice channel, skipping obnoxious stuff");
+            return;
+        }
+        let channel_id = voice_states
+            .values()
+            .choose(&mut rand::thread_rng())
+            .unwrap()
+            .channel_id;
+        (guild.id, channel_id)
+    };
+
+    let connect_to = match channel_id {
+        Some(channel) => channel,
+        None => {
+            tracing::info!("no channel");
+            return;
+        }
+    };
+
+    let manager = songbird::get(ctx.serenity_context())
+        .await
+        .expect("Songbird init")
+        .clone();
+    let paths = match std::fs::read_dir("./resources/") {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!("Error searching for sounds to play: {}", e);
+            return;
+        }
+    };
+
+    let path: PathBuf;
+    if let Some(p) = paths.choose(&mut rand::thread_rng()) {
+        path = p.unwrap().path();
+    } else {
+        tracing::warn!("could not find sounds in directory");
+        return;
+    }
+
+    if let Ok(handler_lock) = manager.join(guild_id, connect_to).await {
+        let mut handler = handler_lock.lock().await;
+        handler.add_global_event(TrackEvent::Error.into(), TrackErrorNotifier);
+        let audio_src = Memory::new(File::new(path).into()).await.unwrap();
+
+        let _ = audio_src.raw.spawn_loader();
+        let source: Input = audio_src.new_handle().try_into().unwrap();
+
+        let h = handler.play_input(source.into());
+
+        let _ = h.add_event(
+            Event::Track(TrackEvent::End),
+            SongEndNotifier {
+                m: manager.clone(),
+                g: guild_id.clone(),
+            },
+        );
+    }
 }
 
 #[derive(poise::ChoiceParameter, Clone, Debug)]
@@ -402,4 +510,22 @@ async fn minute_cooldown(ctx: Context<'_>) -> Result<(), Error> {
         return Err("You can use this command again in 30 seconds".into());
     }
     Ok(())
+}
+struct TrackErrorNotifier;
+
+#[async_trait]
+impl VoiceEventHandler for TrackErrorNotifier {
+    async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
+        if let EventContext::Track(track_list) = ctx {
+            for (state, handle) in *track_list {
+                println!(
+                    "Track {:?} encountered an error: {:?}",
+                    handle.uuid(),
+                    state.playing
+                );
+            }
+        }
+
+        None
+    }
 }
