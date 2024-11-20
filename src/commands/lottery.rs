@@ -9,7 +9,7 @@ use poise::CreateReply;
 /// ```
 /// /lottery info
 /// ```
-#[poise::command(slash_command, subcommands("info", "tickets"))]
+#[poise::command(slash_command, subcommands("info"))]
 #[tracing::instrument(level = "info")]
 pub async fn lottery(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
@@ -25,6 +25,7 @@ pub async fn lottery(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(slash_command)]
 #[tracing::instrument(level = "info")]
 pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.defer().await?;
     let data = ctx.data().db.get_bought_tickets().await.unwrap();
     let base_prize = { ctx.data().config.read().unwrap().lottery_base_prize };
     let price = { ctx.data().config.read().unwrap().lottery_ticket_price };
@@ -44,32 +45,16 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
         end += chrono::Duration::days(1);
     }
 
-    let reply = CreateReply::default().content(format!(
-        "> **LOTTERY STATUS**\n> **Prize pool:** {} <:jbuck:1228663982462865450>\n> **Tickets sold:** {} :tickets:\n > **End:** <t:{}:R>\n> Use ***/buy lottery*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
-        prize, tickets_sold, end.and_utc().timestamp(), price
-    ));
-    ctx.send(reply).await?;
-    Ok(())
-}
-
-///
-/// Get information about the current lottery ticket holders
-///
-/// Enter `/lottery tickets`
-/// ```
-/// /lottery tickets
-/// ```
-#[poise::command(slash_command)]
-#[tracing::instrument(level = "info")]
-pub async fn tickets(ctx: Context<'_>) -> Result<(), Error> {
-    let _ = ctx.defer_or_broadcast().await; // leaderboard can take some time
-    let data = ctx.data().db.get_bought_tickets().await.unwrap();
-
     let mut player_names = std::collections::HashMap::new();
 
     for (user, _) in data.iter().take(10) {
         player_names.insert(user, get_discord_name(ctx, *user).await);
     }
+
+    let info = format!(
+        "> **Prize pool:** {} <:jbuck:1228663982462865450>\n> **Tickets sold:** {} :tickets:\n > **End:** <t:{}:R>",
+        prize, tickets_sold, end.and_utc().timestamp(),
+    );
 
     let mut a = data
         .iter()
@@ -95,16 +80,14 @@ pub async fn tickets(ctx: Context<'_>) -> Result<(), Error> {
     if a.len() == 1 {
         a.push(String::from("> *No one has bought a ticket yet*"));
     }
-    a.push(format!("> **Total sold:** {} :tickets:", total));
+    a.push(info);
 
     a.push(format!(
         "> Use ***/buy lottery*** to purchase a ticket for {} <:jbuck:1228663982462865450>",
         price
     ));
 
-    let reply = CreateReply::default()
-        .content(a.join("\n"))
-        .allowed_mentions(poise::serenity_prelude::CreateAllowedMentions::new().empty_users());
+    let reply = CreateReply::default().content(format!("{}", a.join("\n")));
     ctx.send(reply).await?;
     Ok(())
 }
