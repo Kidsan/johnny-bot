@@ -68,7 +68,6 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
         })
         .collect::<Vec<String>>();
 
-    let total = data.iter().map(|(_, v)| v).sum::<i32>();
     let price = { ctx.data().config.read().unwrap().lottery_ticket_price };
 
     if a.len() < data.len() {
