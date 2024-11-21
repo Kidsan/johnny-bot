@@ -385,6 +385,9 @@ fn new_scissors_button() -> serenity::CreateButton {
 }
 
 pub async fn award_role_holder(ctx: Context<'_>, amount: i32) -> Result<Option<u64>, Error> {
+    if amount == 0 {
+        return Ok(None);
+    }
     if let Some(user) = ctx
         .data()
         .db

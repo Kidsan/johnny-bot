@@ -563,6 +563,12 @@ impl Johnny {
                 Ok(a) => a,
                 Err(e) => {
                     tracing::error!("Error getting user who clicked egg: {e}");
+                    let _ = click
+                        .create_response(
+                            client,
+                            poise::serenity_prelude::CreateInteractionResponse::Acknowledge,
+                        )
+                        .await;
                     return;
                 }
             };

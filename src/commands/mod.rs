@@ -22,6 +22,7 @@ pub mod removebucks;
 pub mod report;
 pub mod robbingevent;
 pub mod rockpaperscissors;
+pub mod sacrifice;
 pub mod say;
 pub mod stats;
 pub mod transfer;
