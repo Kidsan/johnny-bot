@@ -9,7 +9,7 @@ ssh newjohnnybot "docker load -i ./result; rm -f result"
 ssh newjohnnybot $"docker tag ($built) ($base):latest"
 
 scp ./deploy/docker-compose.yaml newjohnnybot:/home/johnny/bot/
-scp ./deploy/promtail/config.yml newjohnnybot:/home/johnny/bot/promtail/
+scp ./deploy/alloy/config.alloy newjohnnybot:/home/johnny/bot/alloy/
 
 let proceed = (input --numchar 1 "Proceed? [y/n]") | str downcase
 if $proceed == "y" {
