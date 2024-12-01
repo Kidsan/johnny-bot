@@ -342,20 +342,22 @@ pub async fn coingamble(
         return Ok(());
     }
 
-    if winners.get(0).unwrap() == &ctx.data().bot_id {
-        tracing::info!("bot won");
-        return Ok(());
+    if let Some(winner) = winners.get(0) {
+        if winner == &ctx.data().bot_id {
+            tracing::info!("bot won");
+            return Ok(());
+        }
     }
 
-    if coin_flip_result.prize
-        > ctx
-            .data()
-            .config
-            .read()
-            .unwrap()
-            .voice_channel_celebration_amount
-    {
-        play_obnoxious_celebration(ctx).await;
+    let threshold = match ctx.data().config.read() {
+        Ok(config) => Some(config.voice_channel_celebration_amount),
+        Err(_) => None,
+    };
+
+    if let Some(threshold) = threshold {
+        if coin_flip_result.prize > threshold {
+            play_obnoxious_celebration(ctx).await;
+        }
     }
 
     Ok(())
