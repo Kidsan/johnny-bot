@@ -563,17 +563,25 @@ impl Johnny {
                 Ok(a) => a,
                 Err(e) => {
                     tracing::error!("Error getting user who clicked egg: {e}");
-                    let _ = click
+                    match click
                         .create_response(
                             client,
                             poise::serenity_prelude::CreateInteractionResponse::Acknowledge,
                         )
-                        .await;
+                        .await
+                    {
+                        Ok(_) => {}
+                        Err(e) => {
+                            tracing::error!("Error acknowledging click: {e}");
+                        }
+                    };
                     return;
                 }
             };
             let nick = member.display_name();
             let egged = get_egged_name(nick);
+
+            tracing::info!("{nick} clicked the egg");
 
             let mut roles = member.roles.clone();
 
@@ -588,6 +596,20 @@ impl Johnny {
                 {
                     Ok(_) => {
                         tracing::info!("Changed nickname");
+                    }
+                    Err(e) => {
+                        tracing::error!("error updating guild member : {e}");
+                    }
+                }
+            } else {
+                roles = roles
+                    .iter()
+                    .filter(|role| **role != RoleId::new(EGG_ROLE))
+                    .map(|role| role.to_owned())
+                    .collect();
+                match member.edit(client, EditMember::new().roles(roles)).await {
+                    Ok(_) => {
+                        tracing::info!("Removed egg role");
                     }
                     Err(e) => {
                         tracing::error!("error updating guild member : {e}");
