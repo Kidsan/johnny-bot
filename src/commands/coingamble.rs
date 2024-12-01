@@ -337,6 +337,11 @@ pub async fn coingamble(
     };
     ctx.send(message).await?;
 
+    if winners.is_empty() {
+        tracing::info!("no winners");
+        return Ok(());
+    }
+
     if winners.get(0).unwrap() == &ctx.data().bot_id {
         tracing::info!("bot won");
         return Ok(());
