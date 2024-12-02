@@ -342,7 +342,7 @@ pub async fn coingamble(
         return Ok(());
     }
 
-    if let Some(winner) = winners.get(0) {
+    if let Some(winner) = winners.first() {
         if winner == &ctx.data().bot_id {
             tracing::info!("bot won");
             return Ok(());
@@ -413,15 +413,15 @@ async fn play_obnoxious_celebration(ctx: Context<'_>) {
         let audio_src = Memory::new(File::new(path).into()).await.unwrap();
 
         let _ = audio_src.raw.spawn_loader();
-        let source: Input = audio_src.new_handle().try_into().unwrap();
+        let source: Input = audio_src.new_handle().into();
 
-        let h = handler.play_input(source.into());
+        let h = handler.play_input(source);
 
         let _ = h.add_event(
             Event::Track(TrackEvent::End),
             SongEndNotifier {
                 m: manager.clone(),
-                g: guild_id.clone(),
+                g: guild_id,
             },
         );
     }

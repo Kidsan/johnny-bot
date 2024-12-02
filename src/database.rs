@@ -364,11 +364,8 @@ impl ConfigDatabase for Database {
                     config.ghost_channel_id = Some(d.value.parse().unwrap())
                 }
                 ConfigKey::UnghostTime => {
-                    match chrono::DateTime::from_timestamp(d.value.parse().unwrap(), 0) {
-                        Some(a) => {
-                            config.unghost_time = Some(a);
-                        }
-                        None => {}
+                    if let Some(a) = chrono::DateTime::from_timestamp(d.value.parse().unwrap(), 0) {
+                        config.unghost_time = Some(a);
                     }
                 }
                 ConfigKey::VoiceChannelCelebrationAmount => {

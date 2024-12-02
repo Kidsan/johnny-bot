@@ -86,7 +86,7 @@ pub async fn info(ctx: Context<'_>) -> Result<(), Error> {
         price
     ));
 
-    let reply = CreateReply::default().content(format!("{}", a.join("\n")));
+    let reply = CreateReply::default().content(a.join("\n").to_string());
     ctx.send(reply).await?;
     Ok(())
 }
