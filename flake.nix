@@ -13,9 +13,8 @@
           overlays = [ (import rust-overlay) ];
         };
         rustPlatform = pkgs.makeRustPlatform {
-          cargo = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default);
-          rustc = pkgs.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default);
-          extensions = [ "rust-src" ];
+          cargo = pkgs.rust-bin.latest.default;
+          rustc = pkgs.rust-bin.latest.default;
         };
         manifest = (pkgs.lib.importTOML ./Cargo.toml).package;
       in
@@ -53,9 +52,9 @@
             python3
             doctl
             pkg-config
-            (rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
+            (rust-bin.stable.latest.default.override {
               extensions = [ "rust-src" ];
-            }))
+            })
             bashInteractive
             cargo-watch
             sqlx-cli
