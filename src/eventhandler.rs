@@ -90,8 +90,114 @@ pub async fn event_handler(
 
     if let poise::serenity_prelude::FullEvent::Message { new_message } = event {
         if new_message.author.bot {
-            return Ok(());
-        }
+            if new_message.author.id != data.bot_id {
+                return Ok(());
+            }
+            if new_message.content.is_empty() {
+                let components = new_message.components.clone();
+                if components.is_empty() {
+                    return Ok(());
+                }
+                let click = match new_message
+                    .await_component_interaction(ctx)
+                    .timeout(std::time::Duration::new(60, 0))
+                    .await
+                {
+                    Some(a) => a,
+                    None => {
+                        let mut new_message = new_message.clone();
+                        new_message
+                            .edit(ctx, {
+                                serenity::EditMessage::default()
+                                    .content("No one clicked the egg in time")
+                                    .components(vec![])
+                            })
+                            .await
+                            .unwrap();
+                        return Ok(());
+                    }
+                };
+                let user = click.user.clone();
+                let guild = click.guild_id.unwrap();
+                let mut member = match guild.member(ctx, user.clone()).await {
+                    Ok(a) => a,
+                    Err(e) => {
+                        tracing::error!("Error getting user who clicked egg: {e}");
+                        match click
+                            .create_response(
+                                ctx,
+                                poise::serenity_prelude::CreateInteractionResponse::Acknowledge,
+                            )
+                            .await
+                        {
+                            Ok(_) => {}
+                            Err(e) => {
+                                tracing::error!("Error acknowledging click: {e}");
+                            }
+                        };
+                        return Ok(());
+                    }
+                };
+                let nick = member.display_name();
+                let egged = crate::johnny::get_egged_name(nick);
+
+                tracing::info!("{nick} clicked the egg");
+
+                let mut roles = member.roles.clone();
+
+                if !roles.contains(&RoleId::new(EGG_ROLE)) {
+                    roles.push(RoleId::new(EGG_ROLE));
+
+                    data.config.write().unwrap().just_egged = Some(user.id.get());
+
+                    match member
+                        .edit(ctx, EditMember::new().nickname(egged).roles(roles))
+                        .await
+                    {
+                        Ok(_) => {
+                            tracing::info!("Changed nickname");
+                        }
+                        Err(e) => {
+                            tracing::error!("error updating guild member : {e}");
+                        }
+                    }
+                } else {
+                    let unegged = nick.trim_end_matches(['e', 'g', 'g']);
+                    roles = roles
+                        .iter()
+                        .filter(|role| **role != RoleId::new(EGG_ROLE))
+                        .map(|role| role.to_owned())
+                        .collect();
+                    match member
+                        .edit(ctx, EditMember::new().nickname(unegged).roles(roles))
+                        .await
+                    {
+                        Ok(_) => {
+                            tracing::info!("Removed egg role");
+                        }
+                        Err(e) => {
+                            tracing::error!("error updating guild member : {e}");
+                        }
+                    }
+                }
+
+                match click
+                    .create_response(ctx, {
+                        serenity::CreateInteractionResponse::UpdateMessage(
+                            serenity::CreateInteractionResponseMessage::default()
+                                .content(":egg:")
+                                .components(vec![]),
+                        )
+                    })
+                    .await
+                {
+                    Ok(_) => {}
+                    Err(e) => {
+                        tracing::error!("Error setting egg as message: {e}");
+                    }
+                }
+            }
+        };
         if data
             .paid_channels
             .lock()

@@ -537,101 +537,7 @@ impl Johnny {
         };
         if let Some(client) = &self.message_client {
             let channel = { self.egg_channels.choose(&mut rand::thread_rng()).unwrap() };
-            let mut sent = channel.send_message(client, m).await.unwrap();
-            let click = match sent
-                .await_component_interaction(
-                    self.shards.try_lock().unwrap().values().nth(0).unwrap(),
-                )
-                .timeout(std::time::Duration::new(60, 0))
-                .await
-            {
-                Some(a) => a,
-                None => {
-                    sent.edit(client, {
-                        EditMessage::default()
-                            .content("No one clicked the egg in time")
-                            .components(vec![])
-                    })
-                    .await
-                    .unwrap();
-                    return;
-                }
-            };
-            let user = click.user.clone();
-            let guild = click.guild_id.unwrap();
-            let mut member = match guild.member(client, user.clone()).await {
-                Ok(a) => a,
-                Err(e) => {
-                    tracing::error!("Error getting user who clicked egg: {e}");
-                    match click
-                        .create_response(
-                            client,
-                            poise::serenity_prelude::CreateInteractionResponse::Acknowledge,
-                        )
-                        .await
-                    {
-                        Ok(_) => {}
-                        Err(e) => {
-                            tracing::error!("Error acknowledging click: {e}");
-                        }
-                    };
-                    return;
-                }
-            };
-            let nick = member.display_name();
-            let egged = get_egged_name(nick);
-
-            tracing::info!("{nick} clicked the egg");
-
-            let mut roles = member.roles.clone();
-
-            if !roles.contains(&RoleId::new(EGG_ROLE)) {
-                roles.push(RoleId::new(EGG_ROLE));
-
-                self.config.write().unwrap().just_egged = Some(user.id.get());
-
-                match member
-                    .edit(client, EditMember::new().nickname(egged).roles(roles))
-                    .await
-                {
-                    Ok(_) => {
-                        tracing::info!("Changed nickname");
-                    }
-                    Err(e) => {
-                        tracing::error!("error updating guild member : {e}");
-                    }
-                }
-            } else {
-                roles = roles
-                    .iter()
-                    .filter(|role| **role != RoleId::new(EGG_ROLE))
-                    .map(|role| role.to_owned())
-                    .collect();
-                match member.edit(client, EditMember::new().roles(roles)).await {
-                    Ok(_) => {
-                        tracing::info!("Removed egg role");
-                    }
-                    Err(e) => {
-                        tracing::error!("error updating guild member : {e}");
-                    }
-                }
-            }
-
-            match click
-                .create_response(client, {
-                    CreateInteractionResponse::UpdateMessage(
-                        CreateInteractionResponseMessage::default()
-                            .content(":egg:")
-                            .components(vec![]),
-                    )
-                })
-                .await
-            {
-                Ok(_) => {}
-                Err(e) => {
-                    tracing::error!("Error setting egg as message: {e}");
-                }
-            }
+            channel.send_message(client, m).await.unwrap();
         } else {
             tracing::warn!("Discord client not set");
         }
@@ -691,7 +597,7 @@ impl Johnny {
     }
 }
 
-fn get_egged_name(nick: &str) -> String {
+pub fn get_egged_name(nick: &str) -> String {
     // name has to be max 32 characters
     if nick.len() > 29 {
         let mut res = nick.chars().take(29).collect::<String>();
