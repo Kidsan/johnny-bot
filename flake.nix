@@ -13,8 +13,8 @@
           overlays = [ (import rust-overlay) ];
         };
         rustPlatform = pkgs.makeRustPlatform {
-          cargo = pkgs.rust-bin.latest.default;
-          rustc = pkgs.rust-bin.latest.default;
+          cargo = pkgs.rust-bin.stable.latest.default;
+          rustc = pkgs.rust-bin.stable.latest.default;
         };
         manifest = (pkgs.lib.importTOML ./Cargo.toml).package;
       in
