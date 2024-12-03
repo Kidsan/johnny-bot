@@ -32,8 +32,12 @@ pub async fn event_handler(
                 return Ok(());
             }
         };
-        let user = new_event_member.user.clone();
+        let mut user = new_event_member.user.clone();
         let guild = new_event_member.guild_id;
+        match user.refresh(ctx).await {
+            Ok(_) => {}
+            Err(e) => tracing::error!("Error refreshing user: {e}"),
+        }
 
         let mut member = guild.member(ctx, user.clone()).await.unwrap();
         if !event.roles.contains(&RoleId::new(EGG_ROLE)) {
@@ -117,8 +121,12 @@ pub async fn event_handler(
                         return Ok(());
                     }
                 };
-                let user = click.user.clone();
+                let mut user = click.user.clone();
                 let guild = click.guild_id.unwrap();
+                match user.refresh(ctx).await {
+                    Ok(_) => {}
+                    Err(e) => tracing::error!("Error refreshing user: {e}"),
+                }
                 let mut member = match guild.member(ctx, user.clone()).await {
                     Ok(a) => a,
                     Err(e) => {
@@ -172,12 +180,8 @@ pub async fn event_handler(
                         .edit(ctx, EditMember::new().nickname(unegged).roles(roles))
                         .await
                     {
-                        Ok(_) => {
-                            tracing::info!("Removed egg role");
-                        }
-                        Err(e) => {
-                            tracing::error!("error updating guild member : {e}");
-                        }
+                        Ok(_) => tracing::info!("Removed egg role"),
+                        Err(e) => tracing::error!("error updating guild member : {e}"),
                     }
                 }
 
@@ -192,9 +196,7 @@ pub async fn event_handler(
                     .await
                 {
                     Ok(_) => {}
-                    Err(e) => {
-                        tracing::error!("Error setting egg as message: {e}");
-                    }
+                    Err(e) => tracing::error!("Error setting egg as message: {e}"),
                 }
             }
         };

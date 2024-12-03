@@ -2,19 +2,15 @@ use chrono::{Datelike, NaiveTime, TimeDelta, Timelike};
 use rand::seq::SliceRandom;
 use rand::Rng;
 use serenity::all::{
-    CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage, EditChannel,
-    EditMember, EditMessage, PermissionOverwrite, PermissionOverwriteType, Permissions,
+    CreateMessage, EditChannel, PermissionOverwrite, PermissionOverwriteType, Permissions,
 };
-use serenity::gateway::ShardRunnerInfo;
-use serenity::model::id::ShardId;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use tokio::sync::Mutex;
 
 use poise::serenity_prelude::RoleId;
 
 use crate::database::ConfigKey;
-use crate::discord::{EGG_ROLE, JBUCK_EMOJI};
+use crate::discord::JBUCK_EMOJI;
 use crate::{
     database::{self, BalanceDatabase, ConfigDatabase, LotteryDatabase},
     game, Config, RoleDatabase,
@@ -31,21 +27,18 @@ pub struct Johnny {
     channel: poise::serenity_prelude::ChannelId,
     message_client: Option<Arc<poise::serenity_prelude::Http>>,
     dev_env: bool,
-    shards: Arc<Mutex<HashMap<ShardId, ShardRunnerInfo>>>,
     egg_channels: Vec<poise::serenity_prelude::ChannelId>,
 }
 
 impl Johnny {
     pub fn new(
         db: database::Database,
-        t: Arc<RwLock<RolePriceConfig>>,
+        price_config: Arc<RwLock<RolePriceConfig>>,
         config: Arc<RwLock<Config>>,
         channel: poise::serenity_prelude::ChannelId,
         client: &serenity::Client,
         dev_env: bool,
     ) -> Self {
-        let a = client.shard_manager.runners.clone();
-
         let channels = match dev_env {
             true => vec![poise::serenity_prelude::ChannelId::from(
                 1049453856620302386,
@@ -58,11 +51,10 @@ impl Johnny {
         Self {
             db,
             config,
-            price_config: t,
+            price_config,
             channel,
             message_client: Some(client.http.clone()),
             dev_env,
-            shards: a,
             egg_channels: channels,
         }
     }
